@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "865156466",
+    "project_id": "hobbyquest-a0203",
+    "storage_bucket": "hobbyquest-a0203.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:865156466:android:816e6770a4b82e268231eb",
+        "android_client_info": {
+          "package_name": "com.example.hobbyquest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgPSSbrZ4-2FoqCgd4QjJh09paELrwQlU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
