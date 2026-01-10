@@ -107,7 +107,7 @@ class _Step1ProfileState extends State<Step1Profile> {
 
             const SizedBox(height: 15),
 
-            Obx(() => Row(
+            Row(
               children: [
                 _buildGenderCard(controller, "Male", Icons.male_rounded, textTheme),
                 const SizedBox(width: 12),
@@ -115,7 +115,7 @@ class _Step1ProfileState extends State<Step1Profile> {
                 const SizedBox(width: 12),
                 _buildGenderCard(controller, "Other", Icons.person_rounded, textTheme),
               ],
-            )),
+            ),
             
             const SizedBox(height: 40),
 
@@ -125,7 +125,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               child: ElevatedButton(
                 onPressed: () {
                   print("--- VIEW: Continue Button Pressed ---");
-                  FocusManager.instance.primaryFocus?.unfocus();
+                  //FocusManager.instance.primaryFocus?.unfocus();
                   bool isFormValid = _formKey.currentState!.validate();
                   bool isGenderValid = controller.selectedGender.value.isNotEmpty;
 
@@ -159,10 +159,11 @@ class _Step1ProfileState extends State<Step1Profile> {
   }
 
   Widget _buildGenderCard(OnboardingController controller, String label, IconData icon, TextTheme textTheme) {
-    bool isSelected = controller.selectedGender.value == label;
-    bool isError = showGenderError && controller.selectedGender.value.isEmpty;
+    return Obx(() {
+      bool isSelected = controller.selectedGender.value == label;
+      bool isError = showGenderError && controller.selectedGender.value.isEmpty;
 
-    return Expanded(
+      return Expanded(
       child: Material(
         color: Colors.transparent, 
         child: InkWell(
@@ -208,6 +209,7 @@ class _Step1ProfileState extends State<Step1Profile> {
           ),
         ),
       ),
-    );
+      );
+    });
   }
 }

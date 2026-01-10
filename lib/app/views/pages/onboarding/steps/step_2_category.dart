@@ -71,7 +71,7 @@ class _Step2CategoryState extends State<Step2Category> {
 
           const SizedBox(height: 15),
 
-          Obx(() => GridView.builder(
+          GridView.builder(
             shrinkWrap: true, 
             physics: const NeverScrollableScrollPhysics(), 
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -83,9 +83,11 @@ class _Step2CategoryState extends State<Step2Category> {
             itemCount: categories.length,
             itemBuilder: (context, index) {
               final cat = categories[index];
-              final isSelected = controller.selectedCategory.value == cat['label'];
 
-              return Material(
+              return Obx(() {
+                final isSelected = controller.selectedCategory.value == cat['label'];
+
+                return Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
@@ -142,8 +144,9 @@ class _Step2CategoryState extends State<Step2Category> {
                   ),
                 ),
               );
+              });
             },
-          )),
+          ),
 
           const SizedBox(height: 30),
 
@@ -163,9 +166,9 @@ class _Step2CategoryState extends State<Step2Category> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 2,
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Text("NEXT STEP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   SizedBox(width: 8),
                   Icon(Icons.arrow_forward_rounded, size: 20),

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../controllers/onboarding_controller.dart';
-import '../../../routes/app_routes.dart'; // Import Routes
+import '../../../routes/app_routes.dart';
 import 'steps/step_1_profile.dart';
 import 'steps/step_2_category.dart';
+import 'steps/step_3_hobby.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
@@ -17,11 +18,12 @@ class OnboardingView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () {
-            // ✅ FIX: If on Step 1, Go back to Welcome Screen (Exit Wizard)
+            // If on Step 1, Go back to Welcome Screen (Exit Wizard)
             if (controller.currentPage.value == 0) {
               Get.offAllNamed(AppRoutes.WELCOME);
             } else {
@@ -40,16 +42,16 @@ class OnboardingView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
             child: Column(
               children: [
-                Obx(() => Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    Obx(() => Text(
                       "Step ${controller.currentPage.value + 1}",
                       style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
-                    ),
+                    )),
                     const Text("of $totalSteps", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                   ],
-                )),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   height: 12,
@@ -80,12 +82,12 @@ class OnboardingView extends StatelessWidget {
           Expanded(
             child: PageView(
               controller: controller.pageController,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(), // Disable swiping - navigation only via buttons
               onPageChanged: (index) => controller.currentPage.value = index,
               children: const [
                 Step1Profile(),
                 Step2Category(),
-                Scaffold(backgroundColor: Colors.transparent, body: Center(child: Text("Step 3: Hobby"))),
+                Step3Hobby(),
                 Scaffold(backgroundColor: Colors.transparent, body: Center(child: Text("Step 4: Level"))),
                 Scaffold(backgroundColor: Colors.transparent, body: Center(child: Text("Step 5: Goals"))),
               ],

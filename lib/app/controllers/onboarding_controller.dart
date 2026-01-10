@@ -6,7 +6,6 @@ import '../routes/app_routes.dart';
 
 class OnboardingController extends GetxController {
   // --- NAVIGATION ---
-  // ⚠️ FIX: Do not initialize here. Use 'late' or nullable.
   late PageController pageController; 
   var currentPage = 0.obs;
 
@@ -36,13 +35,12 @@ class OnboardingController extends GetxController {
   }
 
   // --- DEBUGGED NAVIGATION ---
-  void nextPage() {
+  Future<void> nextPage() async {
     print("--- CONTROLLER: nextPage() triggered ---");
     
     // 1. Check if the PageView is actually listening
     if (!pageController.hasClients) {
-      print("❌ CRITICAL ERROR: PageController has NO CLIENTS."); 
-      print("   (This means the PageView in OnboardingView is not using this controller)");
+      print(" CRITICAL ERROR: PageController has NO CLIENTS."); 
       return;
     }
 
@@ -51,22 +49,20 @@ class OnboardingController extends GetxController {
     if (currentPage.value < 4) {
       print("--- CONTROLLER: Animating to Page ${currentPage.value + 1}... ---");
       
-      pageController.nextPage(
+      await pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
-      ).then((_) {
-        print("--- CONTROLLER: Animation command sent successfully ---");
-      });
-      
+      );
+      print("--- DEBUG: Animation completed successfully ---");
     } else {
       print("--- CONTROLLER: Last page reached. Generating Plan. ---");
-      generateQuestPlan();
+      await generateQuestPlan();
     }
   }
 
-  void previousPage() {
+  Future<void> previousPage() async {
     if (currentPage.value > 0) {
-      pageController.previousPage(
+      await pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
