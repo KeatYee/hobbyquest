@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import '../controllers/auth_controller.dart'; // Make sure this path is correct!
+import '../controllers/auth_controller.dart'; 
 
 class InitialBinding extends Bindings {
   @override

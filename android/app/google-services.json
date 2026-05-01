@@ -12,7 +12,20 @@
           "package_name": "com.example.hobbyquest"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "865156466-omittjbi2vnkd4c8pvd0fgucv4m7bk03.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.hobbyquest",
+            "certificate_hash": "0863c5037abd585bd13983e392b133e7d1b33adc"
+          }
+        },
+        {
+          "client_id": "865156466-rpuri956r2srj9klucat5kfrfnlkgt5e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCgPSSbrZ4-2FoqCgd4QjJh09paELrwQlU"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "865156466-rpuri956r2srj9klucat5kfrfnlkgt5e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

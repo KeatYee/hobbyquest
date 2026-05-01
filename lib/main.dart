@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rive/rive.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/themes/app_theme.dart';
 import 'app/routes/app_pages.dart';
@@ -10,6 +12,7 @@ import 'app/controllers/auth_controller.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await RiveNative.init();
   runApp(const HobbyQuestApp());
 }
 

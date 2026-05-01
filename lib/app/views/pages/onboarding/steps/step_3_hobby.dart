@@ -15,44 +15,20 @@ class Step3Hobby extends StatefulWidget {
 class _Step3HobbyState extends State<Step3Hobby> {
   bool showError = false;
 
-  // 1. Define the specific hobbies for each Category
-  final Map<String, List<Map<String, dynamic>>> hobbyMap = {
-    "Creative Arts": [
-      {"label": "Painting", "icon": Icons.brush_rounded},
-      {"label": "Digital Art", "icon": Icons.monitor_rounded},
-      {"label": "Photography", "icon": Icons.camera_alt_rounded},
-      {"label": "Calligraphy", "icon": Icons.auto_stories_rounded},
-    ],
-    "Music & Performing": [
-      {"label": "Guitar", "icon": Icons.library_music_rounded},
-      {"label": "Piano", "icon": Icons.piano_rounded},
-      {"label": "Singing", "icon": Icons.mic_rounded},
-      {"label": "Dance", "icon": Icons.emoji_people_rounded},
-    ],
-    "Lifestyle & Wellness": [
-      {"label": "Yoga", "icon": Icons.self_improvement_rounded},
-      {"label": "Fitness/Gym", "icon": Icons.fitness_center_rounded},
-      {"label": "Meditation", "icon": Icons.spa_rounded},
-      {"label": "Cooking", "icon": Icons.restaurant_menu_rounded},
-    ],
-    "Skill & Strategy": [
-      {"label": "Coding", "icon": Icons.terminal_rounded},
-      {"label": "Chess", "icon": Icons.grid_on_rounded},
-      {"label": "Language", "icon": Icons.translate_rounded},
-      {"label": "Public Speaking", "icon": Icons.record_voice_over_rounded},
-    ],
-  };
-
   @override
   Widget build(BuildContext context) {
     final OnboardingController controller = Get.find();
 
     return Obx(() {
-      // 2. Listen to the category selected in Step 2
+      // Get selected category name
       String parentCategory = controller.selectedCategory.value;
       
-      // 3. Get the list of hobbies (Default to empty list if something goes wrong)
-      List<Map<String, dynamic>> currentHobbies = hobbyMap[parentCategory] ?? [];
+      // Find the category model from fetched data
+      final selectedCategoryModel = controller.categories.value
+          .firstWhereOrNull((cat) => cat.name == parentCategory);
+      
+      // Get hobbies from the category, or empty list as fallback
+      List<String> currentHobbies = selectedCategoryModel?.hobbies ?? [];
 
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
@@ -106,8 +82,8 @@ class _Step3HobbyState extends State<Step3Hobby> {
               ),
               itemCount: currentHobbies.length,
               itemBuilder: (context, index) {
-                final hobby = currentHobbies[index];
-                return _buildHobbyCard(controller, hobby);
+                final hobbyName = currentHobbies[index];
+                return _buildHobbyCard(controller, hobbyName);
               },
             ),
 
@@ -146,15 +122,15 @@ class _Step3HobbyState extends State<Step3Hobby> {
   }
 
   // Extracted widget for cleaner code
-  Widget _buildHobbyCard(OnboardingController controller, Map<String, dynamic> hobby) {
+  Widget _buildHobbyCard(OnboardingController controller, String hobbyName) {
     return Obx(() {
-      final isSelected = controller.selectedHobby.value == hobby['label'];
+      final isSelected = controller.selectedHobby.value == hobbyName;
 
       return Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            controller.selectedHobby.value = hobby['label'];
+            controller.selectedHobby.value = hobbyName;
             if (showError) setState(() => showError = false);
           },
           borderRadius: BorderRadius.circular(16),
@@ -181,13 +157,13 @@ class _Step3HobbyState extends State<Step3Hobby> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  hobby['icon'],
+                  Icons.star_rounded,
                   size: 36,
                   color: isSelected ? AppColors.primary : Colors.grey,
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  hobby['label'],
+                  hobbyName,
                   style: GoogleFonts.openSans(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,

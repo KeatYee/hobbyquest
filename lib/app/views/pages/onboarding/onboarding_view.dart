@@ -6,6 +6,8 @@ import '../../../routes/app_routes.dart';
 import 'steps/step_1_profile.dart';
 import 'steps/step_2_category.dart';
 import 'steps/step_3_hobby.dart';
+import 'steps/step_4_level.dart';
+import 'steps/step_5_goals.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
@@ -88,8 +90,8 @@ class OnboardingView extends StatelessWidget {
                 Step1Profile(),
                 Step2Category(),
                 Step3Hobby(),
-                Scaffold(backgroundColor: Colors.transparent, body: Center(child: Text("Step 4: Level"))),
-                Scaffold(backgroundColor: Colors.transparent, body: Center(child: Text("Step 5: Goals"))),
+                Step4Level(),
+                Step5Goals(),
               ],
             ),
           ),

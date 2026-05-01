@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../../core/constants/asset_constants.dart';
-import '../../routes/app_routes.dart'; 
+import '../../routes/app_routes.dart';
+import '../widgets/rive_animation_widget.dart'; 
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -42,9 +43,9 @@ class WelcomePage extends StatelessWidget {
 
               const Spacer(flex: 1), 
 
-              // 🦊 3. THE GIANT MASCOT
-              Image.asset(
-                AppAssets.foxHappy,
+              // 3. THE MASCOT
+              RiveAnimationWidget(
+                assetPath: AppAssets.hobieRive,
                 height: 300,
                 fit: BoxFit.contain,
               ),

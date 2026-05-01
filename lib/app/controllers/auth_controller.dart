@@ -10,10 +10,10 @@ class AuthController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    _checkUserStatus();
+    checkUserStatus();
   }
 
-  Future<void> _checkUserStatus() async {
+  Future<void> checkUserStatus() async {
     // 1. Check if user is logged into Firebase Auth
     User? currentUser = _auth.currentUser;
 
@@ -21,17 +21,33 @@ class AuthController extends GetxController {
       // Case A: Not logged in at all -> Go to Welcome/Login
       Get.offAllNamed(AppRoutes.WELCOME);
     } else {
-      // Case B: Logged in! But did they finish onboarding?
-      // Check if their document exists in the 'users' collection
-      final userDoc = await _db.collection('users').doc(currentUser.uid).get();
+      try {
+        // Case B: Logged in! But did they finish onboarding?
+        // Check if their document exists in the 'users' collection
+        final userDoc = await _db
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
 
-      if (userDoc.exists) {
-        // Case B1: Profile exists -> Go to Home
-        Get.offAllNamed(AppRoutes.HOME);
-      } else {
-        // Case B2: Zombie User (Auth yes, Data no) -> Force back to Onboarding
-        print("User has account but no profile. Redirecting to Onboarding...");
-        Get.offAllNamed(AppRoutes.ONBOARDING);
+        if (userDoc.exists) {
+          // Case B1: Profile exists -> Go to Dashboard
+          Get.offAllNamed(AppRoutes.DASHBOARD);
+        } else {
+          // Case B2: Zombie User (Auth yes, Data no) -> Force back to Onboarding
+          print(
+            "User has account but no profile. Redirecting to Onboarding...",
+          );
+          Get.offAllNamed(AppRoutes.ONBOARDING);
+        }
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          print(
+            "Firestore denied reading users/${currentUser.uid}. Check Firestore rules for the users collection.",
+          );
+          Get.offAllNamed(AppRoutes.WELCOME);
+        } else {
+          rethrow;
+        }
       }
     }
   }

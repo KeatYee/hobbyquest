@@ -6,6 +6,8 @@ import '../views/pages/welcome_page.dart';
 import '../views/pages/login_page.dart';
 import '../views/pages/onboarding/onboarding_view.dart';
 import '../views/pages/home_page.dart';
+import '../views/pages/dashboard_page.dart';
+import '../bindings/onboarding_binding.dart';
 
 class AppPages {
   // 1. The first page users see
@@ -26,7 +28,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.ONBOARDING,
       page: () => const OnboardingView(),
-      // We will add OnboardingBinding() here later!
+      binding: OnboardingBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.DASHBOARD,
+      page: () => const DashboardPage(),
     ),
     GetPage(
       name: AppRoutes.HOME,

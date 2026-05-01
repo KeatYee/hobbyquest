@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../../core/utils/validators.dart'; // Using your custom validator file
+import '../../controllers/auth_controller.dart';
 import '../../routes/app_routes.dart'; 
 import '../widgets/mascot_widget.dart';
 
@@ -20,6 +23,17 @@ class _LoginPageState extends State<LoginPage> {
   // Controllers to retrieve text from input fields
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  // Use GoogleSignIn instance singleton
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  
+  // Track the current Google user from authenticationEvents stream
+  GoogleSignInAccount? _currentGoogleUser;
+  
+  // Stream subscription to manage listener lifecycle
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventSubscription;
+  
+  // Track initialization
+  bool _isInitialized = false;
   
   // State variables to manage UI mode and loading status
   late bool isRegisterMode;
@@ -29,14 +43,50 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _initializeGoogleSignIn();
+    
     // Retrieve arguments passed from the Welcome Page
     // Defaults to 'false' (Login mode) if no arguments are found
     final args = Get.arguments ?? {};
     isRegisterMode = args['isRegistering'] ?? false;
   }
 
+  /// Initialize Google Sign-In and listen to authentication events
+  Future<void> _initializeGoogleSignIn() async {
+    try {
+      // Initialize Google Sign-In
+      await _googleSignIn.initialize();
+      
+      // Listen to authentication events (sign-in and sign-out)
+      // This is the modern recommended way to track the logged-in user
+      _authEventSubscription = _googleSignIn.authenticationEvents.listen(
+        (event) {
+          // Only update state if widget is still mounted
+          if (!mounted) return;
+          
+          setState(() {
+            _currentGoogleUser = switch (event) {
+              GoogleSignInAuthenticationEventSignIn() => event.user,
+              GoogleSignInAuthenticationEventSignOut() => null,
+            };
+          });
+          print("--- GOOGLE AUTH EVENT: ${_currentGoogleUser?.email ?? 'signed out'} ---");
+        },
+      );
+      
+      _isInitialized = true;
+      print("--- GOOGLE SIGN-IN INITIALIZED ---");
+    } catch (e) {
+      print("--- ERROR: Failed to initialize Google Sign-In: $e ---");
+      _isInitialized = true; // Mark as initialized even if failed
+    }
+  }
+
   @override
   void dispose() {
+    // Cancel Google Sign-In event subscription to prevent setState after dispose
+    _authEventSubscription?.cancel();
+    
     // Dispose controllers to free up memory when the widget is removed
     emailController.dispose();
     passwordController.dispose();
@@ -104,8 +154,9 @@ class _LoginPageState extends State<LoginPage> {
             backgroundColor: AppColors.accent, 
             colorText: Colors.white
           );
-          // Navigate to Home Dashboard
-          Get.offAllNamed(AppRoutes.HOME); 
+          // Use checkUserStatus() to verify profile exists (same as Google Sign-In)
+          // This ensures we don't send users to DASHBOARD if their profile is missing
+          await Get.find<AuthController>().checkUserStatus();
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -114,7 +165,7 @@ class _LoginPageState extends State<LoginPage> {
       print("--- FIREBASE EXCEPTION: ${e.code} ---"); // Debug: Firebase Error Code
       
       String message = "Authentication failed.";
-      if (e.code == 'user-not-found') message = "No hero found with that email.";
+      if (e.code == 'user-not-found') message = "No user found with that email.";
       if (e.code == 'wrong-password') message = "Wrong password!";
       if (e.code == 'email-already-in-use') message = "That email is already taken!";
       if (e.code == 'network-request-failed') message = "Check your internet connection!";
@@ -143,6 +194,98 @@ class _LoginPageState extends State<LoginPage> {
       // Step 6: Reset Loading State
       // This runs regardless of success or failure to ensure the button unlocks
       print("--- STATUS: Resetting Loading State ---"); // Debug: Cleanup
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> handleGoogleSignIn() async {
+    print("--- GOOGLE SIGN-IN STARTED ---");
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => isLoading = true);
+
+    try {
+      // Ensure initialization is complete before attempting sign-in
+      if (!_isInitialized) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      // Check if platform supports authenticate (important for cross-platform support)
+      if (_googleSignIn.supportsAuthenticate()) {
+        // Use the modern authenticate() method with scopeHint for email
+        await _googleSignIn.authenticate(
+          scopeHint: ['email', 'profile'],
+        );
+        print("--- GOOGLE AUTHENTICATE COMPLETED ---");
+      } else {
+        throw Exception('This platform does not support Google Sign-In authenticate()');
+      }
+
+      // Wait for the authenticationEvents listener to process and update _currentGoogleUser
+      // The event listener is the only source of truth for the signed-in user
+      int attempts = 0;
+      while (_currentGoogleUser == null && attempts < 5) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        attempts++;
+      }
+
+      // Get the signed-in user from the tracked authenticationEvents stream
+      final googleUser = _currentGoogleUser;
+      
+      if (googleUser == null) {
+        print("--- GOOGLE SIGN-IN CANCELLED ---");
+        return;
+      }
+
+      print("--- GOOGLE USER: ${googleUser.email} ---");
+
+      // Get authentication tokens
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in with Firebase using the Google credential
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      print("--- FIREBASE SIGN-IN SUCCESS ---");
+
+      if (mounted) {
+        Get.snackbar(
+          "Welcome",
+          "Google account linked successfully.",
+          backgroundColor: AppColors.accent,
+          colorText: Colors.white,
+        );
+
+        await Get.find<AuthController>().checkUserStatus();
+      }
+    } on FirebaseAuthException catch (e) {
+      print("--- FIREBASE AUTH EXCEPTION: ${e.code} ---");
+
+      String message = "Google sign-in failed.";
+      if (e.code == 'account-exists-with-different-credential') {
+        message = "That email is already linked to another sign-in method.";
+      } else if (e.code == 'network-request-failed') {
+        message = "Check your internet connection!";
+      }
+
+      Get.snackbar(
+        "Error",
+        message,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      print("--- GOOGLE SIGN-IN EXCEPTION: $e ---");
+
+      Get.snackbar(
+        "Error",
+        "Something unexpected happened: $e",
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+    } finally {
+      print("--- GOOGLE SIGN-IN COMPLETE ---");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -222,6 +365,18 @@ class _LoginPageState extends State<LoginPage> {
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
                         ) 
                       : Text(isRegisterMode ? 'START GAME' : 'LOGIN'),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading ? null : handleGoogleSignIn,
+                    icon: const Icon(Icons.login),
+                    label: const Text('CONTINUE WITH GOOGLE'),
                   ),
                 ),
                 
