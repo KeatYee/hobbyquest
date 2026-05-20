@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../controllers/onboarding_controller.dart';
-import '../../../routes/app_routes.dart';
 import 'steps/step_1_profile.dart';
 import 'steps/step_2_category.dart';
-import 'steps/step_3_hobby.dart';
-import 'steps/step_4_level.dart';
-import 'steps/step_5_goals.dart';
+import 'steps/step_3_level.dart';
+import 'steps/step_4_goals.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
@@ -16,24 +14,22 @@ class OnboardingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(OnboardingController());
     
-    const int totalSteps = 5; 
+    const int totalSteps = 4; 
 
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () {
-            // If on Step 1, Go back to Welcome Screen (Exit Wizard)
-            if (controller.currentPage.value == 0) {
-              Get.offAllNamed(AppRoutes.WELCOME);
-            } else {
-              // Otherwise, just go to previous step
-              controller.previousPage();
-            }
-          },
-        ),
+        leading: Obx(() {
+          if (controller.currentPage.value == 0) {
+            return const SizedBox.shrink();
+          }
+
+          return IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: controller.previousPage,
+          );
+        }),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -70,7 +66,7 @@ class OnboardingView extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
-                          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 6, offset: const Offset(0, 2))],
                         ),
                       ),
                     );
@@ -89,9 +85,8 @@ class OnboardingView extends StatelessWidget {
               children: const [
                 Step1Profile(),
                 Step2Category(),
-                Step3Hobby(),
-                Step4Level(),
-                Step5Goals(),
+                Step3Level(),
+                Step4Goals(),
               ],
             ),
           ),

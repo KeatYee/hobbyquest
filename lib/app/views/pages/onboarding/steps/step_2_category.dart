@@ -14,6 +14,7 @@ class Step2Category extends StatefulWidget {
 
 class _Step2CategoryState extends State<Step2Category> {
   bool showError = false;
+  static const Color _blazeOrange = Color(0xFFFF6B00);
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +24,15 @@ class _Step2CategoryState extends State<Step2Category> {
       final categoryList = controller.categories.value;
       final isLoading = controller.isLoadingCategories.value;
 
+      final activeCategoryName = controller.selectedCategory.value.isNotEmpty
+          ? controller.selectedCategory.value
+          : (categoryList.isNotEmpty ? categoryList.first.name : "");
+
+      final activeCategoryModel = categoryList.firstWhereOrNull(
+        (cat) => cat.name == activeCategoryName,
+      );
+      final currentHobbies = activeCategoryModel?.hobbies ?? <String>[];
+
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
         child: Column(
@@ -30,11 +40,11 @@ class _Step2CategoryState extends State<Step2Category> {
           children: [
             const MascotWidget(
               emotion: 'happy',
-              message: "Exciting! What kind of skill do you want to master?",
+              message: "Pick your path, then lock in your hobby. Tap around and find your vibe!",
             ),
             const SizedBox(height: 30),
             Text(
-              "CHOOSE A PATH",
+              "CHOOSE YOUR PATH",
               style: GoogleFonts.openSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -42,7 +52,8 @@ class _Step2CategoryState extends State<Step2Category> {
                 letterSpacing: 1.0,
               ),
             ),
-            if (showError && controller.selectedCategory.value.isEmpty)
+            const SizedBox(height: 12),
+            if (showError && controller.selectedHobby.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
@@ -50,7 +61,7 @@ class _Step2CategoryState extends State<Step2Category> {
                     const Icon(Icons.error_outline, size: 16, color: AppColors.error),
                     const SizedBox(width: 5),
                     Text(
-                      "Please select a path to continue",
+                      "Select a hobby to continue",
                       style: TextStyle(
                         color: AppColors.error,
                         fontSize: 12,
@@ -73,29 +84,205 @@ class _Step2CategoryState extends State<Step2Category> {
                   ],
                 ),
               )
-            else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.3,
+            else ...[
+              SizedBox(
+                height: 52,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categoryList.length > 4 ? 4 : categoryList.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final category = categoryList[index];
+                    final categoryName = category.name;
+                    final isSelected = activeCategoryName == categoryName;
+
+                    return ChoiceChip(
+                      selected: isSelected,
+                      label: Text(
+                        categoryName,
+                        style: GoogleFonts.openSans(
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                      avatar: Text(category.icon),
+                      selectedColor: _blazeOrange,
+                      backgroundColor: Colors.white,
+                      side: BorderSide(
+                        color: isSelected ? _blazeOrange : Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      onSelected: (_) {
+                        controller.selectedCategory.value = categoryName;
+                        controller.selectedHobby.value = "";
+                        if (showError) {
+                          setState(() => showError = false);
+                        }
+                      },
+                    );
+                  },
                 ),
-                itemCount: categoryList.length,
-                itemBuilder: (context, index) {
-                  final category = categoryList[index];
-                  return _buildCategoryCard(controller, category);
-                },
               ),
+              const SizedBox(height: 22),
+              Text(
+                "PICK A HOBBY",
+                style: GoogleFonts.openSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    alignment: Alignment.topCenter,
+                    children: <Widget>[
+                      ...previousChildren.map((child) => IgnorePointer(child: child)),
+                      if (currentChild != null) currentChild,
+                    ],
+                  );
+                },
+                transitionBuilder: (child, animation) {
+                  final offsetAnimation = Tween<Offset>(
+                    begin: const Offset(0.18, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return ClipRect(
+                    child: SlideTransition(
+                      position: offsetAnimation,
+                      child: FadeTransition(opacity: animation, child: child),
+                    ),
+                  );
+                },
+                child: GridView.builder(
+                  key: ValueKey("$activeCategoryName-${controller.selectedHobby.value}"),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: currentHobbies.length,
+                  itemBuilder: (context, index) {
+                    final hobbyName = currentHobbies[index];
+                    final isSelected = controller.selectedHobby.value == hobbyName;
+                    final isLocked = hobbyName != "Drawing";
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: isLocked ? null : () {
+                              controller.selectedCategory.value = activeCategoryName;
+                              controller.selectedHobby.value = hobbyName;
+                              if (showError) {
+                                setState(() => showError = false);
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOut,
+                              decoration: BoxDecoration(
+                                color: isLocked
+                                    ? Colors.grey.withValues(alpha: 0.08)
+                                    : (isSelected ? _blazeOrange.withValues(alpha: 0.12) : Colors.white),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isLocked
+                                      ? Colors.grey.withValues(alpha: 0.15)
+                                      : (isSelected ? _blazeOrange : Colors.grey.withValues(alpha: 0.2)),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isLocked
+                                        ? Colors.black.withValues(alpha: 0.02)
+                                        : (isSelected
+                                            ? _blazeOrange.withValues(alpha: 0.25)
+                                            : Colors.black.withValues(alpha: 0.05)),
+                                    blurRadius: isSelected ? 14 : 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isLocked ? Icons.lock_rounded : Icons.local_fire_department_rounded,
+                                    size: 30,
+                                    color: isLocked
+                                        ? Colors.grey.withValues(alpha: 0.4)
+                                        : (isSelected ? _blazeOrange : Colors.grey),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text(
+                                      hobbyName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.openSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: isLocked
+                                            ? Colors.grey.withValues(alpha: 0.5)
+                                            : (isSelected ? _blazeOrange : AppColors.textPrimary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (isLocked)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withValues(alpha: 0.7),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.lock,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
                 onPressed: () {
-                  if (controller.selectedCategory.value.isEmpty) {
+                  if (controller.selectedCategory.value.isEmpty && activeCategoryName.isNotEmpty) {
+                    controller.selectedCategory.value = activeCategoryName;
+                  }
+                  if (controller.selectedHobby.value.isEmpty) {
                     setState(() => showError = true);
                   } else {
                     controller.nextPage();
@@ -116,68 +303,6 @@ class _Step2CategoryState extends State<Step2Category> {
               ),
             ),
           ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildCategoryCard(OnboardingController controller, dynamic category) {
-    String categoryName = category.name ?? category;
-    String categoryIcon = category.icon ?? "📌";
-
-    return Obx(() {
-      final isSelected = controller.selectedCategory.value == categoryName;
-
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            controller.selectedCategory.value = categoryName;
-            if (showError) setState(() => showError = false);
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: (showError && controller.selectedCategory.value.isEmpty)
-                    ? AppColors.error
-                    : (isSelected ? AppColors.primary : Colors.transparent),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? AppColors.primary.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  categoryIcon,
-                  style: const TextStyle(fontSize: 36),
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    categoryName,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.openSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       );
     });

@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../models/user_model.dart';
 import '../../routes/app_routes.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -25,65 +27,90 @@ class ProfilePage extends StatelessWidget {
           ? Center(
               child: Text("Not logged in", style: TextStyle(color: AppColors.textSecondary)),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // User Avatar & Basic Info
-                  Center(
-                    child: Column(
-                      children: [
-                        // Avatar
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: AppColors.primaryLight,
-                          backgroundImage: currentUser.photoURL != null
-                              ? NetworkImage(currentUser.photoURL!)
-                              : null,
-                          child: currentUser.photoURL == null
-                              ? const Icon(Icons.person_rounded, size: 40, color: AppColors.primary)
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
+          : FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUser.uid)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                        // User Name
-                        Text(
-                          currentUser.displayName ?? "Player",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Center(child: Text("No profile data found"));
+                }
 
-                        // User Email
-                        Text(
-                          currentUser.email ?? "No email",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final userModel = UserModel.fromJson(data, currentUser.uid);
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Avatar and avatar name only
+                      Center(
+                        child: Column(
+                          children: [
+                            _buildAvatar(userModel.avatarSvg),
+                            const SizedBox(height: 16),
+                            Text(
+                              userModel.nickname,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // User Stats Section
+                      _buildStatsSection(),
+                      const SizedBox(height: 40),
+
+                      // Account Settings Section
+                      _buildAccountSettingsSection(currentUser, userModel),
+                      const SizedBox(height: 40),
+
+                      // General Settings Section
+                      _buildSettingsSection(),
+                      const SizedBox(height: 40),
+
+                      // Logout Button
+                      _buildLogoutButton(context),
+                    ],
                   ),
-                  const SizedBox(height: 40),
-
-                  // User Stats Section
-                  _buildStatsSection(),
-                  const SizedBox(height: 40),
-
-                  // Settings Section
-                  _buildSettingsSection(),
-                  const SizedBox(height: 40),
-
-                  // Logout Button
-                  _buildLogoutButton(context),
-                ],
-              ),
+                );
+              },
             ),
+    );
+  }
+
+  Widget _buildAvatar(String avatarSvg) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary, width: 2),
+      ),
+      child: CircleAvatar(
+        radius: 50,
+        backgroundColor: AppColors.primaryLight,
+        child: avatarSvg.isNotEmpty
+            ? ClipOval(
+                child: SvgPicture.string(
+                  avatarSvg,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              )
+            : const Icon(Icons.person_rounded, size: 40, color: AppColors.primary),
+      ),
     );
   }
 
@@ -103,9 +130,10 @@ class ProfilePage extends StatelessWidget {
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
-        final level = data['level'] ?? 1;
-        final xp = data['currentXp'] ?? 0;
-        final streak = data['currentStreak'] ?? 0;
+        final totalXP = data['totalXP'] ?? (((data['level'] ?? 1) - 1) * 1000 + (data['currentXp'] ?? 0));
+        final level = (totalXP ~/ 1000) + 1;
+        final xp = totalXP % 1000;
+        final xpToNextLevel = 1000 - xp;
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -133,8 +161,8 @@ class ProfilePage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatItem("Level", level.toString(), Icons.stars_rounded, AppColors.primary),
-                  _buildStatItem("XP", xp.toString(), Icons.flash_on_rounded, Colors.amber),
-                  _buildStatItem("Streak", streak.toString(), Icons.local_fire_department_rounded, Colors.red),
+                  _buildStatItem("Total XP", totalXP.toString(), Icons.flash_on_rounded, Colors.amber),
+                  _buildStatItem("Next Level", xpToNextLevel.toString(), Icons.rocket_launch_rounded, Colors.red),
                 ],
               ),
             ],
@@ -193,6 +221,42 @@ class ProfilePage extends StatelessWidget {
           title: "Help & Support",
           subtitle: "Get help with HobbyQuest",
           onTap: () => Get.snackbar("Coming Soon", "Support coming soon!"),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAccountSettingsSection(User currentUser, UserModel userModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "ACCOUNT SETTINGS",
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textSecondary,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSettingsTile(
+          icon: Icons.email_outlined,
+          title: "Email",
+          subtitle: currentUser.email ?? "No email",
+          onTap: () {},
+        ),
+        _buildSettingsTile(
+          icon: Icons.badge_outlined,
+          title: "Avatar Name",
+          subtitle: userModel.nickname,
+          onTap: () {},
+        ),
+        _buildSettingsTile(
+          icon: Icons.calendar_today_outlined,
+          title: "Birth Date",
+          subtitle: userModel.birthDate.isNotEmpty ? userModel.birthDate : "Not set",
+          onTap: () {},
         ),
       ],
     );

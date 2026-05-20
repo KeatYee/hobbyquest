@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:avatar_maker/avatar_maker.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/utils/validators.dart'; 
 import '../../../../controllers/onboarding_controller.dart';
@@ -15,6 +16,33 @@ class Step1Profile extends StatefulWidget {
 class _Step1ProfileState extends State<Step1Profile> {
   final _formKey = GlobalKey<FormState>();
   bool showGenderError = false; 
+  final NonPersistentAvatarMakerController _avatarController =
+      NonPersistentAvatarMakerController();
+
+  String _avatarSvg = '';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _avatarController.initController().then((_) {
+      if (!mounted) return;
+
+      final avatarSvg = _avatarController.getAvatarSVGSync();
+      setState(() {
+        _avatarSvg = avatarSvg;
+      });
+
+      final controller = Get.find<OnboardingController>();
+      controller.updateAvatar(avatarSvg);
+    });
+  }
+
+  @override
+  void dispose() {
+    _avatarController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +61,99 @@ class _Step1ProfileState extends State<Step1Profile> {
               emotion: 'happy',
               message: "Hi! I'm Hobie. Before we start your adventure, I need to know who you are!",
             ),
+            const SizedBox(height: 30),
+
+            Text(
+              "YOUR AVATAR",
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  AvatarMakerAvatar(
+                    radius: 62,
+                    backgroundColor: AppColors.primaryLight,
+                    controller: _avatarController,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AvatarMakerRandomWidget(
+                      controller: _avatarController,
+                      radius: 24,
+                      splashColor: AppColors.primary,
+                      onTap: () {
+                        if (!mounted) return;
+                        final avatarSvg = _avatarController.getAvatarSVGSync();
+                        setState(() {
+                          _avatarSvg = avatarSvg;
+                        });
+                        final controller = Get.find<OnboardingController>();
+                        controller.updateAvatar(avatarSvg);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Customize your hero look",
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 260,
+                    child: AvatarMakerCustomizer(
+                      controller: _avatarController,
+                      scaffoldHeight: 260,
+                      scaffoldWidth: MediaQuery.sizeOf(context).width - 48,
+                      autosave: false,
+                      onChange: (avatarSvg) {
+                        if (!mounted) return;
+
+                        setState(() {
+                          _avatarSvg = avatarSvg;
+                        });
+
+                        final controller = Get.find<OnboardingController>();
+                        controller.updateAvatar(avatarSvg);
+                      },
+                    ),
+                  ),
+                  if (_avatarSvg.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      "Avatar ready",
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
             const SizedBox(height: 30),
 
             // ✅ Section Title using Theme
@@ -59,38 +180,12 @@ class _Step1ProfileState extends State<Step1Profile> {
             ),
             const SizedBox(height: 20),
 
-            // Birth Date Input
-            TextFormField(
-              controller: controller.age,
-              readOnly: true, 
-              decoration: const InputDecoration(
-                labelText: "Birth Date",
-                hintText: "YYYY-MM-DD",
-                prefixIcon: Icon(Icons.calendar_month_rounded),
-              ),
-              validator: Validators.validateDate,
-              onTap: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), 
-                  firstDate: DateTime(1900),
-                  lastDate: DateTime.now(),
-                  // Theme data is inherited automatically
-                );
-                if (pickedDate != null) {
-                  controller.age.text = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-                }
-              },
-            ),
-            const SizedBox(height: 30),
-
             Text("Character Type", style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900, 
               fontSize: 18,
               letterSpacing: 1.0
             )),
             
-            // Inline Error
             if (showGenderError && controller.selectedGender.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 5.0),
@@ -115,6 +210,31 @@ class _Step1ProfileState extends State<Step1Profile> {
                 const SizedBox(width: 12),
                 _buildGenderCard(controller, "Other", Icons.person_rounded, textTheme),
               ],
+            ),
+
+            const SizedBox(height: 30),
+
+            // Birth Date Input
+            TextFormField(
+              controller: controller.age,
+              readOnly: true, 
+              decoration: const InputDecoration(
+                labelText: "Birth Date",
+                hintText: "YYYY-MM-DD",
+                prefixIcon: Icon(Icons.calendar_month_rounded),
+              ),
+              validator: Validators.validateDate,
+              onTap: () async {
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), 
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                );
+                if (pickedDate != null) {
+                  controller.age.text = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                }
+              },
             ),
             
             const SizedBox(height: 40),
@@ -176,7 +296,7 @@ class _Step1ProfileState extends State<Step1Profile> {
             duration: const Duration(milliseconds: 200),
             height: 100,
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isError ? AppColors.error : (isSelected ? AppColors.primary : Colors.transparent),
@@ -184,7 +304,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: isSelected ? AppColors.primary.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                    color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

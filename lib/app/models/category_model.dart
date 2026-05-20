@@ -14,12 +14,16 @@ class CategoryModel {
   });
 
   // Factory to create from Firestore JSON
-  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+  // `docId` is optional and, when provided, will be used as the canonical
+  // identifier for the category (Firestore document id). This keeps the
+  // source-of-truth in Firestore rather than relying on an `id` field inside
+  // the document data.
+  factory CategoryModel.fromJson(Map<String, dynamic> json, String docId) {
     return CategoryModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      icon: json['icon'] ?? '',
+      id: docId,
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      icon: json['icon'] as String? ?? '',
       hobbies: List<String>.from(json['hobbies'] ?? []),
     );
   }

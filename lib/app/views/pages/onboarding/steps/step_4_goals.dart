@@ -1,30 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
-import '../../../../../../core/utils/validators.dart';
 import '../../../../controllers/onboarding_controller.dart';
 import '../../../widgets/mascot_widget.dart';
 
-class Step5Goals extends StatefulWidget {
-  const Step5Goals({super.key});
+class Step4Goals extends StatefulWidget {
+  const Step4Goals({super.key});
 
   @override
-  State<Step5Goals> createState() => _Step5GoalsState();
+  State<Step4Goals> createState() => _Step4GoalsState();
 }
 
-class _Step5GoalsState extends State<Step5Goals> {
+class _Step4GoalsState extends State<Step4Goals> {
   // GlobalKey for Form Validation (Text Input)
   final _formKey = GlobalKey<FormState>();
   
   // Local state to track Frequency validation error
   bool showFrequencyError = false;
 
+  String? selectedPredefinedGoal;
+
   final List<String> frequencyOptions = [
-    "15 mins/day",
-    "30 mins/day",
-    "1 hour/day",
-    "Weekends Only",
+    "15 mins/task",
+    "30 mins/task",
+    "1 hour/task",
   ];
+
+  /// Get predefined goals based on selected hobby and skill level
+  List<String> _getPredefinedGoals(String hobby, String level) {
+    if (hobby == "Drawing") {
+      if (level == "Novice") {
+        return [
+          "Learn basic shading",
+          "Sketch a coffee cup",
+          "Draw a simple cartoon",
+        ];
+      } else if (level == "Intermediate") {
+        return [
+          "Draw a realistic portrait",
+          "Master 2-point perspective",
+          "Learn to draw hands",
+        ];
+      } else if (level == "Expert") {
+        return [
+          "Design dynamic action poses",
+          "Complete a full anatomy study",
+          "Master hyper-realistic lighting",
+        ];
+      }
+    }
+    // Fallback for other hobbies (currently all locked except Drawing)
+    return [
+      "Master the fundamentals",
+      "Complete a challenging project",
+      "Teach someone else",
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,13 +87,46 @@ class _Step5GoalsState extends State<Step5Goals> {
             )),
             const SizedBox(height: 15),
 
+            // Predefined Goals Dropdown
+            Obx(() {
+              final hobby = controller.selectedHobby.value.isNotEmpty
+                  ? controller.selectedHobby.value
+                  : "Drawing";
+              final level = controller.selectedLevel.value;
+              final dynamicGoals = _getPredefinedGoals(hobby, level);
+
+              return DropdownButtonFormField<String>(
+                initialValue: selectedPredefinedGoal,
+                hint: const Text("Pick a goal template..."),
+                decoration: const InputDecoration(
+                  labelText: "Quick Start Goals",
+                  prefixIcon: Icon(Icons.lightbulb_rounded),
+                ),
+                items: dynamicGoals.map((goal) {
+                  return DropdownMenuItem<String>(
+                    value: goal,
+                    child: Text(goal),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedPredefinedGoal = value;
+                    if (value != null) {
+                      controller.goalInput.text = value;
+                    }
+                  });
+                },
+              );
+            }),
+            const SizedBox(height: 20),
+
             // Custom Goal Input
             // Uses AppTheme styles automatically
             TextFormField(
               controller: controller.goalInput,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: "I want to achieve...",
+                labelText: "Or write your own goal...",
                 hintText: "e.g. Play a full song on guitar",
                 prefixIcon: Icon(Icons.flag_rounded),
               ),

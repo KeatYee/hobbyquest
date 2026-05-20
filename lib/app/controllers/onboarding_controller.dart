@@ -4,13 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../routes/app_routes.dart';
 import '../models/quest_plan_model.dart';
+import '../models/milestone_model.dart';
 import '../models/category_model.dart';
+import '../models/user_model.dart';
 import '../services/category_service.dart';
+import '../services/gemini_service.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
 
 class OnboardingController extends GetxController {
 
   final CategoryService _categoryService = CategoryService();
+  final GeminiService _geminiService = GeminiService();
 
   late PageController pageController; // Controller for PageView
   var currentPage = 0.obs; // Track current onboarding step
@@ -24,27 +28,33 @@ class OnboardingController extends GetxController {
   final nickname = TextEditingController();
   final age = TextEditingController();
   var selectedGender = "".obs;
+  var avatarSvg = "".obs;
 
-  // --- STEP 2: CATEGORY ---
+  void updateAvatar(String svg) {
+    avatarSvg.value = svg;
+  }
+
+  // --- STEP 2: CATEGORY + HOBBY ---
   var selectedCategory = "".obs;
-
-  // --- STEP 3: HOBBY ---
   var selectedHobby = "".obs;
 
-  // --- STEP 4: LEVEL ---
+  // --- STEP 3: LEVEL ---
   var selectedLevel = "Novice".obs;
 
-  // --- STEP 5: GOALS ---
+  // --- STEP 4: GOALS ---
   var frequency = "15 mins/day".obs;
   final goalInput = TextEditingController();
 
   // --- THE GENERATED PLAN (For Summary View) ---
   var generatedPlan = Rx<QuestPlanModel>(
     QuestPlanModel(
-      targetBoss: "", 
-      duration: "", 
-      dailyCommitment: "", 
-      milestones: []
+      hobbyName: "",
+      skillLevel: "",
+      customGoal: "",
+      frequency: "",
+      progress: 0,
+      milestones: [],
+      quests: []
     )
   );
 
@@ -87,13 +97,13 @@ class OnboardingController extends GetxController {
     // Close keyboard to prevent animation crashes
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // If we are on Step 5 (Index 4), Generate Plan.
-    if (currentPage.value == 4) {
+    // If we are on final step (Goals), generate plan.
+    if (currentPage.value == 3) {
       await _generateAndShowPlan(); 
       return; 
     }
 
-    // Standard Navigation for Steps 1-4
+    // Standard Navigation for Steps 1-3
     // Wait for keyboard to close before animating
     await Future.delayed(const Duration(milliseconds: 300));
     
@@ -130,39 +140,57 @@ class OnboardingController extends GetxController {
   Future<void> _generateAndShowPlan() async {
     isGenerating.value = true; // Start loading spinner
 
-    // 1. Simulate AI Delay (Later: Call Gemini Here)
-    await Future.delayed(const Duration(seconds: 2));
-
-    // 2. Create the "Mock" Plan
-    generatedPlan.value = QuestPlanModel(
-      targetBoss: goalInput.text.isNotEmpty ? goalInput.text : "Master ${selectedHobby.value}",
-      duration: _calculateDuration(),
-      dailyCommitment: frequency.value,
-      milestones: [
-        "Phase 1: Foundations",
-        "Phase 2: Consistency",
-        "Phase 3: Advanced Skills",
-        "Phase 4: The Final Boss"
-      ],
-    );
-
-    isGenerating.value = false; // Stop loading
+    try {
+      generatedPlan.value = await _geminiService.generateQuestPlan(
+        hobby: selectedHobby.value,
+        level: selectedLevel.value,
+        goal: goalInput.text,
+        frequency: frequency.value,
+      );
+    } catch (e) {
+      print("--- ERROR: Failed to generate plan: $e ---");
+      generatedPlan.value = QuestPlanModel(
+        hobbyName: selectedHobby.value,
+        skillLevel: selectedLevel.value,
+        customGoal: goalInput.text.isNotEmpty ? goalInput.text : "Master ${selectedHobby.value}",
+        frequency: frequency.value,
+        progress: 0,
+        milestones: [
+          const MilestoneModel(task: "Phase 1: Foundations", completed: false),
+          const MilestoneModel(task: "Phase 2: Consistency", completed: false),
+          const MilestoneModel(task: "Phase 3: Advanced Skills", completed: false),
+          const MilestoneModel(task: "Phase 4: The Final Boss", completed: false),
+        ],
+        quests: [],
+      );
+    } finally {
+      isGenerating.value = false; // Stop loading
+    }
 
     // 3. Navigate to Summary Page (Do NOT save to DB yet)
     Get.to(() => const PlanSummaryView());
   }
 
-  /// Calculate duration based on skill level
-  String _calculateDuration() {
-    switch (selectedLevel.value) {
-      case "Expert":
-        return "8 Weeks";
-      case "Intermediate":
-        return "6 Weeks";
-      case "Novice":
-      default:
-        return "4 Weeks";
+  /// Validate the current step before allowing navigation
+  bool _validateCurrentStep() {
+    final result = _geminiService.validateOnboardingStep(
+      step: currentPage.value,
+      nickname: nickname.text,
+      birthDate: age.text,
+      gender: selectedGender.value,
+      category: selectedCategory.value,
+      hobby: selectedHobby.value,
+      level: selectedLevel.value,
+      goal: goalInput.text,
+      frequency: frequency.value,
+    );
+
+    if (!result.isValid) {
+      print("--- VALIDATION: ${result.error} ---");
+      return false;
     }
+
+    return true;
   }
 
   // --- 💾 LOGIC: Confirm & Save (Summary Page Action) ---
@@ -190,24 +218,25 @@ class OnboardingController extends GetxController {
     }
 
     try {
-      final userData = {
-        'nickname': nickname.text.trim(),
-        'birthDate': age.text.trim(),
-        'gender': selectedGender.value,
-        'hobbyCategory': selectedCategory.value,
-        'hobbyName': selectedHobby.value,
-        'skillLevel': selectedLevel.value,
-        'customGoal': generatedPlan.value.targetBoss, // Save the finalized goal
-        'frequency': frequency.value,
-        'isOnboardingComplete': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-        
-        // Initial Gamification Stats
-        'level': 1,
-        'currentXp': 0,
-        'currentStreak': 0,
-        'totalMinutesPlayed': 0,
-      };
+      // Create a typed UserModel with onboarding data
+      final userModel = UserModel(
+        id: user.uid,
+        nickname: nickname.text.trim(),
+        birthDate: age.text.trim(),
+        gender: selectedGender.value,
+        avatarSvg: avatarSvg.value,
+        isOnboardingComplete: true,
+        totalXP: 0,
+        currentPlan: generatedPlan.value,
+        currentStreak: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Save to Firestore with timestamp
+      final userData = userModel.toJson();
+      userData['createdAt'] = FieldValue.serverTimestamp();
+      userData['updatedAt'] = FieldValue.serverTimestamp();
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -221,56 +250,17 @@ class OnboardingController extends GetxController {
     }
   }
 
-  /// Validate the current step before allowing navigation
-  bool _validateCurrentStep() {
-    switch (currentPage.value) {
-      case 0: // Step 1: Identity
-        if (nickname.text.trim().isEmpty) {
-          print("--- VALIDATION: Nickname is empty ---");
-          return false;
-        }
-        if (age.text.trim().isEmpty) {
-          print("--- VALIDATION: Birth date is empty ---");
-          return false;
-        }
-        if (selectedGender.value.isEmpty) {
-          print("--- VALIDATION: Gender is not selected ---");
-          return false;
-        }
-        return true;
-      case 1: // Step 2: Category
-        if (selectedCategory.value.isEmpty) {
-          print("--- VALIDATION: Category is not selected ---");
-          return false;
-        }
-        return true;
-      case 2: // Step 3: Hobby
-        if (selectedHobby.value.isEmpty) {
-          print("--- VALIDATION: Hobby is not selected ---");
-          return false;
-        }
-        return true;
-      case 3: // Step 4: Level
-        if (selectedLevel.value.isEmpty) {
-          print("--- VALIDATION: Level is not selected ---");
-          return false;
-        }
-        return true;
-      case 4: // Step 5: Goals
-        if (goalInput.text.trim().isEmpty && selectedHobby.value.isEmpty) {
-          print("--- VALIDATION: Goal and hobby are empty ---");
-          return false;
-        }
-        return true;
-      default:
-        return true;
-    }
-  }
-
   // --- FIRESTORE SEEDING (For Dev Only) ---
   Future<void> seedCategories() async {
     print("--- SEEDING FIRESTORE ---");
-    
+    // Quick guard: if the collection already has documents, skip seeding.
+    final collection = FirebaseFirestore.instance.collection('categories');
+    final existingSnapshot = await collection.limit(1).get();
+    if (existingSnapshot.docs.isNotEmpty) {
+      print("--- SEEDING SKIPPED: 'categories' collection already populated ---");
+      return;
+    }
+
     // 1. Define the Data
     List<CategoryModel> initialData = [
       CategoryModel(
@@ -278,7 +268,7 @@ class OnboardingController extends GetxController {
         name: "Creative Arts",
         description: "Express yourself visually",
         icon: "🎨", // Using Emoji because it's a String in your model
-        hobbies: ["Painting", "Digital Art", "Photography", "Calligraphy"],
+        hobbies: ["Painting", "Drawing", "Photography", "Calligraphy"],
       ),
       CategoryModel(
         id: '',
@@ -304,13 +294,13 @@ class OnboardingController extends GetxController {
     ];
 
     // 2. Upload Loop
-    final collection = FirebaseFirestore.instance.collection('categories');
-    
     for (var category in initialData) {
       // Check if exists to prevent duplicates
       var snapshot = await collection.where('name', isEqualTo: category.name).get();
       if (snapshot.docs.isEmpty) {
-        await collection.add(category.toJson());
+        final data = Map<String, dynamic>.from(category.toJson());
+        data.remove('id'); // Do not store the empty id field in the document
+        await collection.add(data);
         print("✅ Added ${category.name}");
       } else {
         print("⚠️ Skipped ${category.name} (Already exists)");

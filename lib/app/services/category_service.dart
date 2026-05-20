@@ -15,8 +15,8 @@ class CategoryService {
         return _getHardcodedCategories();
       }
 
-      return snapshot.docs
-          .map((doc) => CategoryModel.fromJson(doc.data()))
+        return snapshot.docs
+          .map((doc) => CategoryModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
     } catch (e) {
       print("--- ERROR: Failed to fetch categories from Firestore: $e ---");
@@ -33,7 +33,7 @@ class CategoryService {
         name: "Creative Arts",
         description: "Express your artistic side",
         icon: "🎨",
-        hobbies: ["Painting", "Digital Art", "Photography", "Calligraphy"],
+        hobbies: ["Painting", "Drawing", "Photography", "Calligraphy"],
       ),
       CategoryModel(
         id: "music_performing",

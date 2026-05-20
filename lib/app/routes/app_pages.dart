@@ -7,6 +7,7 @@ import '../views/pages/login_page.dart';
 import '../views/pages/onboarding/onboarding_view.dart';
 import '../views/pages/home_page.dart';
 import '../views/pages/dashboard_page.dart';
+import '../views/pages/quest_detail_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -37,6 +38,13 @@ class AppPages {
     GetPage(
       name: AppRoutes.HOME,
       page: () => const HomePage(),
+    ),
+    GetPage(
+      name: AppRoutes.QUEST_DETAIL,
+      page: () {
+        final quest = Get.arguments;
+        return QuestDetailPage(quest: quest);
+      },
     ),
   ];
 }
