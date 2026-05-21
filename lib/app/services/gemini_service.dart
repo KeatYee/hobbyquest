@@ -114,7 +114,7 @@ User Profile:
 - Hobby: $hobby
 - Skill Level: $level
 - Custom Goal: $normalizedGoal
-- Frequency: $frequency
+- Daily Time Commitment: $frequency
 
 Instructions:
 1. Generate exactly 4 major Milestones that break the user's custom goal into logical phases.
@@ -242,7 +242,7 @@ User Context:
 - Hobby: $hobby
 - Skill Level: $level
      - Custom Goal: $normalizedGoal
-- Frequency: $frequency
+- Daily Time Commitment: $frequency
 - Current Milestone Focus: $currentMilestoneTitle
 - Skill Level: $level
 

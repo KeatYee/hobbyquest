@@ -7,6 +7,7 @@ class ProgressionController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final totalXP = 0.obs;
+  final streak = 0.obs;
   final isLoading = false.obs;
 
   static const List<int> _milestoneThresholds = [2000, 4000, 6000, 8000];
@@ -39,10 +40,12 @@ class ProgressionController extends GetxController {
 
       if (data == null) {
         totalXP.value = 0;
+        streak.value = 0;
         return;
       }
 
       totalXP.value = _readTotalXP(data);
+      streak.value = data['streak'] as int? ?? 0;
     } catch (e) {
       print('--- ERROR: Failed to load progression: $e ---');
     } finally {

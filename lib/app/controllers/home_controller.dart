@@ -18,6 +18,7 @@ class HomeController extends GetxController {
   var selectedHobby = "".obs;
   var userGoal = "".obs;
   var selectedLevel = "Novice".obs;
+  var showMentorBubble = true.obs;
   
   // Loading state
   var isLoadingProfile = true.obs;
@@ -72,6 +73,7 @@ class HomeController extends GetxController {
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
+        _updateMentorBubbleVisibility(data['mentorBubbleDismissedDate']);
         
         // Parse user data into typed model
         final loadedUser = UserModel.fromJson(data, currentUser.uid);
@@ -125,6 +127,28 @@ class HomeController extends GetxController {
   }
 
   // --- ACTIONS ---
+
+  Future<void> dismissMentorBubbleForToday() async {
+    if (!showMentorBubble.value) {
+      return;
+    }
+
+    showMentorBubble.value = false;
+
+    final currentUser = user.value;
+    if (currentUser == null) {
+      return;
+    }
+
+    final now = DateTime.now();
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.id)
+        .set({
+          'mentorBubbleDismissedDate': now,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
 
   bool get hasUsedRerollToday {
     final rerollDate = user.value?.lastRerollDate;
@@ -209,6 +233,27 @@ class HomeController extends GetxController {
   bool get hasCompletedAnyQuestToday => completedTodayCount > 0;
 
   bool get hasCompletedDailyLimit => completedTodayCount >= maxDailyQuests;
+
+  String get currentMilestoneTitle {
+    final milestones = user.value?.currentPlan.milestones ?? const [];
+
+    for (final milestone in milestones) {
+      final task = milestone.task.trim();
+      if (!milestone.completed && task.isNotEmpty) {
+        return task;
+      }
+    }
+
+    if (milestones.isNotEmpty) {
+      final fallbackTask = milestones.first.task.trim();
+      if (fallbackTask.isNotEmpty) {
+        return fallbackTask;
+      }
+    }
+
+    final goal = userGoal.value.trim();
+    return goal.isNotEmpty ? goal : 'No milestone set yet';
+  }
 
   bool canCompleteQuest(QuestModel quest) {
     if (quest.isCompleted) {
@@ -298,5 +343,35 @@ class HomeController extends GetxController {
     return completedAt.year == now.year &&
         completedAt.month == now.month &&
         completedAt.day == now.day;
+  }
+
+  void _updateMentorBubbleVisibility(dynamic dismissedDateRaw) {
+    final dismissedDate = _parseDate(dismissedDateRaw);
+    if (dismissedDate == null) {
+      showMentorBubble.value = true;
+      return;
+    }
+
+    showMentorBubble.value = !_isSameDay(dismissedDate, DateTime.now());
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }

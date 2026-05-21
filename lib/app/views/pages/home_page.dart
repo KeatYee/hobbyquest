@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../models/quest_model.dart';
@@ -48,43 +47,124 @@ class HomePage extends StatelessWidget {
                   // MENTOR BUBBLE
                   // Provides context/encouragement (Gamification: Relatedness)
                   Obx(() {
+                    if (!controller.showMentorBubble.value) {
+                      return const SizedBox.shrink();
+                    }
+
                     final message = "Keep it up ${controller.nickname.value}! 🔥 You're at Level ${progressionController.currentLevel}. ${progressionController.xpToNextLevel} XP to the next level.";
-                    return _buildMascotContextBubble(message);
+                    return GestureDetector(
+                      onTap: () {
+                        controller.dismissMentorBubbleForToday();
+                      },
+                      child: _buildMascotContextBubble(message),
+                    );
                   }),
-                  const SizedBox(height: 20),
+                  Obx(() => controller.showMentorBubble.value
+                      ? const SizedBox(height: 20)
+                      : const SizedBox.shrink()),
 
-                  // NEXT SKILL TARGET
-                  // Visualizes the immediate long-term goal.
-                  _buildNextSkillTarget(controller),
-                  const SizedBox(height: 30),
+                  // NOTE: The `CURRENT GOAL` display was moved into the
+                  // hero HUD so it remains visible while scrolling.
+                  const SizedBox(height: 16),
 
+                  // HORIZONTAL MILESTONES STRIP
                   Obx(() {
-                    final goalTitle = controller.userGoal.value.trim().isNotEmpty
-                        ? controller.userGoal.value.trim()
-                        : (controller.selectedHobby.value.isNotEmpty
-                            ? 'Master ${controller.selectedHobby.value}'
-                            : 'Your Current Goal');
+                    final milestones = controller.user.value?.currentPlan?.milestones ?? <dynamic>[];
+                    final int currentIndex = milestones.indexWhere((m) => !(m.completed ?? false));
+                    final int activeMilestoneIndex = currentIndex >= 0
+                        ? currentIndex
+                        : (milestones.isNotEmpty ? milestones.length - 1 : -1);
+                    final List<int> otherMilestoneIndices = List<int>.generate(
+                      milestones.length,
+                      (i) => i,
+                    ).where((i) => i != activeMilestoneIndex).toList();
+                    final String currentTitle = controller.currentMilestoneTitle;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CURRENT GOAL',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          goalTitle,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
+                    return SizedBox(
+                      height: 104,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 0),
+                        itemCount: 1 + otherMilestoneIndices.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (ctx, idx) {
+                          if (idx == 0) {
+                            // Always-showing current milestone card
+                            return Container(
+                              width: 280,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primaryLight),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'CURRENT MILESTONE',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.0,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: Text(
+                                      currentTitle,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final int mIdx = otherMilestoneIndices[idx - 1];
+                          final milestone = milestones[mIdx];
+                          final bool completed = (milestone.completed ?? false);
+
+                          return Container(
+                            width: 84,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: completed ? AppColors.primaryLight : AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.primaryLight),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                completed
+                                    ? const Icon(Icons.check_circle, color: AppColors.success, size: 22)
+                                    : const Icon(Icons.lock, color: AppColors.textSecondary, size: 22),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'M${mIdx + 1}',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     );
                   }),
                   const SizedBox(height: 16),
@@ -152,11 +232,7 @@ class HomePage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
+        color: const Color(0xFFFFA500),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -165,115 +241,178 @@ class HomePage extends StatelessWidget {
           )
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          // AVATAR & LEVEL BADGE
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2),
-                ),
-                child: Obx(() {
-                  final avatarSvg = controller.avatarSvg.value;
+          Obx(() {
+            final hobbyTitle = controller.selectedHobby.value.trim().isNotEmpty
+                ? controller.selectedHobby.value.trim()
+                : 'Choose Hobby';
 
-                  return CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppColors.background,
-                    child: avatarSvg.isNotEmpty
-                        ? ClipOval(
-                            child: SvgPicture.string(
-                              avatarSvg,
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Icon(Icons.person, color: AppColors.textSecondary),
-                  );
-                }),
-              ),
-              // Reactive Level Badge
-              Obx(() => Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  "${progressionController.currentLevel}",
-                  style: const TextStyle(
-                    color: Colors.white, 
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 12
-                  ),
-                ),
-              )),
-            ],
-          ),
-          const SizedBox(width: 16),
+            final goalTitle = controller.userGoal.value.trim().isNotEmpty
+                ? controller.userGoal.value.trim()
+                : (controller.selectedHobby.value.isNotEmpty
+                    ? 'Master ${controller.selectedHobby.value}'
+                    : 'Your Current Goal');
 
-          // STATS COLUMN
-          Expanded(
-            child: Column(
+            final streak = progressionController.streak.value;
+
+            return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    // Dynamic User Nickname
-                    Obx(() => Text(
-                      controller.nickname.value,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildHeaderChip(
+                              context,
+                              value: hobbyTitle,
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildHeaderChip(
+                              context,
+                              value: goalTitle,
+                              backgroundColor: AppColors.accent,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                    )),
-                    const Spacer(),
-                    const Icon(Icons.local_fire_department_rounded, 
-                      color: AppColors.primaryDark, size: 20
-                    ),
-                    Obx(() => Text(
-                      " ${progressionController.totalXP.value} XP",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        color: AppColors.primaryDark
-                      )
-                    )),
-                  ],
+                      const SizedBox(height: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: progressionController.levelProgress,
+                              minHeight: 10,
+                              backgroundColor: AppColors.background,
+                              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "${progressionController.currentXpInLevel} / 1000 XP",
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textOnPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-
-                // Dynamic Hobby Display
-                Obx(() => Text(
-                  "Learning: ${controller.selectedHobby.value}",
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary
+                const SizedBox(width: 14),
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'L${progressionController.currentLevel}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF6B35).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.local_fire_department_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$streak',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                )),
-                const SizedBox(height: 8),
-
-                // REACTIVE XP BAR
-                Obx(() => ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: progressionController.levelProgress, 
-                    minHeight: 10,
-                    backgroundColor: AppColors.background,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                  ),
-                )),
-                const SizedBox(height: 4),
-                
-                // REACTIVE XP TEXT
-                Obx(() => Text(
-                  "${progressionController.currentXpInLevel} / 1000 XP to Level ${progressionController.currentLevel + 1}",
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary
-                  ),
-                )),
+                ),
               ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderChip(
+    BuildContext context, {
+    required String value,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: foregroundColor,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -310,77 +449,6 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNextSkillTarget(HomeController controller) {
-    final skillNames = {
-      'Guitar': ['Open Chords', 'Barre Chords', 'Fingerpicking', 'Sweep Picking'],
-      'Piano': ['C Major Scale', 'Chord Progressions', 'Two-Hand Coordination', 'Improvisation'],
-      'Painting': ['Color Mixing', 'Perspective', 'Shadows & Highlights', 'Composition'],
-      'Coding': ['Variables & Types', 'Functions', 'Objects & Classes', 'Algorithms'],
-    };
-    
-    String getNextSkill() {
-      final hobby = controller.selectedHobby.value;
-      final level = Get.find<ProgressionController>().currentLevel;
-      final skills = skillNames[hobby] ?? ['Master $hobby'];
-      return skills[(level - 1) % skills.length];
-    }
-    
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.gold]
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3), 
-            blurRadius: 10, 
-            offset: const Offset(0, 4)
-          )
-        ],
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.lock_open_rounded, color: AppColors.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "NEXT SKILL UNLOCK",
-                    style: TextStyle(
-                      fontSize: 10, 
-                      fontWeight: FontWeight.bold, 
-                      color: AppColors.textSecondary, 
-                      letterSpacing: 1.0
-                    ),
-                  ),
-                  Obx(() => Text(
-                    getNextSkill(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 16,
-                      color: AppColors.textPrimary
-                    ),
-                  )),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-          ],
-        ),
       ),
     );
   }

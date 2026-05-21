@@ -3,21 +3,25 @@ import 'package:flutter/material.dart';
 class AppColors {
   // BRAND COLORS (Warm & Energetic)
   // The main Fox color. High energy.
-  static const Color primary = Color(0xFFF9862D); 
-  // A darker shade for gradients/shadows to give depth (3D effect)
-  static const Color primaryDark = Color(0xFFE65100); 
-  // A lighter tint for subtle highlights
-  static const Color primaryLight = Color(0xFFFFCC80);
+  static const Color primary = Color(0xFFFF6B00); // Vibrant Orange
+  // A darker shade for hover/pressed states
+  static const Color primaryDark = Color(0xFFE85F00); // Deep Orange
+  // A lighter tint for subtle highlights / glows
+  static const Color primaryLight = Color(0xFFFFF0E5); // Soft Orange Glow
 
-  // ACCENT COLORS (Complementary)
-  // Electric Blue: Opposite of Orange. Used for XP bars and "Tech" elements.
-  static const Color accent = Color(0xFF2979FF); 
-  // Gold: For Rewards, Coins, and Achievements.
-  static const Color gold = Color(0xFFFFD600);
-  // Success Green: Vibrant, not dull.
-  static const Color success = Color(0xFF00C853);
-  // Error Red: For alerts and validation errors.
-  static const Color error = Color(0xFFE53935);
+  // ACCENT & SEMANTIC COLORS
+  // Secondary: Electric Yellow
+  static const Color secondary = Color(0xFFFFC83D);
+  // Accent: Neon Coral
+  static const Color accent = Color(0xFFFF8A4C);
+  // Success Green: Quest Green
+  static const Color success = Color(0xFF22C55E);
+  // Warning: Golden Amber
+  static const Color warning = Color(0xFFF59E0B);
+  // Error Red: Arcade Red
+  static const Color error = Color(0xFFEF4444);
+  // Info / Cyan energy
+  static const Color info = Color(0xFF06B6D4);
 
   // NEUTRALS (The Canvas)
   // Cool Grey Background: Makes the Orange pop more than pure white.
@@ -34,4 +38,7 @@ class AppColors {
   static const Color textOnPrimary = Colors.white;
   // Shadow for text depth (approx 25% opacity black)
   static const Color textShadow = Color(0x26000000); 
+
+  // Backwards-compatible alias: keep `gold` for places using it
+  static const Color gold = secondary;
 }
