@@ -200,25 +200,33 @@ class HomePage extends StatelessWidget {
                 Row(
                   children: [
                     // Dynamic User Nickname
-                    Obx(
-                      () => Text(
-                        controller.nickname.value,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Obx(
+                        () => Text(
+                          controller.nickname.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     const Icon(
                       Icons.local_fire_department_rounded,
                       color: AppColors.primaryDark,
                       size: 20,
                     ),
-                    Obx(
-                      () => Text(
-                        " ${progressionController.totalXP.value} XP",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
+                    Flexible(
+                      child: Obx(
+                        () => Text(
+                          " ${progressionController.totalXP.value} XP",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                          ),
                         ),
                       ),
                     ),

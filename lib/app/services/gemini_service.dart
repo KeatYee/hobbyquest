@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/milestone_model.dart';
@@ -427,6 +428,76 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     )['title']!;
   }
 
+  Future<Map<String, dynamic>?> generateQuestImageFeedback({
+    required XFile imageFile,
+    required String hobby,
+    required String questTitle,
+    required String questDescription,
+    required String reflectionNote,
+  }) async {
+    if (!hasApiKey) {
+      return null;
+    }
+
+    try {
+      print('[GeminiService] Calling generateQuestImageFeedback API...');
+      final bytes = await imageFile.readAsBytes();
+      final mimeType = _guessMimeType(imageFile.name);
+
+      final prompt = '''
+  Act as Hobie the Fox, an expert, energetic, and encouraging AI tutor for $hobby.
+  The user has just completed a quest and submitted a photo of their work along with a reflection note.
+
+  Quest Details:
+  - Hobby: $hobby
+  - Quest Title: $questTitle
+  - Quest Description: $questDescription
+  - Reflection Note: ${reflectionNote.trim().isEmpty ? 'None provided' : reflectionNote.trim()}
+
+  CRITICAL RULES:
+    1. Be lenient but realistic. If the image shows genuine effort related to the quest (including photos of physical practice, tools, or handwritten study notes), approve it. If it is completely unrelated spam (e.g., a blank wall), reject it.
+    2. Be playful, use high energy, and speak directly to the user!
+    3. Formulate a single, cohesive feedback message. It MUST include: a cheerful greeting, one positive observation about their specific photo/note, and one practical improvement tip (or enthusiastic encouragement if it is already perfect).
+    4. You MUST return ONLY a valid JSON object. Do not include markdown tags.
+  
+  Use this exact JSON schema:
+  {
+    "is_approved": Boolean,
+    "ai_feedback": "string"  }
+''';
+
+      final response = await _model.generateContent([
+        Content.multi([
+          TextPart(prompt),
+          DataPart(mimeType, bytes),
+        ]),
+      ]);
+
+      final rawText = response.text?.trim() ?? '';
+      if (rawText.isEmpty) {
+        return null;
+      }
+
+      final jsonMap = _extractJsonObject(rawText);
+      final isApprovedRaw = jsonMap['is_approved'];
+      final aiFeedbackRaw = jsonMap['ai_feedback'] ?? jsonMap['aiFeedback'];
+
+      final isApproved = isApprovedRaw is bool
+          ? isApprovedRaw
+          : isApprovedRaw?.toString().toLowerCase() == 'true';
+
+      final aiFeedback = aiFeedbackRaw?.toString().trim() ?? '';
+
+      return {
+        'is_approved': isApproved,
+        'ai_feedback': aiFeedback,
+      };
+    } catch (e) {
+      print('[GeminiService] Quest image feedback call failed: $e');
+      return null;
+    }
+  }
+
   Map<String, String> _getAlternativeTaskFallback({
     required String hobby,
     required String currentTask,
@@ -464,6 +535,15 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       return normalized;
     }
     return 'practice';
+  }
+
+  String _guessMimeType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    return 'image/jpeg';
   }
 
   List<QuestNodeModel> _buildFallbackQuests({

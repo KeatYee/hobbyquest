@@ -78,30 +78,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       Get.back();
       return;
     }
-    final didComplete = await _controller.completeQuest(
+    await _controller.completeQuest(
       reflectionController.text.trim(),
+      imageFile: selectedImage,
     );
-
-    if (didComplete) {
-      // Show success feedback
-      Get.snackbar(
-        'Quest Completed! 🎉',
-        '+${currentQuest.xpReward} XP earned',
-        backgroundColor: AppColors.success,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 500));
-      Get.back();
-    } else {
-      Get.snackbar(
-        'Error',
-        'Failed to complete quest',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
   }
 
   Future<void> _pickImage() async {
@@ -243,85 +223,12 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                 Expanded(
                   child: _buildInfoCard(
                     icon: Icons.star_rounded,
-                    label: 'Priority',
+                    label: 'Challenge',
                     value: currentQuest.type == 'challenge' ? 'Yes' : 'No',
                     color: currentQuest.type == 'challenge' ? Colors.orange : Colors.grey,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-
-            // STATUS
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: currentQuest.isCompleted
-                    ? AppColors.success.withOpacity(0.1)
-                    : currentQuest.isActive
-                        ? AppColors.accent.withOpacity(0.1)
-                        : AppColors.textSecondary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: currentQuest.isCompleted
-                      ? AppColors.success.withOpacity(0.3)
-                      : currentQuest.isActive
-                          ? AppColors.accent.withOpacity(0.3)
-                          : AppColors.textSecondary.withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    currentQuest.isCompleted
-                        ? Icons.check_circle_rounded
-                        : currentQuest.isActive
-                            ? Icons.play_circle_rounded
-                        : Icons.pending_actions_rounded,
-                    color: currentQuest.isCompleted
-                        ? AppColors.success
-                        : currentQuest.isActive
-                            ? AppColors.accent
-                            : AppColors.textSecondary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          currentQuest.isCompleted
-                              ? 'Completed'
-                              : currentQuest.isActive
-                                  ? 'Active'
-                                  : 'Locked',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (currentQuest.isCompleted && currentQuest.completedAt != null)
-                          Text(
-                            'Completed on ${_formatDate(currentQuest.completedAt!)}',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          )
-                        else if (!currentQuest.isActive)
-                          const Text(
-                            'Locked until prerequisites are complete',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 24),
 

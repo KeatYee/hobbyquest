@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/quest_node_model.dart';
 import 'home_controller.dart';
 import 'progression_controller.dart';
 import '../services/quest_service.dart';
+import '../services/imgbb_service.dart';
+import '../services/gemini_service.dart';
+import '../routes/app_routes.dart';
 
 class QuestDetailController extends GetxController {
   final Rx<QuestNodeModel> currentQuest;
@@ -15,40 +19,106 @@ class QuestDetailController extends GetxController {
   /// Completes the quest using `HomeController.completeQuest` then
   /// awards XP via `ProgressionController.completeQuest`.
   /// Returns true when successful.
-  Future<bool> completeQuest(String reflectionNote) async {
+  Future<bool> completeQuest(
+    String reflectionNote, {
+    XFile? imageFile,
+  }) async {
     if (currentQuest.value.isCompleted) return true;
 
     isSubmitting.value = true;
     final questService = QuestService();
+    final imageUploadService = ImgBBService();
+    final geminiService = GeminiService();
     final progressionController = Get.find<ProgressionController>();
     final homeController = Get.find<HomeController>();
     final questId = currentQuest.value.nodeId;
 
-    final updatedUser = await questService.completeQuestTransaction(
-      uid: homeController.user.value?.id ?? '',
-      questId: questId,
-      reflectionNote: reflectionNote,
-    );
+    try {
+      String? imageUrl;
+      String? aiFeedback;
 
-    if (updatedUser == null) {
-      isSubmitting.value = false;
+      if (imageFile != null) {
+        final feedbackResult = await geminiService.generateQuestImageFeedback(
+          imageFile: imageFile,
+          questTitle: currentQuest.value.title,
+          questDescription: currentQuest.value.desc,
+          reflectionNote: reflectionNote,
+          hobby: homeController.user.value?.currentPlan.hobby ?? '',
+        );
+
+        if (feedbackResult == null) {
+          throw Exception('Failed to review image evidence');
+        }
+
+        final isApproved = feedbackResult['is_approved'] as bool? ?? false;
+        aiFeedback = feedbackResult['ai_feedback'] as String? ?? '';
+
+        await Get.dialog(
+          AlertDialog(
+            title: Text(isApproved ? 'Quest Approved' : 'Quest Review'),
+            content: Text(
+              aiFeedback.isNotEmpty
+                  ? aiFeedback
+                  : (isApproved
+                      ? 'Your submission was approved.'
+                      : 'Your submission needs more work.'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: true),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+
+        if (!isApproved) {
+          return false;
+        }
+
+        imageUrl = await imageUploadService.uploadImage(imageFile.path);
+      }
+
+      final updatedUser = await questService.completeQuestTransaction(
+        uid: homeController.user.value?.id ?? '',
+        questId: questId,
+        reflectionNote: reflectionNote,
+        imageUrl: imageUrl,
+        aiFeedback: aiFeedback,
+      );
+
+      if (updatedUser == null) {
+        isSubmitting.value = false;
+        return false;
+      }
+
+      await progressionController.completeQuest(questId: questId);
+
+      // Refresh local UI state from updated user
+      homeController.user.value = updatedUser;
+      homeController.dailyQuests.value = _buildVisibleQuestWindow(updatedUser.currentPlan.quests);
+
+      final updated = updatedUser.currentPlan.quests.firstWhere(
+        (q) => q.nodeId == questId,
+        orElse: () => currentQuest.value,
+      );
+      currentQuest.value = updated;
+
+      await Future.delayed(const Duration(milliseconds: 300));
+      Get.offAllNamed(AppRoutes.HOME);
+
+      return true;
+    } catch (e) {
+      Get.snackbar(
+        'Failed to complete quest',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return false;
+    } finally {
+      isSubmitting.value = false;
     }
-
-    await progressionController.completeQuest(questId: questId);
-
-    // Refresh local UI state from updated user
-    homeController.user.value = updatedUser;
-    homeController.dailyQuests.value = _buildVisibleQuestWindow(updatedUser.currentPlan.quests);
-
-    final updated = updatedUser.currentPlan.quests.firstWhere(
-      (q) => q.nodeId == questId,
-      orElse: () => currentQuest.value,
-    );
-    currentQuest.value = updated;
-
-    isSubmitting.value = false;
-    return true;
   }
 
   List<QuestNodeModel> _buildVisibleQuestWindow(List<QuestNodeModel> quests) {
