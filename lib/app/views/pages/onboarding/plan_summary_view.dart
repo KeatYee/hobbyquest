@@ -63,7 +63,7 @@ class PlanSummaryView extends StatelessWidget {
                   TextSpan(text: controller.nickname.text),
                   const TextSpan(text: ", "),
                   TextSpan(
-                    text: "Level 1 ${controller.selectedLevel.value} ${controller.generatedPlan.value.hobbyName.isNotEmpty ? controller.generatedPlan.value.hobbyName : controller.selectedHobby.value}",
+                    text: "Level 1 ${controller.level.value} ${controller.hobby.value}",
                     style: const TextStyle(color: AppColors.primary),
                   ),
                 ],
@@ -146,7 +146,7 @@ class PlanSummaryView extends StatelessWidget {
                   _buildMissionRow(
                     icon: Icons.flag_rounded,
                     label: "Main Quest",
-                    value: controller.generatedPlan.value.targetBoss,
+                    value: controller.generatedPlan.value.goal,
                   ),
                   const SizedBox(height: 16),
                   
@@ -192,7 +192,7 @@ class PlanSummaryView extends StatelessWidget {
             const SizedBox(height: 40),
 
             // ------------------------------------
-            // BUTTON: ACCEPT & START ADVENTURE
+            // BUTTON: ACCEPT QUEST
             // ------------------------------------
             SizedBox(
               width: double.infinity,
@@ -339,7 +339,7 @@ class PlanSummaryView extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        milestones[index].task,
+                        milestones[index].title,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -353,15 +353,6 @@ class PlanSummaryView extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        milestones[index].completed ? 'Completed' : 'Not completed',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: milestones[index].completed ? AppColors.success : AppColors.textSecondary,
                         ),
                       ),
                     ],

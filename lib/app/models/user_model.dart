@@ -11,12 +11,14 @@ class UserModel {
   // Flat progression source of truth
   final int totalXP;
   final int currentStreak; // Consecutive days with at least one completed quest
+  final int dailyQuestCompletionCount;
 
   // Timestamps
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? lastRerollDate;
   final DateTime? lastStreakDate; // Track when the last streak completion was recorded
+  final DateTime? lastQuestCompletionDate;
 
   final QuestPlanModel currentPlan;
 
@@ -30,10 +32,12 @@ class UserModel {
     required this.totalXP,
     required this.currentPlan,
     this.currentStreak = 0,
+    this.dailyQuestCompletionCount = 0,
     this.createdAt,
     this.updatedAt,
     this.lastRerollDate,
     this.lastStreakDate,
+    this.lastQuestCompletionDate,
   });
 
   /// Convert Firestore document to UserModel
@@ -41,7 +45,7 @@ class UserModel {
     final totalXp = json['totalXP'] as int? ?? _legacyTotalXp(json);
     final currentPlanJson = json['currentPlan'];
     final currentPlan = currentPlanJson is Map
-      ? QuestPlanModel.fromJson(Map<String, dynamic>.from(currentPlanJson as Map))
+      ? QuestPlanModel.fromJson(Map<String, dynamic>.from(currentPlanJson))
         : _legacyCurrentPlan(json);
 
     return UserModel(
@@ -54,12 +58,14 @@ class UserModel {
       totalXP: totalXp,
       currentPlan: currentPlan,
       currentStreak: json['currentStreak'] as int? ?? 0,
+      dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
           ? _readDateTime(json['updatedAt'])
           : null,
       lastRerollDate: _readDateTime(json['lastRerollDate']),
       lastStreakDate: _readDateTime(json['lastStreakDate']),
+      lastQuestCompletionDate: _readDateTime(json['lastQuestCompletionDate']),
     );
   }
 
@@ -73,10 +79,12 @@ class UserModel {
       'isOnboardingComplete': isOnboardingComplete,
       'totalXP': totalXP,
       'currentStreak': currentStreak,
+      'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
       'lastStreakDate': lastStreakDate,
+      'lastQuestCompletionDate': lastQuestCompletionDate,
       'currentPlan': currentPlan.toJson(),
     };
   }
@@ -91,11 +99,13 @@ class UserModel {
     bool? isOnboardingComplete,
     int? totalXP,
     int? currentStreak,
+    int? dailyQuestCompletionCount,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? lastRerollDate,
     DateTime? lastStreakDate,
+    DateTime? lastQuestCompletionDate,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -107,10 +117,12 @@ class UserModel {
       totalXP: totalXP ?? this.totalXP,
       currentPlan: currentPlan ?? this.currentPlan,
       currentStreak: currentStreak ?? this.currentStreak,
+      dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastRerollDate: lastRerollDate ?? this.lastRerollDate,
       lastStreakDate: lastStreakDate ?? this.lastStreakDate,
+      lastQuestCompletionDate: lastQuestCompletionDate ?? this.lastQuestCompletionDate,
     );
   }
 
@@ -129,11 +141,12 @@ class UserModel {
 
   static QuestPlanModel _legacyCurrentPlan(Map<String, dynamic> json) {
     return QuestPlanModel(
-      hobbyName: json['hobbyName'] as String? ?? 'Learning',
-      skillLevel: json['skillLevel'] as String? ?? 'Novice',
-      customGoal: json['customGoal'] as String? ?? '',
+      hobby: json['hobby'] as String? ?? (json['hobbyName'] as String? ?? 'Learning'),
+      level: json['level'] as String? ?? (json['skillLevel'] as String? ?? 'Novice'),
+      goal: json['goal'] as String? ?? (json['customGoal'] as String? ?? ''),
       frequency: json['frequency'] as String? ?? '15 mins/day',
       progress: json['progress'] as int? ?? 0,
+      currentMilestoneIndex: json['currentMilestoneIndex'] as int? ?? (json['progress'] as int? ?? 0),
       milestones: const [],
       quests: const [],
     );
@@ -161,6 +174,6 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(id: $id, nickname: $nickname, level: $level, hobby: ${currentPlan.hobbyName})';
+    return 'UserModel(id: $id, nickname: $nickname, level: $level, hobby: ${currentPlan.hobby})';
   }
 }

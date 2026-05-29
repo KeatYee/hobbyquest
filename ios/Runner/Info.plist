@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>HobbyQuest needs camera access so you can snap photos of your completed quests for AI grading.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HobbyQuest needs gallery access to upload past project photos.</string>
 </dict>
 </plist>

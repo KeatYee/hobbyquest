@@ -1,33 +1,36 @@
 class MilestoneModel {
-  final String task;
+  final String title;
   final bool completed;
 
   const MilestoneModel({
-    required this.task,
+    required this.title,
     required this.completed,
   });
 
   factory MilestoneModel.fromJson(Map<String, dynamic> json) {
     return MilestoneModel(
-      task: json['task'] as String? ?? '',
+      title: json['title'] as String? ?? (json['task'] as String? ?? ''),
       completed: json['completed'] as bool? ?? false,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'task': task,
+      'title': title,
+      'task': title,
       'completed': completed,
     };
   }
 
   MilestoneModel copyWith({
-    String? task,
+    String? title,
     bool? completed,
   }) {
     return MilestoneModel(
-      task: task ?? this.task,
+      title: title ?? this.title,
       completed: completed ?? this.completed,
     );
   }
+
+  String get task => title;
 }

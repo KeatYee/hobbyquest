@@ -63,7 +63,7 @@ class _Step3LevelState extends State<Step3Level> {
           )),
 
           // Inline Error Message
-          if (showError && controller.selectedLevel.value.isEmpty)
+          if (showError && controller.level.value.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
               child: Row(
@@ -101,7 +101,7 @@ class _Step3LevelState extends State<Step3Level> {
                 print("--- ACTION: Next Button Clicked (Step 4) ---");
 
                 // Validation Logic
-                if (controller.selectedLevel.value.isEmpty) {
+                if (controller.level.value.isEmpty) {
                   print("--- ERROR: No Level Selected ---");
                   setState(() => showError = true);
                 } else {
@@ -127,11 +127,11 @@ class _Step3LevelState extends State<Step3Level> {
   // Helper Widget for Level Cards
   Widget _buildLevelCard(OnboardingController controller, Map<String, dynamic> level, TextTheme textTheme) {
     return Obx(() {
-      final isSelected = controller.selectedLevel.value == level['label'];
+      final isSelected = controller.level.value == level['label'];
       
       // Error State: Show Red border if error is active and nothing selected
       // Otherwise: Show Primary color if selected, Transparent if not
-      final borderColor = (showError && controller.selectedLevel.value.isEmpty) 
+      final borderColor = (showError && controller.level.value.isEmpty) 
           ? AppColors.error 
           : (isSelected ? AppColors.primary : Colors.transparent);
 
@@ -139,7 +139,7 @@ class _Step3LevelState extends State<Step3Level> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            controller.selectedLevel.value = level['label'];
+            controller.level.value = level['label'];
             print("--- DATA: Level Selected: ${level['label']} ---");
             
             // Clear error on selection

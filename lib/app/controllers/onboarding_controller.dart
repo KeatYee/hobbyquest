@@ -27,7 +27,7 @@ class OnboardingController extends GetxController {
   // --- STEP 1: IDENTITY ---
   final nickname = TextEditingController();
   final age = TextEditingController();
-  var selectedGender = "".obs;
+  var gender = "".obs;
   var avatarSvg = "".obs;
 
   void updateAvatar(String svg) {
@@ -35,24 +35,25 @@ class OnboardingController extends GetxController {
   }
 
   // --- STEP 2: CATEGORY + HOBBY ---
-  var selectedCategory = "".obs;
-  var selectedHobby = "".obs;
+  var category = "".obs;
+  var hobby = "".obs;
 
   // --- STEP 3: LEVEL ---
-  var selectedLevel = "Novice".obs;
+  var level = "Novice".obs;
 
   // --- STEP 4: GOALS ---
   var frequency = "15 mins/day".obs;
-  final goalInput = TextEditingController();
+  final goalController = TextEditingController();
 
   // --- THE GENERATED PLAN (For Summary View) ---
   var generatedPlan = Rx<QuestPlanModel>(
     QuestPlanModel(
-      hobbyName: "",
-      skillLevel: "",
-      customGoal: "",
+      hobby: "",
+      level: "",
+      goal: "",
       frequency: "",
       progress: 0,
+      currentMilestoneIndex: 0,
       milestones: [],
       quests: []
     )
@@ -142,24 +143,25 @@ class OnboardingController extends GetxController {
 
     try {
       generatedPlan.value = await _geminiService.generateQuestPlan(
-        hobby: selectedHobby.value,
-        level: selectedLevel.value,
-        goal: goalInput.text,
+        hobby: hobby.value,
+        level: level.value,
+        goal: goalController.text,
         frequency: frequency.value,
       );
     } catch (e) {
       print("--- ERROR: Failed to generate plan: $e ---");
       generatedPlan.value = QuestPlanModel(
-        hobbyName: selectedHobby.value,
-        skillLevel: selectedLevel.value,
-        customGoal: goalInput.text.isNotEmpty ? goalInput.text : "Master ${selectedHobby.value}",
+        hobby: hobby.value,
+        level: level.value,
+        goal: goalController.text.isNotEmpty ? goalController.text : "Master ${hobby.value}",
         frequency: frequency.value,
         progress: 0,
+        currentMilestoneIndex: 0,
         milestones: [
-          const MilestoneModel(task: "Phase 1: Foundations", completed: false),
-          const MilestoneModel(task: "Phase 2: Consistency", completed: false),
-          const MilestoneModel(task: "Phase 3: Advanced Skills", completed: false),
-          const MilestoneModel(task: "Phase 4: The Final Boss", completed: false),
+          const MilestoneModel(title: "Phase 1: Foundations", completed: false),
+          const MilestoneModel(title: "Phase 2: Consistency", completed: false),
+          const MilestoneModel(title: "Phase 3: Advanced Skills", completed: false),
+          const MilestoneModel(title: "Phase 4: The Final Boss", completed: false),
         ],
         quests: [],
       );
@@ -177,11 +179,11 @@ class OnboardingController extends GetxController {
       step: currentPage.value,
       nickname: nickname.text,
       birthDate: age.text,
-      gender: selectedGender.value,
-      category: selectedCategory.value,
-      hobby: selectedHobby.value,
-      level: selectedLevel.value,
-      goal: goalInput.text,
+      gender: gender.value,
+      category: category.value,
+      hobby: hobby.value,
+      level: level.value,
+      goal: goalController.text,
       frequency: frequency.value,
     );
 
@@ -223,11 +225,11 @@ class OnboardingController extends GetxController {
         id: user.uid,
         nickname: nickname.text.trim(),
         birthDate: age.text.trim(),
-        gender: selectedGender.value,
+        gender: gender.value,
         avatarSvg: avatarSvg.value,
         isOnboardingComplete: true,
         totalXP: 0,
-        currentPlan: generatedPlan.value,
+        currentPlan: await _buildInitialPlanWithMilestoneQuests(),
         currentStreak: 0,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -248,6 +250,29 @@ class OnboardingController extends GetxController {
       print("--- ERROR: Failed to save user data: $e ---");
       rethrow;
     }
+  }
+
+  Future<QuestPlanModel> _buildInitialPlanWithMilestoneQuests() async {
+    final basePlan = generatedPlan.value;
+    if (basePlan.milestones.isEmpty || basePlan.quests.isNotEmpty) {
+      return basePlan;
+    }
+
+    final firstMilestone = basePlan.milestones.first;
+    final initialQuests = await _geminiService.generatePhaseDAG(
+      hobby: basePlan.hobby,
+      level: basePlan.level,
+      goal: basePlan.goal,
+      frequency: basePlan.frequency,
+      milestoneTitle: firstMilestone.title,
+      milestoneNumber: '1',
+    );
+
+    return basePlan.copyWith(
+      currentMilestoneIndex: 0,
+      progress: 0,
+      quests: initialQuests,
+    );
   }
 
   // --- FIRESTORE SEEDING (For Dev Only) ---
@@ -315,7 +340,7 @@ class OnboardingController extends GetxController {
     pageController.dispose();
     nickname.dispose();
     age.dispose();
-    goalInput.dispose();
+    goalController.dispose();
     super.onClose();
   }
 }

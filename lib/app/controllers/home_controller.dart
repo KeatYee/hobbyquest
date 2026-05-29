@@ -1,53 +1,30 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/quest_node_model.dart';
 import '../services/gemini_service.dart';
-import '../models/quest_model.dart';
+import '../services/quest_service.dart';
 import '../models/user_model.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
-  static const int maxDailyQuests = 3;
-
+  final QuestService _questService = QuestService();
   // --- STATE VARIABLES (Reactivity) ---
-  
+
   // User Profile Data (Typed Model)
   var user = Rx<UserModel?>(null);
   var nickname = "Hero".obs;
   var avatarSvg = "".obs;
-  var selectedHobby = "".obs;
-  var userGoal = "".obs;
-  var selectedLevel = "Novice".obs;
-  var showMentorBubble = true.obs;
-  
+  var hobby = "".obs;
+  var goal = "".obs;
+  var frequency = "15 mins/day".obs;
+  var level = "Novice".obs;
+
   // Loading state
   var isLoadingProfile = true.obs;
 
-  // Quest List (Mock Data)
-  var dailyQuests = <QuestModel>[
-    const QuestModel(
-      id: "q1",
-      title: "Chord Mastery",
-      desc: "Practice transitions for 15 mins.",
-      xp: 100,
-      type: "practice",
-      isPriority: true,
-    ),
-    const QuestModel(
-      id: "q2",
-      title: "Theory Check",
-      desc: "Identify the G-Major scale.",
-      xp: 100,
-      type: "knowledge",
-    ),
-    const QuestModel(
-      id: "q3",
-      title: "Creative Flow",
-      desc: "Upload a photo of your practice setup.",
-      xp: 100,
-      type: "challenge",
-    ),
-  ].obs;
+  // Quest List (Backed by the user's saved current plan)
+  var dailyQuests = <QuestNodeModel>[].obs;
 
   @override
   void onInit() {
@@ -59,7 +36,7 @@ class HomeController extends GetxController {
   Future<void> _loadUserProfile() async {
     try {
       isLoadingProfile.value = true;
-      
+
       final User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
         print("--- ERROR: No user logged in ---");
@@ -73,49 +50,24 @@ class HomeController extends GetxController {
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
-        _updateMentorBubbleVisibility(data['mentorBubbleDismissedDate']);
-        
+
         // Parse user data into typed model
         final loadedUser = UserModel.fromJson(data, currentUser.uid);
         user.value = loadedUser;
-        
+        final currentPlan = loadedUser.currentPlan;
+
         // Update reactive variables from model
         nickname.value = loadedUser.nickname;
         avatarSvg.value = loadedUser.avatarSvg;
-        selectedHobby.value = loadedUser.currentPlan.hobbyName;
-        userGoal.value = loadedUser.currentPlan.customGoal;
-        selectedLevel.value = loadedUser.currentPlan.skillLevel;
+        hobby.value = currentPlan.hobby;
+        goal.value = currentPlan.goal;
+        frequency.value = currentPlan.frequency;
+        level.value = currentPlan.level;
+        dailyQuests.value = _buildVisibleQuestWindow(currentPlan.quests);
 
-        final planQuests = loadedUser.currentPlan.quests.take(maxDailyQuests).toList();
-        final completedQuestCount = planQuests.where((quest) => quest.isCompleted).length;
-
-        if (planQuests.isEmpty || completedQuestCount == 0) {
-          dailyQuests.value = planQuests;
-        } else {
-          final remainingQuests = planQuests.where((quest) => !quest.isCompleted).toList();
-          final generatedQuests = await _geminiService.generateDailyQuests(
-            hobby: loadedUser.currentPlan.hobbyName,
-            level: loadedUser.currentPlan.skillLevel,
-            goal: loadedUser.currentPlan.customGoal,
-            frequency: loadedUser.currentPlan.frequency,
-            currentMilestoneTitle: remainingQuests.isNotEmpty
-                ? remainingQuests.first.title
-                : (loadedUser.currentPlan.milestones.isNotEmpty
-                    ? loadedUser.currentPlan.milestones.first.task
-                    : loadedUser.currentPlan.customGoal),
-            activeQuestsCount: completedQuestCount,
-            focus: loadedUser.currentPlan.customGoal,
-          );
-
-          dailyQuests.value = [...remainingQuests, ...generatedQuests]
-              .take(maxDailyQuests)
-              .toList();
-          user.value = loadedUser.copyWith(
-            currentPlan: loadedUser.currentPlan.copyWith(quests: dailyQuests.toList()),
-          );
-        }
-        
-        print("--- SUCCESS: Loaded user profile for ${loadedUser.nickname} ---");
+        print(
+          "--- SUCCESS: Loaded user profile for ${loadedUser.nickname} ---",
+        );
       } else {
         print("--- WARNING: User profile not found ---");
       }
@@ -128,250 +80,269 @@ class HomeController extends GetxController {
 
   // --- ACTIONS ---
 
-  Future<void> dismissMentorBubbleForToday() async {
-    if (!showMentorBubble.value) {
-      return;
-    }
-
-    showMentorBubble.value = false;
-
-    final currentUser = user.value;
-    if (currentUser == null) {
-      return;
-    }
-
-    final now = DateTime.now();
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser.id)
-        .set({
-          'mentorBubbleDismissedDate': now,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+  void rerollDailyQuests() {
+    print("--- LOGIC: Refreshing visible quest window from current plan... ---");
+    _reloadCurrentPlanQuests();
   }
 
-  bool get hasUsedRerollToday {
-    final rerollDate = user.value?.lastRerollDate;
-    if (rerollDate == null) {
+  void startQuest(String id) {
+    print("--- LOGIC: Starting Quest $id ---");
+  }
+
+  Future<bool> completeQuest(
+    String questId, {
+    String reflectionNote = '',
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      print("--- ERROR: User not logged in ---");
       return false;
     }
 
-    final now = DateTime.now();
-    return rerollDate.year == now.year &&
-        rerollDate.month == now.month &&
-        rerollDate.day == now.day;
+    final updatedUser = await _questService.completeQuestTransaction(
+      uid: currentUser.uid,
+      questId: questId,
+      reflectionNote: reflectionNote,
+    );
+
+    if (updatedUser == null) return false;
+
+    final updatedPlan = updatedUser.currentPlan;
+
+    user.value = updatedUser;
+    hobby.value = updatedPlan.hobby;
+    goal.value = updatedPlan.goal;
+    frequency.value = updatedPlan.frequency;
+    level.value = updatedPlan.level;
+    dailyQuests.value = _buildVisibleQuestWindow(updatedPlan.quests);
+
+    return true;
   }
 
-  Future<String?> rerollOneQuestForToday(QuestModel currentQuest) async {
-    if (hasUsedRerollToday) {
-      return 'You already used your reroll for today.';
-    }
+  Future<void> _reloadCurrentPlanQuests() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        return;
+      }
 
-    if (currentQuest.isCompleted) {
-      return 'Cannot reroll a completed quest.';
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      final data = userDoc.data();
+      if (data == null) {
+        return;
+      }
+
+      final loadedUser = UserModel.fromJson(data, currentUser.uid);
+      user.value = loadedUser;
+
+      nickname.value = loadedUser.nickname;
+      avatarSvg.value = loadedUser.avatarSvg;
+      hobby.value = loadedUser.currentPlan.hobby;
+      goal.value = loadedUser.currentPlan.goal;
+      frequency.value = loadedUser.currentPlan.frequency;
+      level.value = loadedUser.currentPlan.level;
+      dailyQuests.value = _buildVisibleQuestWindow(loadedUser.currentPlan.quests);
+    } catch (e) {
+      print("--- ERROR: Failed to reload current plan quests: $e ---");
+    }
+  }
+
+  /// Ephemeral reroll using GeminiService. Does NOT persist to Firestore.
+  Future<void> rerollWithGemini() async {
+    if (!_geminiService.hasApiKey) {
+      print('--- INFO: Gemini API key not set; cannot reroll with model ---');
+      return;
     }
 
     try {
-      final newTitle = await _geminiService.generateAlternativeQuestTitle(
-        hobby: selectedHobby.value,
-        currentTask: currentQuest.title,
-      );
-
-      if (newTitle.trim().isEmpty) {
-        return 'Failed to generate alternative task.';
-      }
-
-      final replaceIndex = dailyQuests.indexWhere((quest) => quest.id == currentQuest.id);
-      if (replaceIndex == -1) {
-        return 'No available quest to swap.';
-      }
-
-      final replacement = currentQuest.copyWith(
-        title: newTitle.trim(),
-        completedAt: null,
-        isCompleted: false,
-        reflectionNote: '',
-      );
-
-      dailyQuests[replaceIndex] = replacement;
-
-      final currentUser = user.value;
-      if (currentUser != null) {
-        final now = DateTime.now();
-        final updatedUser = currentUser.copyWith(
-          currentPlan: currentUser.currentPlan.copyWith(quests: dailyQuests.toList()),
-          lastRerollDate: now,
-          updatedAt: now,
+      final refreshed = <QuestNodeModel>[];
+      for (final quest in dailyQuests) {
+        final alternative = await _geminiService.generateAlternativeQuest(
+          hobby: hobby.value,
+          nodeTitle: quest.title,
+          nodeDesc: quest.desc,
         );
-        user.value = updatedUser;
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.id)
-            .set({
-              'currentPlan': updatedUser.currentPlan.toJson(),
-              'lastRerollDate': now,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+        refreshed.add(
+          quest.copyWith(
+            title: alternative['title'] ?? quest.title,
+            desc: alternative['desc'] ?? quest.desc,
+          ),
+        );
       }
 
-      return null;
+      dailyQuests.value = refreshed;
+      print('--- INFO: Ephemeral reroll applied (${dailyQuests.length} quests) ---');
     } catch (e) {
-      print("--- ERROR: Failed to reroll one quest: $e ---");
-      return 'Failed to reroll quest. Please try again.';
+      print('--- ERROR: Gemini reroll failed: $e ---');
     }
   }
 
-  void startQuest(QuestModel quest) {
-    print("--- LOGIC: Starting Quest ${quest.id} ---");
-  }
-
-  int get completedTodayCount {
-    return dailyQuests.where((quest) => _isCompletedToday(quest.completedAt)).length;
-  }
-
-  bool get hasCompletedAnyQuestToday => completedTodayCount > 0;
-
-  bool get hasCompletedDailyLimit => completedTodayCount >= maxDailyQuests;
-
-  String get currentMilestoneTitle {
-    final milestones = user.value?.currentPlan.milestones ?? const [];
-
-    for (final milestone in milestones) {
-      final task = milestone.task.trim();
-      if (!milestone.completed && task.isNotEmpty) {
-        return task;
-      }
-    }
-
-    if (milestones.isNotEmpty) {
-      final fallbackTask = milestones.first.task.trim();
-      if (fallbackTask.isNotEmpty) {
-        return fallbackTask;
-      }
-    }
-
-    final goal = userGoal.value.trim();
-    return goal.isNotEmpty ? goal : 'No milestone set yet';
-  }
-
-  bool canCompleteQuest(QuestModel quest) {
-    if (quest.isCompleted) {
+  /// Reroll a single quest card and persist the updated title/description.
+  /// Keeps the same node, dependencies, and completion state.
+  Future<bool> rerollQuestWithGemini(String questId) async {
+    if (!_geminiService.hasApiKey) {
+      print('--- INFO: Gemini API key not set; cannot reroll quest ---');
       return false;
     }
 
-    if (hasCompletedDailyLimit) {
-      return false;
-    }
-
-    return true;
-  }
-
-  bool completeQuest(String id, {String reflectionNote = ''}) {
-    final index = dailyQuests.indexWhere((quest) => quest.id == id);
-    if (index == -1) {
-      return false;
-    }
-
-    final quest = dailyQuests[index];
-    if (!canCompleteQuest(quest)) {
-      return false;
-    }
-
-    dailyQuests[index] = quest.copyWith(
-      isCompleted: true,
-      reflectionNote: reflectionNote,
-      completedAt: DateTime.now(),
-    );
-
-    final currentUser = user.value;
-    if (currentUser != null) {
-      final updatedQuests = dailyQuests.toList();
-      final newTotalXP = currentUser.totalXP + quest.xp;
-      final now = DateTime.now();
-      
-      // Determine if streak should be incremented (first completion of the day)
-      final hasCompletedAnyToday = updatedQuests.any((q) => 
-        _isCompletedToday(q.completedAt) && q.id != quest.id);
-      final lastStreakDate = currentUser.lastStreakDate;
-      final isNewDay = lastStreakDate == null || 
-          lastStreakDate.year != now.year ||
-          lastStreakDate.month != now.month ||
-          lastStreakDate.day != now.day;
-      
-      // Increment streak only on the first completion of a new day
-      int newStreak = currentUser.currentStreak;
-      DateTime? newStreakDate = lastStreakDate;
-      if (isNewDay && !hasCompletedAnyToday) {
-        newStreak = currentUser.currentStreak + 1;
-        newStreakDate = now;
-      }
-      
-      final updatedUser = currentUser.copyWith(
-        totalXP: newTotalXP,
-        currentStreak: newStreak,
-        lastStreakDate: newStreakDate,
-        currentPlan: currentUser.currentPlan.copyWith(quests: updatedQuests),
-        updatedAt: now,
+    try {
+      final alternative = await _geminiService.generateAlternativeQuest(
+        hobby: hobby.value,
+        nodeTitle: dailyQuests
+                .firstWhereOrNull((quest) => quest.nodeId == questId)
+                ?.title ??
+            '',
+        nodeDesc: dailyQuests
+                .firstWhereOrNull((quest) => quest.nodeId == questId)
+                ?.desc ??
+            '',
       );
-      user.value = updatedUser;
 
-      // Save updated values to Firestore
-      FirebaseFirestore.instance
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        print('--- ERROR: User not logged in ---');
+        return false;
+      }
+
+      final userRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser.id)
-          .set({
-            'totalXP': newTotalXP,
-            'currentStreak': newStreak,
-            'lastStreakDate': newStreakDate,
-            'currentPlan': updatedUser.currentPlan.toJson(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true)).catchError((e) {
-            print("--- ERROR: Failed to save quest completion: $e ---");
-          });
-    }
+          .doc(currentUser.uid);
 
-    return true;
-  }
+      UserModel? updatedUser;
+      bool didReroll = false;
 
-  bool _isCompletedToday(DateTime? completedAt) {
-    if (completedAt == null) {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(userRef);
+        final data = snapshot.data();
+        if (data == null) {
+          print('--- ERROR: User profile not found ---');
+          return;
+        }
+
+        final loadedUser = UserModel.fromJson(data, currentUser.uid);
+        final quests = loadedUser.currentPlan.quests;
+        final questIndex = quests.indexWhere((quest) => quest.nodeId == questId);
+
+        if (questIndex == -1) {
+          print('--- ERROR: Quest $questId not found in current plan ---');
+          return;
+        }
+
+        final targetQuest = quests[questIndex];
+        final updatedQuests = List<QuestNodeModel>.from(quests);
+        updatedQuests[questIndex] = targetQuest.copyWith(
+          title: alternative['title'] ?? targetQuest.title,
+          desc: alternative['desc'] ?? targetQuest.desc,
+        );
+
+        final normalizedQuests = _buildNormalizedQuestGraph(updatedQuests);
+        final updatedPlan = loadedUser.currentPlan.copyWith(quests: normalizedQuests);
+        final normalizedUser = loadedUser.copyWith(
+          currentPlan: updatedPlan,
+          lastRerollDate: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        transaction.set(
+          userRef,
+          normalizedUser.toJson(),
+          SetOptions(merge: true),
+        );
+
+        updatedUser = normalizedUser;
+        didReroll = true;
+      });
+
+      if (!didReroll || updatedUser == null) {
+        return false;
+      }
+
+      user.value = updatedUser;
+      nickname.value = updatedUser!.nickname;
+      avatarSvg.value = updatedUser!.avatarSvg;
+      hobby.value = updatedUser!.currentPlan.hobby;
+      goal.value = updatedUser!.currentPlan.goal;
+      frequency.value = updatedUser!.currentPlan.frequency;
+      level.value = updatedUser!.currentPlan.level;
+      dailyQuests.value = _buildVisibleQuestWindow(updatedUser!.currentPlan.quests);
+
+      print('--- INFO: Quest $questId rerolled successfully ---');
+      return true;
+    } catch (e) {
+      print('--- ERROR: Failed to reroll quest $questId: $e ---');
       return false;
     }
-
-    final now = DateTime.now();
-    return completedAt.year == now.year &&
-        completedAt.month == now.month &&
-        completedAt.day == now.day;
   }
 
-  void _updateMentorBubbleVisibility(dynamic dismissedDateRaw) {
-    final dismissedDate = _parseDate(dismissedDateRaw);
-    if (dismissedDate == null) {
-      showMentorBubble.value = true;
-      return;
-    }
+  List<QuestNodeModel> _buildVisibleQuestWindow(List<QuestNodeModel> quests) {
+    final normalized = _buildNormalizedQuestGraph(quests);
+    final readyQuests = normalized
+        .where((quest) => !quest.isCompleted && _isQuestReady(quest, normalized))
+        .toList();
 
-    showMentorBubble.value = !_isSameDay(dismissedDate, DateTime.now());
+    return readyQuests.take(3).toList();
   }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate();
-    }
+  List<QuestNodeModel> _buildNormalizedQuestGraph(
+    List<QuestNodeModel> quests,
+  ) {
+    final completedIds = quests
+        .where((quest) => quest.isCompleted)
+        .map((quest) => quest.nodeId)
+        .toSet();
 
-    if (value is DateTime) {
-      return value;
-    }
+    final visibleIds = _computeVisibleQuestIds(quests, completedIds);
 
-    if (value is String) {
-      return DateTime.tryParse(value);
-    }
-
-    return null;
+    return quests.map((quest) {
+      final shouldBeActive = visibleIds.contains(quest.nodeId) && !quest.isCompleted;
+      return quest.copyWith(isActive: shouldBeActive);
+    }).toList();
   }
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+  Set<String> _computeVisibleQuestIds(
+    List<QuestNodeModel> quests,
+    Set<String> completedIds,
+  ) {
+    final visible = <String>{};
+
+    for (final quest in quests) {
+      if (quest.isCompleted) {
+        continue;
+      }
+
+      final isReady = _isQuestReady(quest, quests, completedIds: completedIds);
+      if (isReady) {
+        visible.add(quest.nodeId);
+      }
+
+      if (visible.length == 3) {
+        break;
+      }
+    }
+
+    return visible;
+  }
+
+  bool _isQuestReady(
+    QuestNodeModel quest,
+    List<QuestNodeModel> quests, {
+    Set<String>? completedIds,
+  }) {
+    final completed = completedIds ??
+        quests
+            .where((item) => item.isCompleted)
+            .map((item) => item.nodeId)
+            .toSet();
+
+    if (quest.dependsOn.isEmpty) {
+      return true;
+    }
+
+    return quest.dependsOn.every(completed.contains);
   }
 }

@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/milestone_model.dart';
-import '../models/quest_model.dart';
+import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
 
 class ValidationResult {
@@ -93,14 +93,20 @@ class GeminiService {
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
     if (!hasApiKey) {
+      final milestones = _buildMilestones(hobby: hobby, level: level, goal: normalizedGoal);
       return QuestPlanModel(
-        hobbyName: hobby,
-        skillLevel: level,
-        customGoal: normalizedGoal,
+        hobby: hobby,
+        level: level,
+        goal: normalizedGoal,
         frequency: frequency,
+        currentMilestoneIndex: 0,
         progress: 0,
-        milestones: _buildMilestones(hobby: hobby, level: level, goal: normalizedGoal),
-        quests: _buildFallbackQuests(hobby: hobby, level: level, focus: normalizedGoal),
+        milestones: milestones,
+        quests: _buildFallbackPhaseDag(
+          hobby: hobby,
+          milestoneNumber: '1',
+          frequency: frequency,
+        ),
       );
     }
 
@@ -108,38 +114,31 @@ class GeminiService {
       print('[GeminiService] Calling generateQuestPlan API...');
       final prompt = '''
 You are an expert tutor and quest planner for a gamified hobby app.
-Generate a personalized learning plan as strict JSON.
+The user wants to learn $hobby. Their main goal is $normalizedGoal.
+They consider themselves $level level and can commit $frequency daily. 
 
 User Profile:
 - Hobby: $hobby
 - Skill Level: $level
-- Custom Goal: $normalizedGoal
+- Goal: $normalizedGoal
 - Daily Time Commitment: $frequency
 
 Instructions:
-1. Generate exactly 4 major Milestones that break the user's custom goal into logical phases.
-2. Generate exactly 3 initial Daily Quests to get the user started.
-3. Quest 'desc' must be brief, encouraging, and actionable (under 3 sentences).
-4. Quest 'type' MUST be exactly one of: "knowledge", "practice", or "challenge".
-5. Set 'isPriority' to true ONLY for "challenge" quests.
+1. Generate exactly 4 major Milestones that break this goal into logical phases.
 
 Output formatting rules:
-You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json. Use this exact schema:
+You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this exact schema:
 {
-  "hobbyName": "string",
+  "hobby": "string",
+  "level": "string",
+  "goal": "string",
   "milestones": [
     { "title": "string" },
     { "title": "string" },
     { "title": "string" },
     { "title": "string" }
-  ],
-  "quests": [
-    { "title": "string", "desc": "string", "type": "string", "isPriority": boolean },
-    { "title": "string", "desc": "string", "type": "string", "isPriority": boolean },
-    { "title": "string", "desc": "string", "type": "string", "isPriority": boolean }
   ]
 }
-
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
@@ -147,7 +146,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
       final milestonesDynamic = jsonMap['milestones'] as List<dynamic>?;
-      final questsDynamic = jsonMap['quests'] as List<dynamic>?;
       final milestones = (milestonesDynamic ?? const <dynamic>[])
           .map((item) {
             if (item is Map<String, dynamic>) {
@@ -158,216 +156,288 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
               return MilestoneModel.fromJson(Map<String, dynamic>.from(item));
             }
 
-            return MilestoneModel(task: item.toString(), completed: false);
+            return MilestoneModel(title: item.toString(), completed: false);
           })
-          .where((item) => item.task.trim().isNotEmpty)
+            .where((item) => item.title.trim().isNotEmpty)
           .toList();
-      final quests = _parseQuests(questsDynamic, hobby: hobby, level: level, focus: normalizedGoal);
 
       if (milestones.length < 4) {
         throw const FormatException('Gemini returned insufficient milestones');
       }
-      if (quests.length < 3) {
-        throw const FormatException('Gemini returned insufficient quests');
-      }
 
       return QuestPlanModel(
-        hobbyName: (jsonMap['hobbyName']?.toString().trim().isNotEmpty ?? false)
-            ? jsonMap['hobbyName'].toString().trim()
-            : hobby,
-        skillLevel: (jsonMap['skillLevel']?.toString().trim().isNotEmpty ?? false)
-            ? jsonMap['skillLevel'].toString().trim()
-            : level,
-        customGoal: (jsonMap['customGoal']?.toString().trim().isNotEmpty ?? false)
-            ? jsonMap['customGoal'].toString().trim()
-            : normalizedGoal,
-        frequency: (jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
-            ? jsonMap['frequency'].toString().trim()
-            : frequency,
-        progress: (jsonMap['progress'] as int?) ?? 0,
-        milestones: milestones.take(4).toList(),
-        quests: quests.take(3).toList(),
-      );
+    hobby: (jsonMap['hobby']?.toString().trim().isNotEmpty ?? false)
+      ? jsonMap['hobby'].toString().trim()
+      : ((jsonMap['hobbyName']?.toString().trim().isNotEmpty ?? false)
+        ? jsonMap['hobbyName'].toString().trim()
+        : hobby),
+    level: (jsonMap['level']?.toString().trim().isNotEmpty ?? false)
+      ? jsonMap['level'].toString().trim()
+      : ((jsonMap['skillLevel']?.toString().trim().isNotEmpty ?? false)
+        ? jsonMap['skillLevel'].toString().trim()
+        : level),
+    goal: (jsonMap['goal']?.toString().trim().isNotEmpty ?? false)
+      ? jsonMap['goal'].toString().trim()
+      : ((jsonMap['customGoal']?.toString().trim().isNotEmpty ?? false)
+        ? jsonMap['customGoal'].toString().trim()
+        : normalizedGoal),
+    frequency: (jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
+      ? jsonMap['frequency'].toString().trim()
+      : frequency,
+    progress: (jsonMap['progress'] as int?) ?? 0,
+    milestones: milestones.take(4).toList(),
+    quests: const [],
+    );
     } catch (e) {
       print('[GeminiService] Quest plan API call failed: $e');
       return QuestPlanModel(
-        hobbyName: hobby,
-        skillLevel: level,
-        customGoal: normalizedGoal,
+        hobby: hobby,
+        level: level,
+        goal: normalizedGoal,
         frequency: frequency,
         progress: 0,
         milestones: _buildMilestones(hobby: hobby, level: level, goal: normalizedGoal),
-        quests: _buildFallbackQuests(hobby: hobby, level: level, focus: normalizedGoal),
+        quests: const [],
       );
     }
   }
 
-  Future<List<QuestModel>> generateDailyQuests({
+  Future<List<QuestNodeModel>> generatePhaseDAG({
     required String hobby,
     required String level,
     required String goal,
     required String frequency,
-    required String currentMilestoneTitle, // NEW: Context for the AI
-    required int activeQuestsCount,        // NEW: Prevents over-generating
-    String focus = '',                     // Kept for fallback
+    required String milestoneTitle,
+    required String milestoneNumber,
+  
+    String focus = '',
   }) async {
-    // Normalize goal like generateQuestPlan
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
-    // 1. Calculate how many quests we actually need
-    final int questsNeeded = activeQuestsCount >= 3 ? 3 : 3 - activeQuestsCount;
-
-    // 2. Safety Check: If they already have 3, don't call the API!
-    if (questsNeeded <= 0) {
-      print('[GeminiService] User already has 3 active quests. Skipping API call.');
-      return []; 
-    }
-
     if (!hasApiKey) {
-      final fallbackFocus = focus.trim().isEmpty ? normalizedGoal : focus;
-      return _buildFallbackQuests(hobby: hobby, level: level, focus: fallbackFocus)
-          .take(questsNeeded)
-          .toList();
+      return _buildFallbackPhaseDag(
+        hobby: hobby,
+        milestoneNumber: milestoneNumber,
+        frequency: frequency,
+      );
     }
 
     try {
-      print('[GeminiService] Calling generateDailyQuests API for $questsNeeded quests...');
-      
-      // 3. The Dynamic "Daily Refill" Prompt
+      print('[GeminiService] Calling generatePhaseDAG API for $milestoneTitle quests...');
+
       final prompt = '''
-You are an expert tutor and quest planner for a gamified hobby app. 
-The user is currently learning a hobby and needs their next set of daily quests.
+Act as an expert instructor for $hobby.
+The user is at skill level: $level.
+Their CURRENT milestone is: $milestoneTitle.
 
 User Context:
 - Hobby: $hobby
 - Skill Level: $level
      - Custom Goal: $normalizedGoal
 - Daily Time Commitment: $frequency
-- Current Milestone Focus: $currentMilestoneTitle
-- Skill Level: $level
-
+- Current Milestone Focus: $milestoneTitle
 
 Instructions:
-1. Generate EXACTLY $questsNeeded new sequential daily quests that help the user master the current milestone.
-2. The 'desc' should be brief, encouraging, and actionable (under 3 sentences).
-3. The 'type' MUST be exactly one of the following strings:
+1. Generate a localized Skill Tree (Directed Acyclic Graph) for THIS MILESTONE ONLY.
+2. Generate EXACTLY 20 skill nodes for the current phase only.
+3. Every node must have dependencies to create a logical learning path. Foundational skills should have empty dependencies []. Advanced skills MUST depend on earlier node_ids.
+4. The 'title' should be a short, descriptive name for the skill.
+5. The 'desc' should be a clear, actionable instruction for the skill (1-2 sentences)
+6. For every node, generate a 'steps' array containing exactly 2 to 4 micro-steps. These steps must act as a mini-tutorial guiding the user exactly HOW to complete the task practically.
+7. The 'type' MUST be exactly one of the following strings:
    - "knowledge" (reading theory or watching a quick tutorial)
    - "practice" (standard hands-on tasks to build muscle memory)
    - "challenge" (a major task where the user must snap a photo of their work for AI grading)
-4. Set 'isPriority' to true ONLY for "challenge" type quests.
+
+CRITICAL GRAPH RULES:
+8. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel learning branches (for example theory, practice, and setup/equipment).
+9. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. This ensures the user starts with exactly 3 choices.
+10. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches (for example node_7 depends on node_2 and node_5).
+11. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID (e.g., node_5 can depend on node_2, but never on node_6). This guarantees no infinite loops.
+
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json. Use this exact schema:
 {
-  "quests": [
+  "nodes": [
     {
-      "title": "String",
-      "desc": "String",
-      "type": "String",
-      "isPriority": boolean
+      "node_id": "${milestoneNumber}_node_1",
+      "title": "string",
+      "desc": "string (under 2 sentences, respecting $frequency)",
+      "steps": [
+        "String (Step 1 actionable instruction)",
+        "String (Step 2 actionable instruction)"
+      ],
+      "type": "String (knowledge, practice, or challenge)", 
+      "duration_minutes": Integer (estimate based on $frequency),
+      "xp_reward": 100,
+      "depends_on": ["array of previous node_ids"]
     }
   ]
 }
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      print('[GeminiService] Daily quests API call succeeded');
-      
+      print('[GeminiService] Phase DAG API call succeeded');
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
-      final listDynamic = jsonMap['quests'] as List<dynamic>? ?? const <dynamic>[];
+      final listDynamic = jsonMap['nodes'] as List<dynamic>? ?? const <dynamic>[];
 
-      // 4. Validate we got enough quests back
-      if (listDynamic.isEmpty) {
-        throw const FormatException('Gemini returned empty quests array');
+      // Convert dynamic items into QuestNodeModel instances
+      final parsed = <QuestNodeModel>[];
+      for (final item in listDynamic) {
+        try {
+          if (item is Map<String, dynamic>) {
+            final node = QuestNodeModel.fromJson(item);
+            parsed.add(node.copyWith(type: _sanitizeType(node.type)));
+            continue;
+          }
+
+          if (item is Map) {
+            final node = QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
+            parsed.add(node.copyWith(type: _sanitizeType(node.type)));
+            continue;
+          }
+
+          // Fallback for unexpected item shape
+          parsed.add(QuestNodeModel(
+            nodeId: '${milestoneNumber}_node_${parsed.length + 1}',
+            title: item.toString(),
+            desc: 'Practice step for $hobby',
+            steps: [
+              'Open the task and review the goal.',
+              'Do one concrete action toward the goal.',
+              'Check the result and note one improvement.',
+            ],
+            xpReward: 100,
+            type: 'practice',
+            durationMinutes: 10,
+            dependsOn: const [],
+          ));
+        } catch (_) {
+          // Ignore single-item parse errors and continue
+        }
       }
 
-      final sanitized = <QuestModel>[];
-      // Only loop up to questsNeeded, just in case the AI generated extra
-      final int loopCount = min(listDynamic.length, questsNeeded);
+      final nodes = <QuestNodeModel>[];
+      nodes.addAll(parsed);
 
-      for (var i = 0; i < loopCount; i++) {
-        final item = listDynamic[i] as Map<String, dynamic>;
-        final type = _sanitizeType(item['type']?.toString() ?? 'practice');
-        
-        // Use milliseconds to ensure IDs don't collide with yesterday's quests!
-        final uniqueId = 'q_${DateTime.now().millisecondsSinceEpoch}_$i';
-
-        sanitized.add(QuestModel(
-          id: uniqueId,
-          title: (item['title']?.toString().trim().isNotEmpty ?? false)
-              ? item['title'].toString().trim()
-              : 'Quest ${i + 1}',
-          desc: (item['desc']?.toString().trim().isNotEmpty ?? false)
-              ? item['desc'].toString().trim()
-              : 'Complete a focused step for $hobby today.',
-          xp: 100, // Hardcoded 100 XP rule
-          type: type,
-          isPriority: item['isPriority'] == true,
-          isCompleted: false, // Default
-          reflectionNote: "", // Default
-        ));
+      // Pad to 20 nodes if needed
+      if (nodes.length < 20) {
+        final padCount = 20 - nodes.length;
+        final variants = _questTemplatesForHobby(hobby);
+        for (var i = 0; i < padCount; i++) {
+          final idx = i % variants.length;
+          nodes.add(QuestNodeModel(
+            nodeId: '${milestoneNumber}_node_${nodes.length + 1}',
+            title: variants[idx]['title']!,
+            desc: variants[idx]['desc']!,
+            steps: [
+              'Read the task description carefully.',
+              'Complete the practice step for this node.',
+              'Reflect on what you learned.',
+            ],
+            xpReward: 100,
+            type: 'practice',
+            durationMinutes: 15,
+            dependsOn: const [],
+          ));
+        }
       }
 
-      return sanitized;
+      return _ensureMinimumReadyNodes(
+        nodes.take(20).toList(),
+        minimumRoots: 3,
+      );
     } catch (e) {
-        print('[GeminiService] Daily quests API call failed: $e');
-        final fallbackFocus = focus.trim().isEmpty ? normalizedGoal : focus;
-        return _buildFallbackQuests(hobby: hobby, level: level, focus: fallbackFocus)
-          .take(questsNeeded)
-          .toList();
+        print('[GeminiService] Phase DAG API call failed: $e');
+        return _buildFallbackPhaseDag(
+          hobby: hobby,
+          milestoneNumber: milestoneNumber,
+          frequency: frequency,
+        );
     }
   }
 
 
-
-  /// Generate one alternative task title for a quest reroll.
-  /// Returns just the task title string, or empty string on failure.
-  Future<String> generateAlternativeQuestTitle({
+  /// Generate one alternative quest title/description pair for a quest reroll.
+  /// Returns a map with `title` and `desc`, or a fallback pair on failure.
+  Future<Map<String, String>> generateAlternativeQuest({
     required String hobby,
-    required String currentTask,
+    required String nodeTitle,
+    required String nodeDesc,
   }) async {
     if (!hasApiKey) {
-      return _getAlternativeTaskFallback(hobby: hobby, currentTask: currentTask);
+      print('[GeminiService] No API key found for alternative quest generation.');
+      return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
     }
 
     try {
       print('[GeminiService] Calling generateAlternativeQuestTitle API...');
-      final prompt = '''The user is learning $hobby. Their current task was '$currentTask', but they want to skip it. Generate ONE new, alternative task of the same difficulty level. Return only the task title.''';
+      final prompt = '''
+
+The user is learning $hobby. 
+They are currently on a skill tree node titled: "$nodeTitle".
+The current task is: "$nodeDesc".
+
+They want to "reroll" and skip this specific task, but they STILL NEED TO LEARN THE CORE SKILL so they don't break their prerequisite learning path.
+
+Generate ONE alternative task that teaches the EXACT SAME underlying skill or concept, but uses a different learning approach (e.g., if it was practice, maybe make it theory or a different exercise).
+
+You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this schema:
+{
+  "title": "string (Brief, engaging title)",
+  "desc": "string (Actionable alternative step, under 2 sentences)"
+}
+''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
       print('[GeminiService] Alternative task title API call succeeded');
       
-      final title = response.text?.trim() ?? '';
-      if (title.isEmpty) {
-        return _getAlternativeTaskFallback(hobby: hobby, currentTask: currentTask);
-      }
-      
-      return title;
+      final rawText = response.text?.trim() ?? '';
+      final jsonMap = _extractJsonObject(rawText);
+      final title = (jsonMap['title']?.toString().trim().isNotEmpty ?? false)
+          ? jsonMap['title'].toString().trim()
+          : _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle)['title']!;
+      final desc = (jsonMap['desc']?.toString().trim().isNotEmpty ?? false)
+          ? jsonMap['desc'].toString().trim()
+          : 'Complete a focused step for $hobby today.';
+
+      return {'title': title, 'desc': desc};
     } catch (e) {
       print('[GeminiService] Alternative task title API call failed: $e');
-      return _getAlternativeTaskFallback(hobby: hobby, currentTask: currentTask);
+      return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
     }
   }
 
-  String _getAlternativeTaskFallback({
+  /// Backward-compatible alias for callers that still expect a single title.
+  Future<String> generateAlternativeQuestTitle({
+    required String hobby,
+    required String nodeTitle,
+    required String nodeDesc,
+  }) async {
+    final alternative = await generateAlternativeQuest(
+      hobby: hobby,
+      nodeTitle: nodeTitle,
+      nodeDesc: nodeDesc,
+    );
+    return alternative['title'] ?? _getAlternativeTaskFallback(
+      hobby: hobby,
+      currentTask: nodeTitle,
+    )['title']!;
+  }
+
+  Map<String, String> _getAlternativeTaskFallback({
     required String hobby,
     required String currentTask,
   }) {
-    final fallbacks = <String>[
-      'Master a new $hobby technique',
-      'Practice $hobby for 20 minutes focused',
-      'Review your $hobby progress today',
-      'Learn one advanced $hobby concept',
-      'Record yourself doing $hobby',
-      'Watch a $hobby tutorial and take notes',
-      'Set up your $hobby workspace',
-      'Reflect on your $hobby journey',
-      'Share your $hobby work with others',
-      'Create something new in $hobby',
+    final fallbacks = [
+      {'title': 'Alternative Study', 'desc': 'Watch a 5-minute video explaining $currentTask.'},
+      {'title': 'Mental Reps', 'desc': 'Visualize the steps required to complete $currentTask.'},
+      {'title': 'Break it Down', 'desc': 'Write down the 3 hardest parts about $currentTask.'},
     ];
-    
-    final random = Random(DateTime.now().day);
+
+    final random = Random(DateTime.now().millisecondsSinceEpoch);
     return fallbacks[random.nextInt(fallbacks.length)];
   }
 
@@ -396,7 +466,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     return 'practice';
   }
 
-  List<QuestModel> _buildFallbackQuests({
+  List<QuestNodeModel> _buildFallbackQuests({
     required String hobby,
     required String level,
     required String focus,
@@ -407,32 +477,52 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     variants.shuffle(random);
 
     return [
-      QuestModel(
-        id: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_1',
+      QuestNodeModel(
+        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_1',
         title: variants[0]['title']!,
         desc: variants[0]['desc']!,
-        xp: 100,
+        steps: [
+          'Read the topic overview.',
+          'Try one guided example or drill.',
+          'Write down one takeaway.',
+        ],
+        xpReward: 100,
         type: 'practice',
-        isPriority: true,
+        durationMinutes: 15,
+        dependsOn: const [],
       ),
-      QuestModel(
-        id: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_2',
+      QuestNodeModel(
+        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_2',
         title: variants[1]['title']!,
         desc: variants[1]['desc']!,
-        xp: 100,
+        steps: [
+          'Review the concept briefly.',
+          'Apply it in a small exercise.',
+          'Note one thing to improve next time.',
+        ],
+        xpReward: 100,
         type: 'knowledge',
+        durationMinutes: 10,
+        dependsOn: const [],
       ),
-      QuestModel(
-        id: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_3',
+      QuestNodeModel(
+        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_3',
         title: 'Goal Push: ${_shorten(focus)}',
         desc: 'Take one concrete step today toward: $focus',
-        xp: 100,
+        steps: [
+          'Break the goal into one small action.',
+          'Complete the action now.',
+          'Record the result or a quick note.',
+        ],
+        xpReward: 100,
         type: 'challenge',
+        durationMinutes: 30,
+        dependsOn: const [],
       ),
     ];
   }
 
-  List<QuestModel> _parseQuests(
+  List<QuestNodeModel> _parseQuests(
     List<dynamic>? questsDynamic, {
     required String hobby,
     required String level,
@@ -445,18 +535,26 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
     final parsed = rawQuests.map((item) {
       if (item is Map<String, dynamic>) {
-        return QuestModel.fromJson(item);
+        return QuestNodeModel.fromJson(item);
       }
 
       if (item is Map) {
-        return QuestModel.fromJson(Map<String, dynamic>.from(item));
+        return QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
       }
 
-      return QuestModel(
-        id: item.toString(),
+      return QuestNodeModel(
+        nodeId: item.toString(),
         title: item.toString(),
         desc: 'Complete a focused step for $hobby today.',
+        steps: [
+          'Read the task once end to end.',
+          'Do the smallest meaningful action.',
+          'Capture one observation before finishing.',
+        ],
+        xpReward: 100,
         type: 'practice',
+        durationMinutes: 15,
+        dependsOn: const [],
       );
     }).where((quest) => quest.title.trim().isNotEmpty).toList();
 
@@ -465,17 +563,18 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     }
 
     final normalized = parsed.take(3).toList();
-    if (!normalized.any((quest) => quest.isPriority)) {
-      normalized[0] = normalized[0].copyWith(isPriority: true);
+    // Ensure at least one 'challenge' exists so UI can highlight a priority task.
+    if (!normalized.any((quest) => quest.type == 'challenge')) {
+      normalized[0] = normalized[0].copyWith(type: 'challenge');
     }
 
     return normalized
-        .map((quest) => quest.copyWith(
-              xp: 100,
-              isCompleted: false,
-              reflectionNote: '',
-            ))
-        .toList();
+      .map((quest) => quest.copyWith(
+          xpReward: 100,
+          isCompleted: false,
+          reflectionNote: '',
+        ))
+      .toList();
   }
 
 
@@ -485,10 +584,10 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     required String goal,
   }) {
     return <MilestoneModel>[
-      MilestoneModel(task: 'Phase 1: Learn core $hobby fundamentals', completed: false),
-      MilestoneModel(task: 'Phase 2: Build a repeatable ${level.toLowerCase()} routine', completed: false),
-      MilestoneModel(task: 'Phase 3: Complete one measurable mini-project', completed: false),
-      MilestoneModel(task: 'Phase 4: Reach your boss goal: $goal', completed: false),
+      MilestoneModel(title: 'Phase 1: Learn core $hobby fundamentals', completed: false),
+      MilestoneModel(title: 'Phase 2: Build a repeatable ${level.toLowerCase()} routine', completed: false),
+      MilestoneModel(title: 'Phase 3: Complete one measurable mini-project', completed: false),
+      MilestoneModel(title: 'Phase 4: Reach your boss goal: $goal', completed: false),
     ];
   }
 
@@ -566,9 +665,90 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     ];
   }
 
+  List<QuestNodeModel> _buildFallbackPhaseDag({
+    required String hobby,
+    required String milestoneNumber,
+    required String frequency,
+  }) {
+    final variants = _questTemplatesForHobby(hobby);
+    final nodes = <QuestNodeModel>[];
+    const laneCount = 3;
+    final baseDurationMinutes = _durationFromFrequency(frequency);
+
+    for (var i = 0; i < 20; i++) {
+      final variant = variants[i % variants.length];
+      final nodeId = '${milestoneNumber}_node_${i + 1}';
+      final dependsOn = <String>[];
+      final lane = i % laneCount;
+      final step = i ~/ laneCount;
+      if (step > 0) {
+        final previousInLane = ((step - 1) * laneCount) + lane + 1;
+        dependsOn.add('${milestoneNumber}_node_$previousInLane');
+      }
+
+      nodes.add(QuestNodeModel(
+        nodeId: nodeId,
+        title: variant['title']!,
+        desc: variant['desc']!,
+        steps: [
+          'Start with the branch-specific skill.',
+          'Follow the current node objective step by step.',
+          'Check your result before moving on.',
+        ],
+        xpReward: 100,
+        type: i % 5 == 4 ? 'challenge' : (i % 2 == 0 ? 'practice' : 'knowledge'),
+        durationMinutes: baseDurationMinutes,
+        dependsOn: dependsOn,
+      ));
+    }
+
+    return _ensureMinimumReadyNodes(nodes, minimumRoots: 3);
+  }
+
+  List<QuestNodeModel> _ensureMinimumReadyNodes(
+    List<QuestNodeModel> nodes, {
+    int minimumRoots = 3,
+  }) {
+    if (nodes.length <= minimumRoots) {
+      return nodes;
+    }
+
+    final rootCount = nodes.where((node) => node.dependsOn.isEmpty).length;
+    if (rootCount >= minimumRoots) {
+      return nodes;
+    }
+
+    final knownIds = nodes.map((node) => node.nodeId).toSet();
+    final normalized = nodes
+        .map((node) => node.copyWith(
+              dependsOn: node.dependsOn.where(knownIds.contains).toList(),
+            ))
+        .toList();
+
+    for (var i = 0; i < minimumRoots && i < normalized.length; i++) {
+      normalized[i] = normalized[i].copyWith(dependsOn: const []);
+    }
+
+    return normalized;
+  }
+
   String _shorten(String text) {
     const maxLength = 36;
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength - 3)}...';
+  }
+
+  int _durationFromFrequency(String frequency) {
+    final match = RegExp(r'(\d+)').firstMatch(frequency);
+    if (match == null) {
+      return 15;
+    }
+
+    final parsed = int.tryParse(match.group(1)!);
+    if (parsed == null || parsed <= 0) {
+      return 15;
+    }
+
+    return parsed;
   }
 }

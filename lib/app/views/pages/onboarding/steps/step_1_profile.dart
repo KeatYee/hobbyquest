@@ -186,7 +186,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               letterSpacing: 1.0
             )),
             
-            if (showGenderError && controller.selectedGender.value.isEmpty)
+            if (showGenderError && controller.gender.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 5.0),
                 child: Row(
@@ -247,10 +247,10 @@ class _Step1ProfileState extends State<Step1Profile> {
                   print("--- VIEW: Continue Button Pressed ---");
                   //FocusManager.instance.primaryFocus?.unfocus();
                   bool isFormValid = _formKey.currentState!.validate();
-                  bool isGenderValid = controller.selectedGender.value.isNotEmpty;
+                  bool isGenderValid = controller.gender.value.isNotEmpty;
 
                   print("--- VIEW: Form Valid? $isFormValid ---");
-                  print("--- VIEW: Gender Valid? $isGenderValid (${controller.selectedGender.value}) ---");
+                  print("--- VIEW: Gender Valid? $isGenderValid (${controller.gender.value}) ---");
 
                   if (!isGenderValid) setState(() => showGenderError = true);
 
@@ -280,15 +280,15 @@ class _Step1ProfileState extends State<Step1Profile> {
 
   Widget _buildGenderCard(OnboardingController controller, String label, IconData icon, TextTheme textTheme) {
     return Obx(() {
-      bool isSelected = controller.selectedGender.value == label;
-      bool isError = showGenderError && controller.selectedGender.value.isEmpty;
+      bool isSelected = controller.gender.value == label;
+      bool isError = showGenderError && controller.gender.value.isEmpty;
 
       return Expanded(
       child: Material(
         color: Colors.transparent, 
         child: InkWell(
           onTap: () {
-            controller.selectedGender.value = label;
+            controller.gender.value = label;
             if (showGenderError) setState(() => showGenderError = false); 
           },
           borderRadius: BorderRadius.circular(16),

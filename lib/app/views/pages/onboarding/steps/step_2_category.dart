@@ -24,8 +24,8 @@ class _Step2CategoryState extends State<Step2Category> {
       final categoryList = controller.categories.value;
       final isLoading = controller.isLoadingCategories.value;
 
-      final activeCategoryName = controller.selectedCategory.value.isNotEmpty
-          ? controller.selectedCategory.value
+      final activeCategoryName = controller.category.value.isNotEmpty
+          ? controller.category.value
           : (categoryList.isNotEmpty ? categoryList.first.name : "");
 
       final activeCategoryModel = categoryList.firstWhereOrNull(
@@ -53,7 +53,7 @@ class _Step2CategoryState extends State<Step2Category> {
               ),
             ),
             const SizedBox(height: 12),
-            if (showError && controller.selectedHobby.value.isEmpty)
+            if (showError && controller.hobby.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
@@ -116,8 +116,8 @@ class _Step2CategoryState extends State<Step2Category> {
                         borderRadius: BorderRadius.circular(24),
                       ),
                       onSelected: (_) {
-                        controller.selectedCategory.value = categoryName;
-                        controller.selectedHobby.value = "";
+                        controller.category.value = categoryName;
+                        controller.hobby.value = "";
                         if (showError) {
                           setState(() => showError = false);
                         }
@@ -163,7 +163,7 @@ class _Step2CategoryState extends State<Step2Category> {
                   );
                 },
                 child: GridView.builder(
-                  key: ValueKey("$activeCategoryName-${controller.selectedHobby.value}"),
+                  key: ValueKey("$activeCategoryName-${controller.hobby.value}"),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -174,9 +174,9 @@ class _Step2CategoryState extends State<Step2Category> {
                   ),
                   itemCount: currentHobbies.length,
                   itemBuilder: (context, index) {
-                    final hobbyName = currentHobbies[index];
-                    final isSelected = controller.selectedHobby.value == hobbyName;
-                    final isLocked = hobbyName != "Drawing";
+                    final hobby = currentHobbies[index];
+                    final isSelected = controller.hobby.value == hobby;
+                    final isLocked = hobby != "Drawing";
 
                     return Material(
                       color: Colors.transparent,
@@ -186,8 +186,8 @@ class _Step2CategoryState extends State<Step2Category> {
                           InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: isLocked ? null : () {
-                              controller.selectedCategory.value = activeCategoryName;
-                              controller.selectedHobby.value = hobbyName;
+                              controller.category.value = activeCategoryName;
+                              controller.hobby.value = hobby;
                               if (showError) {
                                 setState(() => showError = false);
                               }
@@ -232,7 +232,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 8),
                                     child: Text(
-                                      hobbyName,
+                                      hobby,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
@@ -279,10 +279,10 @@ class _Step2CategoryState extends State<Step2Category> {
               height: 55,
               child: ElevatedButton(
                 onPressed: () {
-                  if (controller.selectedCategory.value.isEmpty && activeCategoryName.isNotEmpty) {
-                    controller.selectedCategory.value = activeCategoryName;
+                  if (controller.category.value.isEmpty && activeCategoryName.isNotEmpty) {
+                    controller.category.value = activeCategoryName;
                   }
-                  if (controller.selectedHobby.value.isEmpty) {
+                  if (controller.hobby.value.isEmpty) {
                     setState(() => showError = true);
                   } else {
                     controller.nextPage();

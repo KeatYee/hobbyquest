@@ -89,10 +89,10 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             // Predefined Goals Dropdown
             Obx(() {
-              final hobby = controller.selectedHobby.value.isNotEmpty
-                  ? controller.selectedHobby.value
+              final hobby = controller.hobby.value.isNotEmpty
+                  ? controller.hobby.value
                   : "Drawing";
-              final level = controller.selectedLevel.value;
+              final level = controller.level.value;
               final dynamicGoals = _getPredefinedGoals(hobby, level);
 
               return DropdownButtonFormField<String>(
@@ -112,7 +112,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                   setState(() {
                     selectedPredefinedGoal = value;
                     if (value != null) {
-                      controller.goalInput.text = value;
+                      controller.goalController.text = value;
                     }
                   });
                 },
@@ -123,7 +123,7 @@ class _Step4GoalsState extends State<Step4Goals> {
             // Custom Goal Input
             // Uses AppTheme styles automatically
             TextFormField(
-              controller: controller.goalInput,
+              controller: controller.goalController,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: "Or write your own goal...",

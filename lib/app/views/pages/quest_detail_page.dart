@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
-import '../../models/quest_model.dart';
+import '../../controllers/quest_detail_controller.dart';
+import '../../models/quest_node_model.dart';
 import '../../../core/constants/color_constants.dart';
 
 class QuestDetailPage extends StatefulWidget {
-  final QuestModel quest;
+  final QuestNodeModel quest;
   
   const QuestDetailPage({
     super.key,
@@ -19,14 +22,17 @@ class QuestDetailPage extends StatefulWidget {
 
 class _QuestDetailPageState extends State<QuestDetailPage> {
   late TextEditingController reflectionController;
-  late QuestModel currentQuest;
-  bool isSubmitting = false;
+  late QuestNodeModel currentQuest;
+  late QuestDetailController _controller;
+  XFile? selectedImage;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     reflectionController = TextEditingController();
     currentQuest = widget.quest;
+    _controller = Get.put(QuestDetailController(initialQuest: currentQuest));
     
     // Pre-fill reflection note if it exists
     if (currentQuest.reflectionNote.isNotEmpty) {
@@ -72,25 +78,15 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       Get.back();
       return;
     }
-
-    final homeController = Get.find<HomeController>();
-    final progressionController = Get.find<ProgressionController>();
-
-    setState(() => isSubmitting = true);
-
-    // Complete the quest
-    final didComplete = homeController.completeQuest(
-      currentQuest.id,
-      reflectionNote: reflectionController.text.trim(),
+    final didComplete = await _controller.completeQuest(
+      reflectionController.text.trim(),
     );
 
     if (didComplete) {
-      progressionController.completeQuest(questId: currentQuest.id);
-
       // Show success feedback
       Get.snackbar(
         'Quest Completed! 🎉',
-        '+${currentQuest.xp} XP earned',
+        '+${currentQuest.xpReward} XP earned',
         backgroundColor: AppColors.success,
         colorText: Colors.white,
         duration: const Duration(seconds: 2),
@@ -105,7 +101,48 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      setState(() => isSubmitting = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          selectedImage = image;
+        });
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to pick image: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> _captureImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          selectedImage = image;
+        });
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to capture image: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -195,10 +232,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
             Row(
               children: [
                 Expanded(
-                  child: _buildInfoCard(
+                    child: _buildInfoCard(
                     icon: Icons.local_fire_department_rounded,
                     label: 'Reward',
-                    value: '+${currentQuest.xp} XP',
+                    value: '+${currentQuest.xpReward} XP',
                     color: AppColors.primaryDark,
                   ),
                 ),
@@ -207,8 +244,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   child: _buildInfoCard(
                     icon: Icons.star_rounded,
                     label: 'Priority',
-                    value: currentQuest.isPriority ? 'Yes' : 'No',
-                    color: currentQuest.isPriority ? Colors.orange : Colors.grey,
+                    value: currentQuest.type == 'challenge' ? 'Yes' : 'No',
+                    color: currentQuest.type == 'challenge' ? Colors.orange : Colors.grey,
                   ),
                 ),
               ],
@@ -221,12 +258,16 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               decoration: BoxDecoration(
                 color: currentQuest.isCompleted
                     ? AppColors.success.withOpacity(0.1)
-                    : AppColors.accent.withOpacity(0.1),
+                    : currentQuest.isActive
+                        ? AppColors.accent.withOpacity(0.1)
+                        : AppColors.textSecondary.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: currentQuest.isCompleted
                       ? AppColors.success.withOpacity(0.3)
-                      : AppColors.accent.withOpacity(0.3),
+                      : currentQuest.isActive
+                          ? AppColors.accent.withOpacity(0.3)
+                          : AppColors.textSecondary.withOpacity(0.2),
                 ),
               ),
               child: Row(
@@ -234,10 +275,14 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   Icon(
                     currentQuest.isCompleted
                         ? Icons.check_circle_rounded
+                        : currentQuest.isActive
+                            ? Icons.play_circle_rounded
                         : Icons.pending_actions_rounded,
                     color: currentQuest.isCompleted
                         ? AppColors.success
-                        : AppColors.accent,
+                        : currentQuest.isActive
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
                     size: 24,
                   ),
                   const SizedBox(width: 12),
@@ -246,7 +291,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          currentQuest.isCompleted ? 'Completed' : 'Not Started',
+                          currentQuest.isCompleted
+                              ? 'Completed'
+                              : currentQuest.isActive
+                                  ? 'Active'
+                                  : 'Locked',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
@@ -259,6 +308,14 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                               color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
+                          )
+                        else if (!currentQuest.isActive)
+                          const Text(
+                            'Locked until prerequisites are complete',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
                           ),
                       ],
                     ),
@@ -268,123 +325,285 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
             ),
             const SizedBox(height: 24),
 
-            // REFLECTION NOTE SECTION
-            if (!currentQuest.isCompleted || reflectionController.text.isNotEmpty)
+            // STEPS SECTION
+            if (currentQuest.steps.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Reflection Note',
+                    'Steps',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: reflectionController,
-                    readOnly: currentQuest.isCompleted,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: currentQuest.isCompleted
-                          ? 'No reflection note added'
-                          : 'Add a reflection note about this quest (optional)',
-                      hintStyle: const TextStyle(color: AppColors.textSecondary),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: AppColors.background,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: AppColors.background,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: AppColors.background,
-                        ),
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.background),
                     ),
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    child: Column(
+                      children: currentQuest.steps.asMap().entries.map((entry) {
+                        final index = entry.key + 1;
+                        final step = entry.value;
+
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: index == currentQuest.steps.length ? 0 : 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: typeColor.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '$index',
+                                  style: TextStyle(
+                                    color: typeColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  step,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+
+            // REFLECTION NOTE & IMAGE PICKER SECTION
+            if (!currentQuest.isCompleted || reflectionController.text.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reflection & Evidence',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.background),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Text field
+                        TextField(
+                          controller: reflectionController,
+                          readOnly: currentQuest.isCompleted,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: currentQuest.isCompleted
+                                ? 'No reflection note added'
+                                : 'Add a reflection note about this quest (optional)',
+                            hintStyle: const TextStyle(color: AppColors.textSecondary),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                          ),
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 12),
+                        // Image preview if selected
+                        if (selectedImage != null)
+                          Column(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                height: 180,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: AppColors.background,
+                                ),
+                                child: Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        File(selectedImage!.path),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            selectedImage = null;
+                                          });
+                                        },
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          padding: const EdgeInsets.all(6),
+                                          child: const Icon(
+                                            Icons.close_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        // Image picker buttons
+                        if (!currentQuest.isCompleted)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _pickImage,
+                                  icon: const Icon(Icons.photo_library_rounded, size: 18),
+                                  label: const Text('Gallery'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.accent,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _captureImage,
+                                  icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                                  label: const Text('Camera'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryDark,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],
               ),
 
             // ACTION BUTTON
-            if (!currentQuest.isCompleted)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isSubmitting ? null : _completeQuest,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2,
+            currentQuest.isActive && !currentQuest.isCompleted
+                ? Obx(
+                    () => SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _controller.isSubmitting.value ? null : _completeQuest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check_rounded, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Complete Quest',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
                         ),
-                ),
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.background,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: AppColors.primary, width: 2),
+                        child: _controller.isSubmitting.value
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_rounded, color: Colors.white),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Complete Quest',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'Back to Quests',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+                  )
+                : !currentQuest.isCompleted && !currentQuest.isActive
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.textSecondary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Text(
+                          'This quest is locked until its prerequisites are finished.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Get.back(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.background,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                          ),
+                          child: Text(
+                            'Back to Quests',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
 
             const SizedBox(height: 20),
           ],
