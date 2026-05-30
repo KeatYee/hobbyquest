@@ -158,7 +158,10 @@ class QuestDetailController extends GetxController {
         return false;
       }
 
-      await progressionController.completeQuest(questId: questId);
+      await progressionController.completeQuest(
+        questId: questId,
+        xpReward: currentQuest.value.xpReward,
+      );
 
       // Refresh local UI state from updated user
       homeController.user.value = updatedUser;

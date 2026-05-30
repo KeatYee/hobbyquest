@@ -284,7 +284,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       ],
       "type": "String (knowledge, practice, or challenge)", 
       "duration_minutes": Integer (estimate based on $frequency),
-      "xp_reward": 100,
+      "xp_reward": Integer (Calculate dynamically: Base 50 XP. Add +50 if type is 'practice'. Add +150 if type is 'challenge'. Add +50 if duration_minutes is greater than 30.),
       "depends_on": ["array of previous node_ids"],
       "youtube_search_query": "String (Highly optimized 3-to-5 word YouTube search phrase for a tutorial on this task)"
     }
@@ -691,7 +691,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 
     return normalized
       .map((quest) => quest.copyWith(
-          xpReward: 100,
           isCompleted: false,
           reflectionNote: '',
         ))

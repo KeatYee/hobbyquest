@@ -53,7 +53,7 @@ class ProgressionController extends GetxController {
     }
   }
 
-  Future<void> completeQuest({String? questId}) async {
+  Future<void> completeQuest({String? questId, int xpReward = 100}) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw Exception('User not authenticated');
@@ -69,7 +69,7 @@ class ProgressionController extends GetxController {
       final data = snapshot.data();
       final currentXP = data == null ? 0 : _readTotalXP(data);
       previousXP = currentXP;
-      updatedXP = currentXP + 100;
+      updatedXP = currentXP + xpReward;
 
       transaction.set(
         userRef,
