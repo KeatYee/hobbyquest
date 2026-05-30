@@ -227,34 +227,43 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       print('[GeminiService] Calling generatePhaseDAG API for $milestoneTitle quests...');
 
       final prompt = '''
-Act as an expert instructor for $hobby.
-The user is at skill level: $level.
-Their CURRENT milestone is: $milestoneTitle.
+Act as an elite, professional curriculum designer and expert instructor for $hobby. 
+Your goal is to break down complex skills into professional, highly precise, and easy-to-follow micro-lessons.
+
 
 User Context:
 - Hobby: $hobby
 - Skill Level: $level
-     - Custom Goal: $normalizedGoal
-- Daily Time Commitment: $frequency
+- Goal: $normalizedGoal
+- Preferred Learning Pace: $frequency
 - Current Milestone Focus: $milestoneTitle
 
 Instructions:
 1. Generate a localized Skill Tree (Directed Acyclic Graph) for THIS MILESTONE ONLY.
 2. Generate EXACTLY 20 skill nodes for the current phase only.
 3. Every node must have dependencies to create a logical learning path. Foundational skills should have empty dependencies []. Advanced skills MUST depend on earlier node_ids.
+
 4. The 'title' should be a short, descriptive name for the skill.
 5. The 'desc' should be a clear, actionable instruction for the skill (1-2 sentences)
-6. For every node, generate a 'steps' array containing exactly 2 to 4 micro-steps. These steps must act as a mini-tutorial guiding the user exactly HOW to complete the task practically.
+6. For every node, generate a 'steps' array containing exactly 3 to 6 micro-steps. These steps must act as a mini-tutorial guiding the user exactly HOW to complete the task practically.
 7. The 'type' MUST be exactly one of the following strings:
-   - "knowledge" (reading theory or watching a quick tutorial)
-   - "practice" (standard hands-on tasks to build muscle memory)
-   - "challenge" (a major task where the user must snap a photo of their work for AI grading)
+    - "knowledge" (Purely mental or theory-based. The user ONLY needs their eyes and brain. Allowed Verbs: Read, memorize, watch, study, review.)
+    - "practice" (Physical, hands-on drills to build muscle memory. Allowed Verbs: Draw, play, sketch, write, cut, assemble.)
+    - "challenge" (A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.)
+8. Scope Scaling (Difficulty): You must scale the complexity and density of the entire 20-node milestone based on the user's "$frequency".
+9. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+10. The Micro-Step Formula: The 'steps' array MUST contain 3 to 5 highly detailed instructions that guide the user exactly HOW to execute the task. 
+    - Step 1 must be Physical/Mental Setup (e.g., "Rest your thumb parallel to the fretboard").
+    - Middle steps must contain precise mechanical details or measurements. Never just say "do it." Explain the exact physics or logic required.
+    - The Final step MUST be a self-validation check or "Common Mistake" warning (e.g., "Check that your wrist is not bent; if the string buzzes, press closer to the fret wire").
+11. Realistic Time Estimation: The `duration_minutes` MUST be logically tied to the specific task type and steps. A quick "knowledge" read should be 5-10 minutes. A "practice" drill might be 15-30 minutes. A "challenge" might be 45-60+ minutes.
+
 
 CRITICAL GRAPH RULES:
-8. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel learning branches (for example theory, practice, and setup/equipment).
-9. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. This ensures the user starts with exactly 3 choices.
-10. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches (for example node_7 depends on node_2 and node_5).
-11. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID (e.g., node_5 can depend on node_2, but never on node_6). This guarantees no infinite loops.
+12. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel learning branches (for example theory, practice, and setup/equipment).
+13. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. This ensures the user starts with exactly 3 choices.
+14. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches (for example node_7 depends on node_2 and node_5).
+15. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID (e.g., node_5 can depend on node_2, but never on node_6). This guarantees no infinite loops.
 
 
 Output formatting rules:
@@ -267,12 +276,17 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       "desc": "string (under 2 sentences, respecting $frequency)",
       "steps": [
         "String (Step 1 actionable instruction)",
-        "String (Step 2 actionable instruction)"
+        "String (Step 2 actionable instruction)",
+        "String (Step 3 actionable instruction)",
+        "String (Step 4 actionable instruction)",
+        "String (Step 5 actionable instruction)",
+        "String (Step 6 actionable instruction)"
       ],
       "type": "String (knowledge, practice, or challenge)", 
       "duration_minutes": Integer (estimate based on $frequency),
       "xp_reward": 100,
-      "depends_on": ["array of previous node_ids"]
+      "depends_on": ["array of previous node_ids"],
+      "youtube_search_query": "String (Highly optimized 3-to-5 word YouTube search phrase for a tutorial on this task)"
     }
   ]
 }
@@ -473,18 +487,18 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 
   4. THE FEEDBACK FORMULA (Strict Word Limits):
     To prevent user reading fatigue, you MUST split your feedback into three distinct parts, strictly obeying these maximum word counts:
-    - Greeting (Max 15 words): A short, high-energy validation.
-    - Observation (Max 25 words): Prove you are paying attention! Explicitly mention a physical detail you see in the photo AND directly respond to their Reflection Note. 
-    - Tip (Max 20 words): Look at the "Required Steps". Provide one specific, mechanical technique to overcome their struggle or improve next time. No generic fluff.
+    - Greeting (Max 5 words): A short, high-energy validation.
+    - Observation (Max 15 words): Prove you are paying attention! Explicitly mention a physical detail you see in the photo AND directly respond to their Reflection Note. 
+    - Tip (Max 15 words): Look at the "Required Steps". Provide one specific, mechanical technique to overcome their struggle or improve next time. No generic fluff.
 
   5. JSON FORMAT: You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json.
 
   Use this exact JSON schema:
   {
     "is_approved": Boolean (true if genuine effort, false if spam/unrelated),
-    "greeting": "String (Max 15 words. Cheerful, high-energy validation)",
-    "observation": "String (Max 25 words. Must address the reflection note and a visual detail)",
-    "tip": "String (Max 20 words. Specific actionable improvement based on steps)"
+    "greeting": "String (Max 5 words. Cheerful, high-energy validation)",
+    "observation": "String (Max 15 words. Must address the reflection note and a visual detail)",
+    "tip": "String (Max 15 words. Specific actionable improvement based on steps)"
   }''';
  
       final response = await _model.generateContent([

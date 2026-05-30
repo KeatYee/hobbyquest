@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../controllers/quest_detail_controller.dart';
@@ -27,10 +28,17 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   XFile? selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
 
+  bool get _canCompleteQuest {
+    return currentQuest.isActive &&
+        !currentQuest.isCompleted &&
+        reflectionController.text.trim().length >= 15;
+  }
+
   @override
   void initState() {
     super.initState();
     reflectionController = TextEditingController();
+    reflectionController.addListener(_handleReflectionChanged);
     currentQuest = widget.quest;
     _controller = Get.put(QuestDetailController(initialQuest: currentQuest));
     
@@ -42,8 +50,15 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
   @override
   void dispose() {
+    reflectionController.removeListener(_handleReflectionChanged);
     reflectionController.dispose();
     super.dispose();
+  }
+
+  void _handleReflectionChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Color getTypeColor() {
@@ -122,6 +137,37 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         'Failed to capture image: $e',
         backgroundColor: Colors.red,
         colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> _watchTutorial() async {
+    final query = (currentQuest.youtubeSearchQuery ?? currentQuest.title).trim();
+    if (query.isEmpty) {
+      Get.snackbar(
+        'Tutorial unavailable',
+        'No YouTube search query was generated for this quest.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final uri = Uri.https(
+      'www.youtube.com',
+      '/results',
+      {'search_query': query},
+    );
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      Get.snackbar(
+        'Could not open tutorial',
+        'Please try again or open the search manually.',
+        snackPosition: SnackPosition.BOTTOM,
       );
     }
   }
@@ -231,6 +277,85 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               ],
             ),
             const SizedBox(height: 24),
+
+            if ((currentQuest.youtubeSearchQuery ?? '').trim().isNotEmpty)
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.accent,
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _watchTutorial,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Watch Tutorial',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Open a YouTube search for this quest',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.open_in_new_rounded,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if ((currentQuest.youtubeSearchQuery ?? '').trim().isNotEmpty)
+              const SizedBox(height: 24),
 
             // STEPS SECTION
             if (currentQuest.steps.isNotEmpty)
@@ -439,10 +564,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                     () => SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _controller.isSubmitting.value ? null : _completeQuest,
+                        onPressed: _controller.isSubmitting.value || !_canCompleteQuest ? null : _completeQuest,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                          disabledBackgroundColor: Colors.grey.shade400,
+                          disabledForegroundColor: AppColors.textSecondary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -460,12 +586,15 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.check_rounded, color: Colors.white),
+                                  Icon(
+                                    Icons.check_rounded,
+                                    color: _canCompleteQuest ? Colors.white : AppColors.textSecondary,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Complete Quest',
                                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Colors.white,
+                                      color: _canCompleteQuest ? Colors.white : AppColors.textSecondary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

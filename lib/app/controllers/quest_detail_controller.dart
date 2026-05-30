@@ -8,6 +8,7 @@ import '../services/quest_service.dart';
 import '../services/imgbb_service.dart';
 import '../services/gemini_service.dart';
 import '../routes/app_routes.dart';
+import '../../core/constants/color_constants.dart';
 
 class QuestDetailController extends GetxController {
   final Rx<QuestNodeModel> currentQuest;
@@ -60,39 +61,78 @@ class QuestDetailController extends GetxController {
         tip = feedbackResult['tip'] as String? ?? '';
 
         await Get.dialog(
-          AlertDialog(
-            title: Text(isApproved ? 'Quest Approved' : 'Quest Review'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (greeting.isNotEmpty) ...[
-                  Text(
-                    greeting,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+          isApproved
+              ? AlertDialog(
+                  title: const Text('Quest Approved'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (greeting.isNotEmpty) ...[
+                        Text(
+                          greeting,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (observation.isNotEmpty) ...[
+                        Text(observation),
+                        const SizedBox(height: 8),
+                      ],
+                      if (tip.isNotEmpty) Text(tip),
+                      if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
+                        const Text('Your submission was approved.'),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                ],
-                if (observation.isNotEmpty) ...[
-                  Text(observation),
-                  const SizedBox(height: 8),
-                ],
-                if (tip.isNotEmpty) Text(tip),
-                if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
-                  Text(
-                    isApproved
-                        ? 'Your submission was approved.'
-                        : 'Your submission needs more work.',
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(result: true),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                )
+              : AlertDialog(
+                  title: const Text(
+                    'Oops!',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Get.back(result: true),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      if (greeting.isNotEmpty) ...[
+                        Text(
+                          greeting,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (observation.isNotEmpty) ...[
+                        Text(observation),
+                        const SizedBox(height: 8),
+                      ],
+                      if (tip.isNotEmpty) Text(tip),
+                      if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
+                        const Text('Retake the photo and make the completed quest easier to see.'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(result: false),
+                      child: const Text(
+                        'Retake Photo',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                  ],
+                ),
           barrierDismissible: false,
         );
 
@@ -131,7 +171,7 @@ class QuestDetailController extends GetxController {
       currentQuest.value = updated;
 
       await Future.delayed(const Duration(milliseconds: 300));
-      Get.offAllNamed(AppRoutes.HOME);
+      Get.back();
 
       return true;
     } catch (e) {

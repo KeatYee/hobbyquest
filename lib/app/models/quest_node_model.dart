@@ -15,6 +15,7 @@ class QuestNodeModel {
   final String? greeting;
   final String? observation;
   final String? tip;
+  final String? youtubeSearchQuery;
 
   const QuestNodeModel({
     required this.nodeId,
@@ -33,6 +34,7 @@ class QuestNodeModel {
     this.greeting,
     this.observation,
     this.tip,
+    this.youtubeSearchQuery,
   });
 
   factory QuestNodeModel.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,8 @@ class QuestNodeModel {
       greeting: json['greeting'] as String?,
       observation: json['observation'] as String?,
       tip: json['tip'] as String?,
+      youtubeSearchQuery:
+          json['youtube_search_query'] as String? ?? json['youtubeSearchQuery'] as String?,
     );
   }
 
@@ -99,6 +103,7 @@ class QuestNodeModel {
       'greeting': greeting,
       'observation': observation,
       'tip': tip,
+      'youtube_search_query': youtubeSearchQuery,
     };
   }
 
@@ -119,6 +124,7 @@ class QuestNodeModel {
     String? greeting,
     String? observation,
     String? tip,
+    String? youtubeSearchQuery,
   }) {
     return QuestNodeModel(
       nodeId: nodeId ?? this.nodeId,
@@ -137,6 +143,7 @@ class QuestNodeModel {
       greeting: greeting ?? this.greeting,
       observation: observation ?? this.observation,
       tip: tip ?? this.tip,
+      youtubeSearchQuery: youtubeSearchQuery ?? this.youtubeSearchQuery,
     );
   }
 

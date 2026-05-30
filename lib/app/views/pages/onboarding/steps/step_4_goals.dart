@@ -21,9 +21,9 @@ class _Step4GoalsState extends State<Step4Goals> {
   String? selectedPredefinedGoal;
 
   final List<String> frequencyOptions = [
-    "5-15m",
-    "15-30m",
-    "30-60m",
+    "Casual Explorer",
+    "Steady Learner",
+    "Hardcore Grinder",
   ];
 
   /// Get predefined goals based on selected hobby and skill level
@@ -142,7 +142,7 @@ class _Step4GoalsState extends State<Step4Goals> {
             const SizedBox(height: 30),
 
             // Section 2: Frequency
-            Text("DAILY COMMITMENT", style: textTheme.headlineSmall?.copyWith(
+            Text("LEARNING PACE", style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900, 
                 fontSize: 18,
                 letterSpacing: 1.0
@@ -156,7 +156,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                   children: [
                     const Icon(Icons.error_outline, size: 16, color: AppColors.error),
                     const SizedBox(width: 5),
-                    Text("Choose your daily training pace",
+                    Text("Choose your learning pace",
                       style: textTheme.bodyMedium?.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)
                     ),
                   ],

@@ -42,7 +42,7 @@ class OnboardingController extends GetxController {
   var level = "Novice".obs;
 
   // --- STEP 4: GOALS ---
-  var frequency = "15 mins/day".obs;
+  var frequency = "".obs;
   final goalController = TextEditingController();
 
   // --- THE GENERATED PLAN (For Summary View) ---
