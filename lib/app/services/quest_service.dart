@@ -11,7 +11,9 @@ class QuestService {
     required String questId,
     String reflectionNote = '',
     String? imageUrl,
-    String? aiFeedback,
+    String? greeting,
+    String? observation,
+    String? tip,
   }) async {
     final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
 
@@ -47,7 +49,9 @@ class QuestService {
           reflectionNote: reflectionNote,
           completedAt: DateTime.now(),
           imageUrl: imageUrl,
-          aiFeedback: aiFeedback,
+          greeting: greeting,
+          observation: observation,
+          tip: tip,
         );
 
         // Normalize: recompute active flags (simple pass)

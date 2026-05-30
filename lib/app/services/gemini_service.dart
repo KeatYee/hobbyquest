@@ -433,6 +433,8 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     required String hobby,
     required String questTitle,
     required String questDescription,
+    required String questSteps,
+    required String questType,
     required String reflectionNote,
   }) async {
     if (!hasApiKey) {
@@ -445,27 +447,46 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       final mimeType = _guessMimeType(imageFile.name);
 
       final prompt = '''
-  Act as Hobie the Fox, an expert, energetic, and encouraging AI tutor for $hobby.
+  Act as Hobie the Fox, an expert, highly observant, and energetic AI tutor for $hobby.
   The user has just completed a quest and submitted a photo of their work along with a reflection note.
 
-  Quest Details:
+  Quest Context:
   - Hobby: $hobby
   - Quest Title: $questTitle
+  - Quest Type: $questType
   - Quest Description: $questDescription
+  - Required Steps for this Quest: $questSteps
   - Reflection Note: ${reflectionNote.trim().isEmpty ? 'None provided' : reflectionNote.trim()}
 
-  CRITICAL RULES:
-    1. Be lenient but realistic. If the image shows genuine effort related to the quest (including photos of physical practice, tools, or handwritten study notes), approve it. If it is completely unrelated spam (e.g., a blank wall), reject it.
-    2. Be playful, use high energy, and speak directly to the user!
-    3. Formulate a single, cohesive feedback message. It MUST include: a cheerful greeting, one positive observation about their specific photo/note, and one practical improvement tip (or enthusiastic encouragement if it is already perfect).
-    4. You MUST return ONLY a valid JSON object. Do not include markdown tags.
-  
+  CRITICAL EVALUATION RULES:
+  1. LENIENT BUT REALISTIC VALIDATION: Evaluate based on "$questType". 
+    - If "knowledge": Be highly lenient. Accept photos of study notes, books, or screens.
+    - If "practice" or "challenge": Demand physical proof of the hobby. Reject completely unrelated spam.
+    
+  2. ACTIVE LISTENING (The Reflection Rule): You MUST act like a real teacher who listens!
+    - If the user wrote a Reflection Note, your feedback MUST directly address what they said. 
+    - If they express frustration or struggle in the note, show empathy and validate their effort before giving advice. 
+    - If they share a success, celebrate that specific win!
+    - If the note is "None provided", rely entirely on the visual analysis of the photo.
+
+  3. HOBIE'S PERSONA: You are Hobie the Fox! Be playful, highly energetic, and wildly encouraging. Use gamified terms (e.g., "Hero", "Quest").
+
+  4. THE FEEDBACK FORMULA (Strict Word Limits):
+    To prevent user reading fatigue, you MUST split your feedback into three distinct parts, strictly obeying these maximum word counts:
+    - Greeting (Max 15 words): A short, high-energy validation.
+    - Observation (Max 25 words): Prove you are paying attention! Explicitly mention a physical detail you see in the photo AND directly respond to their Reflection Note. 
+    - Tip (Max 20 words): Look at the "Required Steps". Provide one specific, mechanical technique to overcome their struggle or improve next time. No generic fluff.
+
+  5. JSON FORMAT: You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json.
+
   Use this exact JSON schema:
   {
-    "is_approved": Boolean,
-    "ai_feedback": "string"  }
-''';
-
+    "is_approved": Boolean (true if genuine effort, false if spam/unrelated),
+    "greeting": "String (Max 15 words. Cheerful, high-energy validation)",
+    "observation": "String (Max 25 words. Must address the reflection note and a visual detail)",
+    "tip": "String (Max 20 words. Specific actionable improvement based on steps)"
+  }''';
+ 
       final response = await _model.generateContent([
         Content.multi([
           TextPart(prompt),
@@ -480,17 +501,23 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 
       final jsonMap = _extractJsonObject(rawText);
       final isApprovedRaw = jsonMap['is_approved'];
-      final aiFeedbackRaw = jsonMap['ai_feedback'] ?? jsonMap['aiFeedback'];
+      final greetingRaw = jsonMap['greeting'];
+      final observationRaw = jsonMap['observation'];
+      final tipRaw = jsonMap['tip'];
 
       final isApproved = isApprovedRaw is bool
           ? isApprovedRaw
           : isApprovedRaw?.toString().toLowerCase() == 'true';
 
-      final aiFeedback = aiFeedbackRaw?.toString().trim() ?? '';
+      final greeting = greetingRaw?.toString().trim() ?? '';
+      final observation = observationRaw?.toString().trim() ?? '';
+      final tip = tipRaw?.toString().trim() ?? '';
 
       return {
         'is_approved': isApproved,
-        'ai_feedback': aiFeedback,
+        'greeting': greeting,
+        'observation': observation,
+        'tip': tip,
       };
     } catch (e) {
       print('[GeminiService] Quest image feedback call failed: $e');

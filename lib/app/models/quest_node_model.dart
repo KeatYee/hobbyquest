@@ -12,7 +12,9 @@ class QuestNodeModel {
   final String reflectionNote;
   final DateTime? completedAt;
   final String? imageUrl;
-  final String? aiFeedback;
+  final String? greeting;
+  final String? observation;
+  final String? tip;
 
   const QuestNodeModel({
     required this.nodeId,
@@ -28,7 +30,9 @@ class QuestNodeModel {
     this.reflectionNote = '',
     this.completedAt,
     this.imageUrl,
-    this.aiFeedback,
+    this.greeting,
+    this.observation,
+    this.tip,
   });
 
   factory QuestNodeModel.fromJson(Map<String, dynamic> json) {
@@ -71,7 +75,9 @@ class QuestNodeModel {
       reflectionNote: json['reflectionNote'] as String? ?? '',
       completedAt: _readDateTime(json['completedAt']),
       imageUrl: json['imageUrl'] as String?,
-      aiFeedback: json['aiFeedback'] as String?,
+      greeting: json['greeting'] as String?,
+      observation: json['observation'] as String?,
+      tip: json['tip'] as String?,
     );
   }
 
@@ -90,7 +96,9 @@ class QuestNodeModel {
       'reflectionNote': reflectionNote,
       'completedAt': completedAt,
       'imageUrl': imageUrl,
-      'aiFeedback': aiFeedback,
+      'greeting': greeting,
+      'observation': observation,
+      'tip': tip,
     };
   }
 
@@ -108,7 +116,9 @@ class QuestNodeModel {
     String? reflectionNote,
     DateTime? completedAt,
     String? imageUrl,
-    String? aiFeedback,
+    String? greeting,
+    String? observation,
+    String? tip,
   }) {
     return QuestNodeModel(
       nodeId: nodeId ?? this.nodeId,
@@ -124,7 +134,9 @@ class QuestNodeModel {
       reflectionNote: reflectionNote ?? this.reflectionNote,
       completedAt: completedAt ?? this.completedAt,
       imageUrl: imageUrl ?? this.imageUrl,
-      aiFeedback: aiFeedback ?? this.aiFeedback,
+      greeting: greeting ?? this.greeting,
+      observation: observation ?? this.observation,
+      tip: tip ?? this.tip,
     );
   }
 

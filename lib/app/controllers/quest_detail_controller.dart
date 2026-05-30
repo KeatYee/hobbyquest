@@ -35,13 +35,17 @@ class QuestDetailController extends GetxController {
 
     try {
       String? imageUrl;
-      String? aiFeedback;
+      String? greeting;
+      String? observation;
+      String? tip;
 
       if (imageFile != null) {
         final feedbackResult = await geminiService.generateQuestImageFeedback(
           imageFile: imageFile,
           questTitle: currentQuest.value.title,
           questDescription: currentQuest.value.desc,
+          questSteps: currentQuest.value.steps.join('\n  - '),
+          questType: currentQuest.value.type,
           reflectionNote: reflectionNote,
           hobby: homeController.user.value?.currentPlan.hobby ?? '',
         );
@@ -51,17 +55,36 @@ class QuestDetailController extends GetxController {
         }
 
         final isApproved = feedbackResult['is_approved'] as bool? ?? false;
-        aiFeedback = feedbackResult['ai_feedback'] as String? ?? '';
+        greeting = feedbackResult['greeting'] as String? ?? '';
+        observation = feedbackResult['observation'] as String? ?? '';
+        tip = feedbackResult['tip'] as String? ?? '';
 
         await Get.dialog(
           AlertDialog(
             title: Text(isApproved ? 'Quest Approved' : 'Quest Review'),
-            content: Text(
-              aiFeedback.isNotEmpty
-                  ? aiFeedback
-                  : (isApproved
-                      ? 'Your submission was approved.'
-                      : 'Your submission needs more work.'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (greeting.isNotEmpty) ...[
+                  Text(
+                    greeting,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (observation.isNotEmpty) ...[
+                  Text(observation),
+                  const SizedBox(height: 8),
+                ],
+                if (tip.isNotEmpty) Text(tip),
+                if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
+                  Text(
+                    isApproved
+                        ? 'Your submission was approved.'
+                        : 'Your submission needs more work.',
+                  ),
+              ],
             ),
             actions: [
               TextButton(
@@ -85,7 +108,9 @@ class QuestDetailController extends GetxController {
         questId: questId,
         reflectionNote: reflectionNote,
         imageUrl: imageUrl,
-        aiFeedback: aiFeedback,
+        greeting: greeting,
+        observation: observation,
+        tip: tip,
       );
 
       if (updatedUser == null) {
