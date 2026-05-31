@@ -28,6 +28,8 @@ class AppColors {
   static const Color background = Color(0xFFF4F5F9); 
   // Pure White: For Cards to create depth against the background.
   static const Color surface = Color(0xFFFFFFFF);
+  // Border color: subtle divider and card border
+  static const Color border = Color(0xFFE6E9F0);
   
   // TEXT COLORS
   // Dark Navy: Softer on the eyes than pure black (#000000).

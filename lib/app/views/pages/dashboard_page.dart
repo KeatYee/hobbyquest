@@ -4,6 +4,7 @@ import '../../controllers/dashboard_controller.dart';
 import '../../../core/constants/color_constants.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
+import 'guild_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -22,7 +23,7 @@ class DashboardPage extends StatelessWidget {
         children: const [
           HomePage(),                      // Index 0: Your detailed Home Page
           Center(child: Text("Map Content")),   // Index 1: Placeholder
-          Center(child: Text("Guild Content")), // Index 2: Placeholder
+          GuildPage(), // Index 2: Guild
           ProfilePage(),                        // Index 3: Profile with Logout
         ],
       )),
