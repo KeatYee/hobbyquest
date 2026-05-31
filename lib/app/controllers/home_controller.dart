@@ -165,12 +165,25 @@ class HomeController extends GetxController {
           hobby: hobby.value,
           nodeTitle: quest.title,
           nodeDesc: quest.desc,
+          frequency: frequency.value,
+          milestoneTitle: _currentMilestoneTitle(),
+          questType: quest.type,
+          durationMinutes: quest.durationMinutes,
         );
+
+        final altSteps = (alternative['steps'] is List)
+            ? (alternative['steps'] as List).map((e) => e.toString()).toList()
+            : null;
+        final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+            ? alternative['youtube_search_query'].toString().trim()
+            : (alternative['youtubeSearchQuery']?.toString().trim() ?? quest.youtubeSearchQuery ?? '');
 
         refreshed.add(
           quest.copyWith(
             title: alternative['title'] ?? quest.title,
             desc: alternative['desc'] ?? quest.desc,
+            steps: altSteps ?? quest.steps,
+            youtubeSearchQuery: altYoutube,
           ),
         );
       }
@@ -201,6 +214,16 @@ class HomeController extends GetxController {
                 .firstWhereOrNull((quest) => quest.nodeId == questId)
                 ?.desc ??
             '',
+        frequency: frequency.value,
+        milestoneTitle: _currentMilestoneTitle(),
+        questType: dailyQuests
+            .firstWhereOrNull((quest) => quest.nodeId == questId)
+            ?.type ??
+          'practice',
+        durationMinutes: dailyQuests
+            .firstWhereOrNull((quest) => quest.nodeId == questId)
+            ?.durationMinutes ??
+          15,
       );
 
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -235,9 +258,19 @@ class HomeController extends GetxController {
 
         final targetQuest = quests[questIndex];
         final updatedQuests = List<QuestNodeModel>.from(quests);
+
+        final altSteps = (alternative['steps'] is List)
+            ? (alternative['steps'] as List).map((e) => e.toString()).toList()
+            : null;
+        final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+            ? alternative['youtube_search_query'].toString().trim()
+            : (alternative['youtubeSearchQuery']?.toString().trim() ?? targetQuest.youtubeSearchQuery ?? '');
+
         updatedQuests[questIndex] = targetQuest.copyWith(
           title: alternative['title'] ?? targetQuest.title,
           desc: alternative['desc'] ?? targetQuest.desc,
+          steps: altSteps ?? targetQuest.steps,
+          youtubeSearchQuery: altYoutube,
         );
 
         final normalizedQuests = _buildNormalizedQuestGraph(updatedQuests);
@@ -344,5 +377,22 @@ class HomeController extends GetxController {
     }
 
     return quest.dependsOn.every(completed.contains);
+  }
+
+  String _currentMilestoneTitle() {
+    final currentPlan = user.value?.currentPlan;
+    if (currentPlan == null || currentPlan.milestones.isEmpty) {
+      return goal.value.isNotEmpty ? goal.value : hobby.value;
+    }
+
+    final index = currentPlan.currentMilestoneIndex;
+    if (index >= 0 && index < currentPlan.milestones.length) {
+      final title = currentPlan.milestones[index].title.trim();
+      if (title.isNotEmpty) {
+        return title;
+      }
+    }
+
+    return currentPlan.milestones.first.title;
   }
 }

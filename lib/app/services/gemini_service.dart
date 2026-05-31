@@ -230,7 +230,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 Act as an elite, professional curriculum designer and expert instructor for $hobby. 
 Your goal is to break down complex skills into professional, highly precise, and easy-to-follow micro-lessons.
 
-
 User Context:
 - Hobby: $hobby
 - Skill Level: $level
@@ -242,29 +241,42 @@ Instructions:
 1. Generate a localized Skill Tree (Directed Acyclic Graph) for THIS MILESTONE ONLY.
 2. Generate EXACTLY 20 skill nodes for the current phase only.
 3. Every node must have dependencies to create a logical learning path. Foundational skills should have empty dependencies []. Advanced skills MUST depend on earlier node_ids.
+4. STRICT TYPE DEFINITIONS:
+   - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
+   - "practice": Physical, hands-on drills to build muscle memory. 
+   - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
 
-4. The 'title' should be a short, descriptive name for the skill.
-5. The 'desc' should be a clear, actionable instruction for the skill (1-2 sentences)
-6. For every node, generate a 'steps' array containing exactly 3 to 6 micro-steps. These steps must act as a mini-tutorial guiding the user exactly HOW to complete the task practically.
-7. The 'type' MUST be exactly one of the following strings:
-    - "knowledge" (Purely mental or theory-based. The user ONLY needs their eyes and brain. Allowed Verbs: Read, memorize, watch, study, review.)
-    - "practice" (Physical, hands-on drills to build muscle memory. Allowed Verbs: Draw, play, sketch, write, cut, assemble.)
-    - "challenge" (A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.)
-8. Scope Scaling (Difficulty): You must scale the complexity and density of the entire 20-node milestone based on the user's "$frequency".
-9. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
-10. The Micro-Step Formula: The 'steps' array MUST contain 3 to 5 highly detailed instructions that guide the user exactly HOW to execute the task. 
-    - Step 1 must be Physical/Mental Setup (e.g., "Rest your thumb parallel to the fretboard").
-    - Middle steps must contain precise mechanical details or measurements. Never just say "do it." Explain the exact physics or logic required.
-    - The Final step MUST be a self-validation check or "Common Mistake" warning (e.g., "Check that your wrist is not bent; if the string buzzes, press closer to the fret wire").
-11. Realistic Time Estimation: The `duration_minutes` MUST be logically tied to the specific task type and steps. A quick "knowledge" read should be 5-10 minutes. A "practice" drill might be 15-30 minutes. A "challenge" might be 45-60+ minutes.
+PEDAGOGICAL RULES:
+5. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+6. THE CONDITIONAL MICRO-STEP FORMULA (CRITICAL): The 'steps' array MUST dynamically change based on the 'type' of the node:
+   - IF TYPE IS "knowledge": The steps MUST be purely observational or analytical. 
+     * Step 1: Find a specific reference (e.g., "Find a photo of a face").
+     * Step 2: Mentally identify a concept (e.g., "Trace the invisible geometric lines with your eyes").
+     * Step 3: Write down a reflection (e.g., "Write down how the lighting changes the shadow").
+     * ABSOLUTELY NO PHYSICAL EXECUTION ALLOWED. Do NOT ask them to draw, build, or use tools.
+   - IF TYPE IS "practice" OR "challenge":
+     * Step 1: Physical Setup (e.g., "Hold the pencil at a 45-degree angle").
+     * Step 2: Precise mechanical execution (e.g., "Use your shoulder, not your wrist, to pull the line").
+     * Step 3: Self-validation check (e.g., "If the line is wobbly, you are gripping too tight").
+7. SCOPE SCALING (Difficulty Control): You MUST scale the density and complexity of this 20-node milestone based on the user's "$frequency".
+   - If "Casual Explorer": Break the milestone into tiny, 5-to-10 minute micro-lessons.
+   - If "Steady Learner": Create balanced, 15-to-25 minute standard lessons.
+   - If "Hardcore Grinder": Group multiple mechanics into heavy, 30-to-60 minute intensive lessons.
 
+DYNAMIC SYSTEM RULES:
+8. DYNAMIC XP MATH: You MUST dynamically calculate the `xp_reward` for EVERY node. Do not hardcode 100. 
+   - Start with Base = 50 XP.
+   - If type is "practice", ADD +50 XP.
+   - If type is "challenge", ADD +150 XP.
+   - If `duration_minutes` > 30, ADD +50 XP.
+   - Calculate the final total and output ONLY that Integer.
+9. YOUTUBE QUERIES: You MUST generate a 3-to-5 word YouTube search query for EVERY node. DO NOT EVER output "N/A", "None", or leave it blank. You must generate a highly optimized SEO phrase that will yield the best tutorial for that specific task.
 
 CRITICAL GRAPH RULES:
-12. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel learning branches (for example theory, practice, and setup/equipment).
-13. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. This ensures the user starts with exactly 3 choices.
-14. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches (for example node_7 depends on node_2 and node_5).
-15. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID (e.g., node_5 can depend on node_2, but never on node_6). This guarantees no infinite loops.
-
+10. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel branches.
+11. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. 
+12. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches.
+13. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID. This guarantees no infinite loops.
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json. Use this exact schema:
@@ -272,21 +284,18 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
   "nodes": [
     {
       "node_id": "${milestoneNumber}_node_1",
-      "title": "string",
-      "desc": "string (under 2 sentences, respecting $frequency)",
+      "title": "String",
+      "desc": "String",
       "steps": [
-        "String (Step 1 actionable instruction)",
-        "String (Step 2 actionable instruction)",
-        "String (Step 3 actionable instruction)",
-        "String (Step 4 actionable instruction)",
-        "String (Step 5 actionable instruction)",
-        "String (Step 6 actionable instruction)"
+        "String",
+        "String",
+        "String"
       ],
-      "type": "String (knowledge, practice, or challenge)", 
-      "duration_minutes": Integer (estimate based on $frequency),
-      "xp_reward": Integer (Calculate dynamically: Base 50 XP. Add +50 if type is 'practice'. Add +150 if type is 'challenge'. Add +50 if duration_minutes is greater than 30.),
+      "type": "String", 
+      "duration_minutes": Integer,
+      "xp_reward": Integer,
       "depends_on": ["array of previous node_ids"],
-      "youtube_search_query": "String (Highly optimized 3-to-5 word YouTube search phrase for a tutorial on this task)"
+      "youtube_search_query": "String"
     }
   ]
 }
@@ -377,10 +386,14 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
   /// Generate one alternative quest title/description pair for a quest reroll.
   /// Returns a map with `title` and `desc`, or a fallback pair on failure.
-  Future<Map<String, String>> generateAlternativeQuest({
+  Future<Map<String, dynamic>> generateAlternativeQuest({
     required String hobby,
     required String nodeTitle,
     required String nodeDesc,
+    required String frequency,
+    required String milestoneTitle,
+    required String questType,
+    required int durationMinutes,
   }) async {
     if (!hasApiKey) {
       print('[GeminiService] No API key found for alternative quest generation.');
@@ -391,18 +404,57 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       print('[GeminiService] Calling generateAlternativeQuestTitle API...');
       final prompt = '''
 
-The user is learning $hobby. 
-They are currently on a skill tree node titled: "$nodeTitle".
-The current task is: "$nodeDesc".
+Act as an elite, professional curriculum designer and expert instructor for $hobby. 
+The user has decided to "Reroll" (skip) their current daily quest.
+Your job is to generate EXACTLY ONE alternative quest that teaches a similar underlying concept for their current milestone, but uses a completely different approach or mechanic.
 
-They want to "reroll" and skip this specific task, but they STILL NEED TO LEARN THE CORE SKILL so they don't break their prerequisite learning path.
 
-Generate ONE alternative task that teaches the EXACT SAME underlying skill or concept, but uses a different learning approach (e.g., if it was practice, maybe make it theory or a different exercise).
+User Context:
+- Hobby: $hobby
+- Current Milestone Focus: $milestoneTitle
 
-You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this schema:
+The REJECTED Quest (DO NOT DUPLICATE THIS):
+- Title: $nodeTitle
+- Description: $nodeDesc
+
+Instructions:
+1. Generate EXACTLY ONE new skill node to replace the rejected quest.
+2. It must be a completely different task/exercise from the rejected one, but still relevant to the "$milestoneTitle".
+3. The new quest MUST strictly be a "$questType" task that takes approximately $durationMinutes minutes to complete. 
+4. STRICT TYPE DEFINITIONS:
+   - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
+   - "practice": Physical, hands-on drills to build muscle memory. 
+   - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
+
+PEDAGOGICAL RULES (CRITICAL FOR QUALITY):
+5. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+6. THE CONDITIONAL MICRO-STEP FORMULA (CRITICAL): The 'steps' array MUST dynamically change based on the 'type' of the node:
+   - IF TYPE IS "knowledge": The steps MUST be purely observational or analytical. 
+     * Step 1: Find a specific reference (e.g., "Find a photo of a face").
+     * Step 2: Mentally identify a concept (e.g., "Trace the invisible geometric lines with your eyes").
+     * Step 3: Write down a reflection (e.g., "Write down how the lighting changes the shadow").
+     * ABSOLUTELY NO PHYSICAL EXECUTION ALLOWED. Do NOT ask them to draw, build, or use tools.
+   - IF TYPE IS "practice" OR "challenge":
+     * Step 1: Physical Setup (e.g., "Hold the pencil at a 45-degree angle").
+     * Step 2: Precise mechanical execution (e.g., "Use your shoulder, not your wrist, to pull the line").
+     * Step 3: Self-validation check (e.g., "If the line is wobbly, you are gripping too tight").
+7. SCOPE SCALING (Difficulty Control): You MUST scale the density and complexity of this 20-node milestone based on the user's "$frequency".
+   - If "Casual Explorer": Break the milestone into tiny, 5-to-10 minute micro-lessons.
+   - If "Steady Learner": Create balanced, 15-to-25 minute standard lessons.
+   - If "Hardcore Grinder": Group multiple mechanics into heavy, 30-to-60 minute intensive lessons.
+8. YOUTUBE QUERIES: You MUST generate a 3-to-5 word YouTube search query for EVERY node. DO NOT EVER output "N/A", "None", or leave it blank. You must generate a highly optimized SEO phrase that will yield the best tutorial for that specific task.
+
+Output formatting rules:
+You MUST return ONLY a valid JSON object. Use this exact schema:
 {
-  "title": "string (Brief, engaging title)",
-  "desc": "string (Actionable alternative step, under 2 sentences)"
+  "title": "String",
+  "desc": "String",
+  "steps": [
+    "String",
+    "String",
+    "String"
+  ],
+  "youtube_search_query": "String"
 }
 ''';
 
@@ -417,8 +469,23 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       final desc = (jsonMap['desc']?.toString().trim().isNotEmpty ?? false)
           ? jsonMap['desc'].toString().trim()
           : 'Complete a focused step for $hobby today.';
+      final steps = (jsonMap['steps'] is List)
+          ? (jsonMap['steps'] as List).map((e) => e.toString().trim()).toList()
+          : [
+              'Step 1: Understand the basics.',
+              'Step 2: Practice the fundamentals.',
+              'Step 3: Apply your knowledge.'
+            ];
+      final youtubeSearchQuery = (jsonMap['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+          ? jsonMap['youtube_search_query'].toString().trim()
+          : '$hobby $nodeTitle';
 
-      return {'title': title, 'desc': desc};
+      return {
+        'title': title,
+        'desc': desc,
+        'steps': steps,
+        'youtube_search_query': youtubeSearchQuery
+      };
     } catch (e) {
       print('[GeminiService] Alternative task title API call failed: $e');
       return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
@@ -430,11 +497,20 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     required String hobby,
     required String nodeTitle,
     required String nodeDesc,
+    required String milestoneTitle,
+    required String questType,
+    required String frequency,
+    required int durationMinutes,
   }) async {
     final alternative = await generateAlternativeQuest(
       hobby: hobby,
       nodeTitle: nodeTitle,
       nodeDesc: nodeDesc,
+      frequency: frequency,
+      milestoneTitle: milestoneTitle,
+      questType: questType,
+      durationMinutes: durationMinutes,
+     
     );
     return alternative['title'] ?? _getAlternativeTaskFallback(
       hobby: hobby,
@@ -539,7 +615,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     }
   }
 
-  Map<String, String> _getAlternativeTaskFallback({
+  Map<String, dynamic> _getAlternativeTaskFallback({
     required String hobby,
     required String currentTask,
   }) {
