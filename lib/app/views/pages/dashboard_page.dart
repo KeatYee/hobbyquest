@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../../core/constants/color_constants.dart';
 import 'home_page.dart';
+import 'map_page.dart';
 import 'profile_page.dart';
 import 'guild_page.dart';
 
@@ -22,7 +23,7 @@ class DashboardPage extends StatelessWidget {
         index: controller.tabIndex.value,
         children: const [
           HomePage(),                      // Index 0: Your detailed Home Page
-          Center(child: Text("Map Content")),   // Index 1: Placeholder
+          MapPage(),                       // Index 1: Map
           GuildPage(), // Index 2: Guild
           ProfilePage(),                        // Index 3: Profile with Logout
         ],
@@ -32,7 +33,7 @@ class DashboardPage extends StatelessWidget {
       bottomNavigationBar: Obx(() => Container(
         decoration: BoxDecoration(
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20),
           ],
         ),
         child: BottomNavigationBar(

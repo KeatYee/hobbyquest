@@ -114,26 +114,9 @@ class _GuildPageState extends State<GuildPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-            ),
-            child: Text(
-              'Guild',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (_isLoading)
-            _buildLoadingView(context)
+            Expanded(child: _buildLoadingView(context))
           else if (_categories.isEmpty)
             _buildEmptyState(context, 'No categories found in Firestore.')
           else ...[

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:rive/rive.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:rive/rive.dart';
 import 'core/themes/app_theme.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
@@ -30,16 +30,16 @@ class HobbyQuestApp extends StatelessWidget {
       title: 'HobbyQuest',
       debugShowCheckedModeBanner: false,
 
-      // 1. Apply the Theme 
-      theme: AppTheme.lightTheme, 
+      // 1. Apply the Theme
+      theme: AppTheme.lightTheme,
 
-      // 2. Set up Named Routes 
+      // 2. Set up Named Routes
       initialRoute: AppRoutes.WELCOME,
       getPages: AppPages.routes,
-      
+
       // 3. Global Dependencies
       initialBinding: InitialBinding(),
-      
+
       // 4. Smooth Transitions
       defaultTransition: Transition.cupertino,
     );
