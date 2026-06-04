@@ -254,7 +254,7 @@ class OnboardingController extends GetxController {
 
   Future<QuestPlanModel> _buildInitialPlanWithMilestoneQuests() async {
     final basePlan = generatedPlan.value;
-    if (basePlan.milestones.isEmpty || basePlan.quests.isNotEmpty) {
+    if (basePlan.milestones.isEmpty) {
       return basePlan;
     }
 

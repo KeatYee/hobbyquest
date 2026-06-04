@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -13,9 +14,7 @@ class ValidationResult {
 
   const ValidationResult({required this.isValid, this.error});
 
-  const ValidationResult.valid()
-      : isValid = true,
-        error = null;
+  const ValidationResult.valid() : isValid = true, error = null;
 
   const ValidationResult.invalid(this.error) : isValid = false;
 }
@@ -28,10 +27,7 @@ class GeminiService {
 
   // Initialize the Gemini Model
   GenerativeModel get _model {
-    return GenerativeModel(
-      model: 'gemini-3.1-flash-lite',
-      apiKey: _apiKey,
-    );
+    return GenerativeModel(model: 'gemini-3.1-flash-lite', apiKey: _apiKey);
   }
 
   bool get hasApiKey => _apiKey.isNotEmpty;
@@ -94,7 +90,11 @@ class GeminiService {
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
     if (!hasApiKey) {
-      final milestones = _buildMilestones(hobby: hobby, level: level, goal: normalizedGoal);
+      final milestones = _buildMilestones(
+        hobby: hobby,
+        level: level,
+        goal: normalizedGoal,
+      );
       return QuestPlanModel(
         hobby: hobby,
         level: level,
@@ -113,7 +113,8 @@ class GeminiService {
 
     try {
       print('[GeminiService] Calling generateQuestPlan API...');
-      final prompt = '''
+      final prompt =
+          '''
 You are an expert tutor and quest planner for a gamified hobby app.
 The user wants to learn $hobby. Their main goal is $normalizedGoal.
 They consider themselves $level level and can commit $frequency daily. 
@@ -159,7 +160,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 
             return MilestoneModel(title: item.toString(), completed: false);
           })
-            .where((item) => item.title.trim().isNotEmpty)
+          .where((item) => item.title.trim().isNotEmpty)
           .toList();
 
       if (milestones.length < 4) {
@@ -167,28 +168,28 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       }
 
       return QuestPlanModel(
-    hobby: (jsonMap['hobby']?.toString().trim().isNotEmpty ?? false)
-      ? jsonMap['hobby'].toString().trim()
-      : ((jsonMap['hobbyName']?.toString().trim().isNotEmpty ?? false)
-        ? jsonMap['hobbyName'].toString().trim()
-        : hobby),
-    level: (jsonMap['level']?.toString().trim().isNotEmpty ?? false)
-      ? jsonMap['level'].toString().trim()
-      : ((jsonMap['skillLevel']?.toString().trim().isNotEmpty ?? false)
-        ? jsonMap['skillLevel'].toString().trim()
-        : level),
-    goal: (jsonMap['goal']?.toString().trim().isNotEmpty ?? false)
-      ? jsonMap['goal'].toString().trim()
-      : ((jsonMap['customGoal']?.toString().trim().isNotEmpty ?? false)
-        ? jsonMap['customGoal'].toString().trim()
-        : normalizedGoal),
-    frequency: (jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
-      ? jsonMap['frequency'].toString().trim()
-      : frequency,
-    progress: (jsonMap['progress'] as int?) ?? 0,
-    milestones: milestones.take(4).toList(),
-    quests: const [],
-    );
+        hobby: (jsonMap['hobby']?.toString().trim().isNotEmpty ?? false)
+            ? jsonMap['hobby'].toString().trim()
+            : ((jsonMap['hobbyName']?.toString().trim().isNotEmpty ?? false)
+                  ? jsonMap['hobbyName'].toString().trim()
+                  : hobby),
+        level: (jsonMap['level']?.toString().trim().isNotEmpty ?? false)
+            ? jsonMap['level'].toString().trim()
+            : ((jsonMap['skillLevel']?.toString().trim().isNotEmpty ?? false)
+                  ? jsonMap['skillLevel'].toString().trim()
+                  : level),
+        goal: (jsonMap['goal']?.toString().trim().isNotEmpty ?? false)
+            ? jsonMap['goal'].toString().trim()
+            : ((jsonMap['customGoal']?.toString().trim().isNotEmpty ?? false)
+                  ? jsonMap['customGoal'].toString().trim()
+                  : normalizedGoal),
+        frequency: (jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
+            ? jsonMap['frequency'].toString().trim()
+            : frequency,
+        progress: (jsonMap['progress'] as int?) ?? 0,
+        milestones: milestones.take(4).toList(),
+        quests: const [],
+      );
     } catch (e) {
       print('[GeminiService] Quest plan API call failed: $e');
       return QuestPlanModel(
@@ -197,7 +198,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
         goal: normalizedGoal,
         frequency: frequency,
         progress: 0,
-        milestones: _buildMilestones(hobby: hobby, level: level, goal: normalizedGoal),
+        milestones: _buildMilestones(
+          hobby: hobby,
+          level: level,
+          goal: normalizedGoal,
+        ),
         quests: const [],
       );
     }
@@ -210,12 +215,12 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     required String frequency,
     required String milestoneTitle,
     required String milestoneNumber,
-  
-    String focus = '',
   }) async {
+    print('--- [GeminiService] generatePhaseDAG TRIGGERED ---');
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
     if (!hasApiKey) {
+      print('[GeminiService] ABORT: hasApiKey is FALSE. Returning fallback.');
       return _buildFallbackPhaseDag(
         hobby: hobby,
         milestoneNumber: milestoneNumber,
@@ -224,9 +229,12 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     }
 
     try {
-      print('[GeminiService] Calling generatePhaseDAG API for $milestoneTitle quests...');
+      print(
+        '[GeminiService] Calling generatePhaseDAG API for $milestoneTitle quests...',
+      );
 
-      final prompt = '''
+      final prompt =
+          '''
 Act as an elite, professional curriculum designer and expert instructor for $hobby. 
 Your goal is to break down complex skills into professional, highly precise, and easy-to-follow micro-lessons.
 
@@ -242,48 +250,21 @@ Instructions:
 2. Generate EXACTLY 20 skill nodes for the current phase only.
 3. Every node must have dependencies to create a logical learning path. Foundational skills should have empty dependencies []. Advanced skills MUST depend on earlier node_ids.
 4. STRICT TYPE DEFINITIONS:
-   - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
+If - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
    - "practice": Physical, hands-on drills to build muscle memory. 
    - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
-
-PEDAGOGICAL RULES:
-5. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
-6. THE CONDITIONAL MICRO-STEP FORMULA (CRITICAL): The 'steps' array MUST dynamically change based on the 'type' of the node:
-   - IF TYPE IS "knowledge": The steps MUST be purely observational or analytical. 
-     * Step 1: Find a specific reference (e.g., "Find a photo of a face").
-     * Step 2: Mentally identify a concept (e.g., "Trace the invisible geometric lines with your eyes").
-     * Step 3: Write down a reflection (e.g., "Write down how the lighting changes the shadow").
-     * ABSOLUTELY NO PHYSICAL EXECUTION ALLOWED. Do NOT ask them to draw, build, or use tools.
-   - IF TYPE IS "practice" OR "challenge":
-     * Step 1: Physical Setup (e.g., "Hold the pencil at a 45-degree angle").
-     * Step 2: Precise mechanical execution (e.g., "Use your shoulder, not your wrist, to pull the line").
-     * Step 3: Self-validation check (e.g., "If the line is wobbly, you are gripping too tight").
-7. SCOPE SCALING (Difficulty Control): You MUST scale the density and complexity of this 20-node milestone based on the user's "$frequency".
-   - If "Casual Explorer": Break the milestone into tiny, 5-to-10 minute micro-lessons.
-   - If "Steady Learner": Create balanced, 15-to-25 minute standard lessons.
-   - If "Hardcore Grinder": Group multiple mechanics into heavy, 30-to-60 minute intensive lessons.
-
-DYNAMIC SYSTEM RULES:
-8. DYNAMIC XP MATH: You MUST dynamically calculate the `xp_reward` for EVERY node. Do not hardcode 100. 
-   - Start with Base = 50 XP.
-   - If type is "practice", ADD +50 XP.
-   - If type is "challenge", ADD +150 XP.
-   - If `duration_minutes` > 30, ADD +50 XP.
-   - Calculate the final total and output ONLY that Integer.
-9. YOUTUBE QUERIES: You MUST generate a 3-to-5 word YouTube search query for EVERY node. DO NOT EVER output "N/A", "None", or leave it blank. You must generate a highly optimized SEO phrase that will yield the best tutorial for that specific task.
-
-CRITICAL GRAPH RULES:
-10. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel branches.
-11. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. 
-12. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches.
-13. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID. This guarantees no infinite loops.
+5. Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+6. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel branches.
+7. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. 
+8. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches.
+9. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID. This guarantees no infinite loops.
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json. Use this exact schema:
 {
   "nodes": [
     {
-      "node_id": "${milestoneNumber}_node_1",
+      "node_id": Integer (1 to 20),
       "title": "String",
       "desc": "String",
       "steps": [
@@ -292,54 +273,88 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
         "String"
       ],
       "type": "String", 
-      "duration_minutes": Integer,
-      "xp_reward": Integer,
-      "depends_on": ["array of previous node_ids"],
-      "youtube_search_query": "String"
+      "youtube_search_query": "String (a 3-to-5 word YouTube search query for this specific skill node)",
+      "depends_on": ["array of previous node_ids"]
     }
   ]
 }
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      print('[GeminiService] Phase DAG API call succeeded');
+
       final rawText = response.text?.trim() ?? '';
+
+      debugPrint('[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------');
+
       final jsonMap = _extractJsonObject(rawText);
-      final listDynamic = jsonMap['nodes'] as List<dynamic>? ?? const <dynamic>[];
+      final listDynamic =
+          jsonMap['nodes'] as List<dynamic>? ?? const <dynamic>[];
 
       // Convert dynamic items into QuestNodeModel instances
       final parsed = <QuestNodeModel>[];
       for (final item in listDynamic) {
         try {
           if (item is Map<String, dynamic>) {
+            final rawId = (item['node_id'] ?? item['id'] ?? '').toString().trim();
+            final formattedNodeId = '${milestoneNumber}_node_$rawId';
+            
+            // THE FIX: Override the integer with the formatted string BEFORE parsing
+            item['node_id'] = formattedNodeId; 
+
             final node = QuestNodeModel.fromJson(item);
-            parsed.add(node.copyWith(type: _sanitizeType(node.type)));
+            final sanitizedType = _sanitizeType(node.type);
+            
+            parsed.add(
+              node.copyWith(
+                nodeId: formattedNodeId,
+                type: sanitizedType,
+                xpReward: _xpRewardForType(sanitizedType),
+              ),
+            );
             continue;
           }
 
           if (item is Map) {
-            final node = QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
-            parsed.add(node.copyWith(type: _sanitizeType(node.type)));
+            final rawMap = Map<String, dynamic>.from(item);
+            final rawId = (rawMap['node_id'] ?? rawMap['id'] ?? '').toString().trim();
+            final formattedNodeId = '${milestoneNumber}_node_$rawId';
+            
+            // THE FIX: Override the integer with the formatted string BEFORE parsing
+            rawMap['node_id'] = formattedNodeId;
+
+            final node = QuestNodeModel.fromJson(rawMap);
+            final sanitizedType = _sanitizeType(node.type);
+            
+            parsed.add(
+              node.copyWith(
+                nodeId: formattedNodeId,
+                type: sanitizedType,
+                xpReward: _xpRewardForType(sanitizedType),
+              ),
+            );
             continue;
           }
 
           // Fallback for unexpected item shape
-          parsed.add(QuestNodeModel(
-            nodeId: '${milestoneNumber}_node_${parsed.length + 1}',
-            title: item.toString(),
-            desc: 'Practice step for $hobby',
-            steps: [
-              'Open the task and review the goal.',
-              'Do one concrete action toward the goal.',
-              'Check the result and note one improvement.',
-            ],
-            xpReward: 100,
-            type: 'practice',
-            durationMinutes: 10,
-            dependsOn: const [],
-          ));
-        } catch (_) {
-          // Ignore single-item parse errors and continue
+          parsed.add(
+            QuestNodeModel(
+              nodeId: '${milestoneNumber}_node_${parsed.length + 1}',
+              title: item.toString(),
+              desc: 'Practice step for $hobby',
+              steps: [
+                'Open the task and review the goal.',
+                'Do one concrete action toward the goal.',
+                'Check the result and note one improvement.',
+              ],
+              xpReward: _xpRewardForType('practice'),
+              type: 'practice',
+              durationMinutes: 10,
+              dependsOn: const [],
+            ),
+          );
+        } catch (e) {
+          // EXPOSE THE ERROR: Stop hiding the crash!
+          debugPrint('[GeminiService] Failed to parse individual node: $e');
         }
       }
 
@@ -352,37 +367,40 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
         final variants = _questTemplatesForHobby(hobby);
         for (var i = 0; i < padCount; i++) {
           final idx = i % variants.length;
-          nodes.add(QuestNodeModel(
-            nodeId: '${milestoneNumber}_node_${nodes.length + 1}',
-            title: variants[idx]['title']!,
-            desc: variants[idx]['desc']!,
-            steps: [
-              'Read the task description carefully.',
-              'Complete the practice step for this node.',
-              'Reflect on what you learned.',
-            ],
-            xpReward: 100,
-            type: 'practice',
-            durationMinutes: 15,
-            dependsOn: const [],
-          ));
+          nodes.add(
+            QuestNodeModel(
+              nodeId: '${milestoneNumber}_node_${nodes.length + 1}',
+              title: variants[idx]['title']!,
+              desc: variants[idx]['desc']!,
+              steps: [
+                'Read the task description carefully.',
+                'Complete the practice step for this node.',
+                'Reflect on what you learned.',
+              ],
+              xpReward: _xpRewardForType('practice'),
+              type: 'practice',
+              durationMinutes: 15,
+              dependsOn: const [],
+            ),
+          );
         }
       }
 
-      return _ensureMinimumReadyNodes(
-        nodes.take(20).toList(),
-        minimumRoots: 3,
+      return _ensureMinimumReadyNodes(nodes.take(20).toList(), minimumRoots: 3);
+    } catch (e, stackTrace) {
+      print('[GeminiService] Phase DAG API call failed: $e');
+      print('--- DEBUG START ---');
+      print('[GeminiService] Exception Type: ${e.runtimeType}');
+      print('[GeminiService] Exception Details: $e');
+      print('[GeminiService] Stack Trace:\n$stackTrace');
+      print('--- DEBUG END ---');
+      return _buildFallbackPhaseDag(
+        hobby: hobby,
+        milestoneNumber: milestoneNumber,
+        frequency: frequency,
       );
-    } catch (e) {
-        print('[GeminiService] Phase DAG API call failed: $e');
-        return _buildFallbackPhaseDag(
-          hobby: hobby,
-          milestoneNumber: milestoneNumber,
-          frequency: frequency,
-        );
     }
   }
-
 
   /// Generate one alternative quest title/description pair for a quest reroll.
   /// Returns a map with `title` and `desc`, or a fallback pair on failure.
@@ -396,13 +414,16 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     required int durationMinutes,
   }) async {
     if (!hasApiKey) {
-      print('[GeminiService] No API key found for alternative quest generation.');
+      print(
+        '[GeminiService] No API key found for alternative quest generation.',
+      );
       return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
     }
 
     try {
       print('[GeminiService] Calling generateAlternativeQuestTitle API...');
-      final prompt = '''
+      final prompt =
+          '''
 
 Act as an elite, professional curriculum designer and expert instructor for $hobby. 
 The user has decided to "Reroll" (skip) their current daily quest.
@@ -460,12 +481,15 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 
       final response = await _model.generateContent([Content.text(prompt)]);
       print('[GeminiService] Alternative task title API call succeeded');
-      
+
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
       final title = (jsonMap['title']?.toString().trim().isNotEmpty ?? false)
           ? jsonMap['title'].toString().trim()
-          : _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle)['title']!;
+          : _getAlternativeTaskFallback(
+              hobby: hobby,
+              currentTask: nodeTitle,
+            )['title']!;
       final desc = (jsonMap['desc']?.toString().trim().isNotEmpty ?? false)
           ? jsonMap['desc'].toString().trim()
           : 'Complete a focused step for $hobby today.';
@@ -474,9 +498,11 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
           : [
               'Step 1: Understand the basics.',
               'Step 2: Practice the fundamentals.',
-              'Step 3: Apply your knowledge.'
+              'Step 3: Apply your knowledge.',
             ];
-      final youtubeSearchQuery = (jsonMap['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+      final youtubeSearchQuery =
+          (jsonMap['youtube_search_query']?.toString().trim().isNotEmpty ??
+              false)
           ? jsonMap['youtube_search_query'].toString().trim()
           : '$hobby $nodeTitle';
 
@@ -484,7 +510,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
         'title': title,
         'desc': desc,
         'steps': steps,
-        'youtube_search_query': youtubeSearchQuery
+        'youtube_search_query': youtubeSearchQuery,
       };
     } catch (e) {
       print('[GeminiService] Alternative task title API call failed: $e');
@@ -510,12 +536,12 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       milestoneTitle: milestoneTitle,
       questType: questType,
       durationMinutes: durationMinutes,
-     
     );
-    return alternative['title'] ?? _getAlternativeTaskFallback(
-      hobby: hobby,
-      currentTask: nodeTitle,
-    )['title']!;
+    return alternative['title'] ??
+        _getAlternativeTaskFallback(
+          hobby: hobby,
+          currentTask: nodeTitle,
+        )['title']!;
   }
 
   Future<Map<String, dynamic>?> generateQuestImageFeedback({
@@ -536,7 +562,8 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       final bytes = await imageFile.readAsBytes();
       final mimeType = _guessMimeType(imageFile.name);
 
-      final prompt = '''
+      final prompt =
+          '''
   Act as Hobie the Fox, an expert, highly observant, and energetic AI tutor for $hobby.
   The user has just completed a quest and submitted a photo of their work along with a reflection note.
 
@@ -576,12 +603,9 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     "observation": "String (Max 15 words. Must address the reflection note and a visual detail)",
     "tip": "String (Max 15 words. Specific actionable improvement based on steps)"
   }''';
- 
+
       final response = await _model.generateContent([
-        Content.multi([
-          TextPart(prompt),
-          DataPart(mimeType, bytes),
-        ]),
+        Content.multi([TextPart(prompt), DataPart(mimeType, bytes)]),
       ]);
 
       final rawText = response.text?.trim() ?? '';
@@ -620,9 +644,18 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     required String currentTask,
   }) {
     final fallbacks = [
-      {'title': 'Alternative Study', 'desc': 'Watch a 5-minute video explaining $currentTask.'},
-      {'title': 'Mental Reps', 'desc': 'Visualize the steps required to complete $currentTask.'},
-      {'title': 'Break it Down', 'desc': 'Write down the 3 hardest parts about $currentTask.'},
+      {
+        'title': 'Alternative Study',
+        'desc': 'Watch a 5-minute video explaining $currentTask.',
+      },
+      {
+        'title': 'Mental Reps',
+        'desc': 'Visualize the steps required to complete $currentTask.',
+      },
+      {
+        'title': 'Break it Down',
+        'desc': 'Write down the 3 hardest parts about $currentTask.',
+      },
     ];
 
     final random = Random(DateTime.now().millisecondsSinceEpoch);
@@ -654,6 +687,18 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     return 'practice';
   }
 
+  int _xpRewardForType(String type) {
+    switch (_sanitizeType(type)) {
+      case 'practice':
+        return 100;
+      case 'challenge':
+        return 150;
+      case 'knowledge':
+      default:
+        return 50;
+    }
+  }
+
   String _guessMimeType(String fileName) {
     final lower = fileName.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
@@ -683,7 +728,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
           'Try one guided example or drill.',
           'Write down one takeaway.',
         ],
-        xpReward: 100,
+        xpReward: _xpRewardForType('practice'),
         type: 'practice',
         durationMinutes: 15,
         dependsOn: const [],
@@ -697,7 +742,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
           'Apply it in a small exercise.',
           'Note one thing to improve next time.',
         ],
-        xpReward: 100,
+        xpReward: _xpRewardForType('knowledge'),
         type: 'knowledge',
         durationMinutes: 10,
         dependsOn: const [],
@@ -711,7 +756,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
           'Complete the action now.',
           'Record the result or a quick note.',
         ],
-        xpReward: 100,
+        xpReward: _xpRewardForType('challenge'),
         type: 'challenge',
         durationMinutes: 30,
         dependsOn: const [],
@@ -730,30 +775,33 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       return _buildFallbackQuests(hobby: hobby, level: level, focus: focus);
     }
 
-    final parsed = rawQuests.map((item) {
-      if (item is Map<String, dynamic>) {
-        return QuestNodeModel.fromJson(item);
-      }
+    final parsed = rawQuests
+        .map((item) {
+          if (item is Map<String, dynamic>) {
+            return QuestNodeModel.fromJson(item);
+          }
 
-      if (item is Map) {
-        return QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
-      }
+          if (item is Map) {
+            return QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
+          }
 
-      return QuestNodeModel(
-        nodeId: item.toString(),
-        title: item.toString(),
-        desc: 'Complete a focused step for $hobby today.',
-        steps: [
-          'Read the task once end to end.',
-          'Do the smallest meaningful action.',
-          'Capture one observation before finishing.',
-        ],
-        xpReward: 100,
-        type: 'practice',
-        durationMinutes: 15,
-        dependsOn: const [],
-      );
-    }).where((quest) => quest.title.trim().isNotEmpty).toList();
+          return QuestNodeModel(
+            nodeId: item.toString(),
+            title: item.toString(),
+            desc: 'Complete a focused step for $hobby today.',
+            steps: [
+              'Read the task once end to end.',
+              'Do the smallest meaningful action.',
+              'Capture one observation before finishing.',
+            ],
+            xpReward: 100,
+            type: 'practice',
+            durationMinutes: 15,
+            dependsOn: const [],
+          );
+        })
+        .where((quest) => quest.title.trim().isNotEmpty)
+        .toList();
 
     if (parsed.length < 3) {
       return _buildFallbackQuests(hobby: hobby, level: level, focus: focus);
@@ -766,13 +814,9 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     }
 
     return normalized
-      .map((quest) => quest.copyWith(
-          isCompleted: false,
-          reflectionNote: '',
-        ))
-      .toList();
+        .map((quest) => quest.copyWith(isCompleted: false, reflectionNote: ''))
+        .toList();
   }
-
 
   List<MilestoneModel> _buildMilestones({
     required String hobby,
@@ -780,10 +824,22 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     required String goal,
   }) {
     return <MilestoneModel>[
-      MilestoneModel(title: 'Phase 1: Learn core $hobby fundamentals', completed: false),
-      MilestoneModel(title: 'Phase 2: Build a repeatable ${level.toLowerCase()} routine', completed: false),
-      MilestoneModel(title: 'Phase 3: Complete one measurable mini-project', completed: false),
-      MilestoneModel(title: 'Phase 4: Reach your boss goal: $goal', completed: false),
+      MilestoneModel(
+        title: 'Phase 1: Learn core $hobby fundamentals',
+        completed: false,
+      ),
+      MilestoneModel(
+        title: 'Phase 2: Build a repeatable ${level.toLowerCase()} routine',
+        completed: false,
+      ),
+      MilestoneModel(
+        title: 'Phase 3: Complete one measurable mini-project',
+        completed: false,
+      ),
+      MilestoneModel(
+        title: 'Phase 4: Reach your boss goal: $goal',
+        completed: false,
+      ),
     ];
   }
 
@@ -794,15 +850,16 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       return [
         {
           'title': 'Debug Sprint',
-          'desc': 'Fix one bug and write a short note about the root cause.'
+          'desc': 'Fix one bug and write a short note about the root cause.',
         },
         {
           'title': 'Refactor Drill',
-          'desc': 'Refactor one small function for readability and naming clarity.'
+          'desc':
+              'Refactor one small function for readability and naming clarity.',
         },
         {
           'title': 'Code Reading',
-          'desc': 'Read one module and explain its flow in 5 bullet points.'
+          'desc': 'Read one module and explain its flow in 5 bullet points.',
         },
       ];
     }
@@ -813,15 +870,17 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       return [
         {
           'title': 'Technique Loop',
-          'desc': 'Practice one technique slowly for 15 minutes with a metronome.'
+          'desc':
+              'Practice one technique slowly for 15 minutes with a metronome.',
         },
         {
           'title': 'Repertoire Step',
-          'desc': 'Learn one new section from a song you enjoy.'
+          'desc': 'Learn one new section from a song you enjoy.',
         },
         {
           'title': 'Playback Review',
-          'desc': 'Record a take and note one strength and one improvement area.'
+          'desc':
+              'Record a take and note one strength and one improvement area.',
         },
       ];
     }
@@ -832,15 +891,15 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       return [
         {
           'title': 'Study Session',
-          'desc': 'Create one focused study on light, shape, or composition.'
+          'desc': 'Create one focused study on light, shape, or composition.',
         },
         {
           'title': 'Reference Challenge',
-          'desc': 'Recreate one reference with your own style constraints.'
+          'desc': 'Recreate one reference with your own style constraints.',
         },
         {
           'title': 'Portfolio Pick',
-          'desc': 'Choose your best piece and write one improvement goal.'
+          'desc': 'Choose your best piece and write one improvement goal.',
         },
       ];
     }
@@ -848,15 +907,15 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     return [
       {
         'title': 'Focus Block',
-        'desc': 'Do one focused practice block for 20 minutes.'
+        'desc': 'Do one focused practice block for 20 minutes.',
       },
       {
         'title': 'Knowledge Bite',
-        'desc': 'Learn one concept and explain it in your own words.'
+        'desc': 'Learn one concept and explain it in your own words.',
       },
       {
         'title': 'Output Challenge',
-        'desc': 'Ship one small outcome and reflect on the process.'
+        'desc': 'Ship one small outcome and reflect on the process.',
       },
     ];
   }
@@ -882,20 +941,26 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
         dependsOn.add('${milestoneNumber}_node_$previousInLane');
       }
 
-      nodes.add(QuestNodeModel(
-        nodeId: nodeId,
-        title: variant['title']!,
-        desc: variant['desc']!,
-        steps: [
-          'Start with the branch-specific skill.',
-          'Follow the current node objective step by step.',
-          'Check your result before moving on.',
-        ],
-        xpReward: 100,
-        type: i % 5 == 4 ? 'challenge' : (i % 2 == 0 ? 'practice' : 'knowledge'),
-        durationMinutes: baseDurationMinutes,
-        dependsOn: dependsOn,
-      ));
+      nodes.add(
+        QuestNodeModel(
+          nodeId: nodeId,
+          title: variant['title']!,
+          desc: variant['desc']!,
+          steps: [
+            'Start with the branch-specific skill.',
+            'Follow the current node objective step by step.',
+            'Check your result before moving on.',
+          ],
+          xpReward: _xpRewardForType(
+            i % 5 == 4 ? 'challenge' : (i % 2 == 0 ? 'practice' : 'knowledge'),
+          ),
+          type: i % 5 == 4
+              ? 'challenge'
+              : (i % 2 == 0 ? 'practice' : 'knowledge'),
+          durationMinutes: baseDurationMinutes,
+          dependsOn: dependsOn,
+        ),
+      );
     }
 
     return _ensureMinimumReadyNodes(nodes, minimumRoots: 3);
@@ -916,9 +981,11 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 
     final knownIds = nodes.map((node) => node.nodeId).toSet();
     final normalized = nodes
-        .map((node) => node.copyWith(
-              dependsOn: node.dependsOn.where(knownIds.contains).toList(),
-            ))
+        .map(
+          (node) => node.copyWith(
+            dependsOn: node.dependsOn.where(knownIds.contains).toList(),
+          ),
+        )
         .toList();
 
     for (var i = 0; i < minimumRoots && i < normalized.length; i++) {
