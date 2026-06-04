@@ -32,6 +32,80 @@ class HomeController extends GetxController {
     _loadUserProfile();
   }
 
+  /// Public method to get the visible quest window (up to 3 active quests)
+  /// Used by QuestDetailController after quest completion
+  List<QuestNodeModel> getVisibleQuestWindow(List<QuestNodeModel> quests) {
+    print('--- DEBUG: getVisibleQuestWindow called with ${quests.length} total quests ---');
+    
+    // Situation 1: No quests at all
+    if (quests.isEmpty) {
+      print('--- WARN: No quests available at all! ---');
+      return [];
+    }
+
+    final normalized = _buildNormalizedQuestGraph(quests);
+    print('--- DEBUG: After normalization: ${normalized.length} quests, isActive flags computed ---');
+    
+    // Situation 2: Check completed vs incomplete
+    final completed = normalized.where((q) => q.isCompleted).length;
+    final incomplete = normalized.where((q) => !q.isCompleted).length;
+    print('--- DEBUG: Completed: $completed, Incomplete: $incomplete ---');
+    
+    // Situation 3: Check for root quests (no dependencies)
+    final rootQuests = normalized.where((q) => !q.isCompleted && q.dependsOn.isEmpty).toList();
+    print('--- DEBUG: Root quests available (no deps): ${rootQuests.length} ---');
+    
+    // Get ALL ready quests (not just the first 3)
+    final readyQuests = normalized
+        .where((quest) => !quest.isCompleted && _isQuestReady(quest, normalized))
+        .toList();
+    
+    print('--- DEBUG: Total ready quests (dependencies satisfied): ${readyQuests.length} ---');
+    for (int i = 0; i < readyQuests.length; i++) {
+      final q = readyQuests[i];
+      print('  [$i] ${q.nodeId}: ${q.title} (deps: ${q.dependsOn.isEmpty ? "none" : q.dependsOn.join(", ")})');
+    }
+    
+    // Fill up to 3 active quests
+    const maxVisibleQuests = 3;
+    final visibleWindow = readyQuests.take(maxVisibleQuests).toList();
+    
+    print('--- DEBUG: Filling active quests (max $maxVisibleQuests) ---');
+    print('--- DEBUG: Total ready available: ${readyQuests.length}, Taking: ${visibleWindow.length} ---');
+    
+    if (visibleWindow.isEmpty) {
+      print('--- ALERT: NO NEW QUESTS TO SHOW! Reasons: ---');
+      if (incomplete == 0) {
+        print('  → All quests are completed! Milestone finished!');
+      }
+      if (rootQuests.isEmpty && incomplete > 0) {
+        print('  → No root quests available (all remaining quests have dependencies)');
+      }
+      if (readyQuests.isEmpty && incomplete > 0 && rootQuests.isNotEmpty) {
+        print('  → All incomplete quests have missing or circular dependencies');
+      }
+      // List all incomplete quests and their dependencies
+      final incompleteQuests = normalized.where((q) => !q.isCompleted).toList();
+      print('  → Incomplete quests status:');
+      for (final q in incompleteQuests) {
+        final depsReady = q.dependsOn.every((dep) => normalized.any((n) => n.nodeId == dep && n.isCompleted));
+        print('    • ${q.nodeId}: deps=${q.dependsOn.isEmpty ? "[]" : q.dependsOn}, allDepsReady=$depsReady');
+      }
+    } else {
+      print('--- SUCCESS: Found ${visibleWindow.length} active quest(s) to display ---');
+      for (int i = 0; i < visibleWindow.length; i++) {
+        print('  [${i + 1}] ${visibleWindow[i].nodeId}: ${visibleWindow[i].title}');
+      }
+      
+      // Show if we could add more
+      if (visibleWindow.length < maxVisibleQuests && readyQuests.length > visibleWindow.length) {
+        print('--- INFO: More quests available! Could add ${readyQuests.length - visibleWindow.length} more to reach $maxVisibleQuests ---');
+      }
+    }
+    
+    return visibleWindow;
+  }
+
   /// Load user profile data from Firestore
   Future<void> _loadUserProfile() async {
     try {
@@ -63,7 +137,7 @@ class HomeController extends GetxController {
         goal.value = currentPlan.goal;
         frequency.value = currentPlan.frequency;
         level.value = currentPlan.level;
-        dailyQuests.value = _buildVisibleQuestWindow(currentPlan.quests);
+        dailyQuests.value = getVisibleQuestWindow(currentPlan.quests);
 
         print(
           "--- SUCCESS: Loaded user profile for ${loadedUser.nickname} ---",
@@ -114,7 +188,11 @@ class HomeController extends GetxController {
     goal.value = updatedPlan.goal;
     frequency.value = updatedPlan.frequency;
     level.value = updatedPlan.level;
-    dailyQuests.value = _buildVisibleQuestWindow(updatedPlan.quests);
+    
+    final visibleWindow = getVisibleQuestWindow(updatedPlan.quests);
+    dailyQuests.value = visibleWindow;
+    
+    print('--- INFO: Quest $questId completed via HomeController. New visible quests: ${visibleWindow.length} ---');
 
     return true;
   }
@@ -145,7 +223,7 @@ class HomeController extends GetxController {
       goal.value = loadedUser.currentPlan.goal;
       frequency.value = loadedUser.currentPlan.frequency;
       level.value = loadedUser.currentPlan.level;
-      dailyQuests.value = _buildVisibleQuestWindow(loadedUser.currentPlan.quests);
+      dailyQuests.value = getVisibleQuestWindow(loadedUser.currentPlan.quests);
     } catch (e) {
       print("--- ERROR: Failed to reload current plan quests: $e ---");
     }
@@ -302,7 +380,7 @@ class HomeController extends GetxController {
       goal.value = updatedUser!.currentPlan.goal;
       frequency.value = updatedUser!.currentPlan.frequency;
       level.value = updatedUser!.currentPlan.level;
-      dailyQuests.value = _buildVisibleQuestWindow(updatedUser!.currentPlan.quests);
+      dailyQuests.value = getVisibleQuestWindow(updatedUser!.currentPlan.quests);
 
       print('--- INFO: Quest $questId rerolled successfully ---');
       return true;
@@ -310,15 +388,6 @@ class HomeController extends GetxController {
       print('--- ERROR: Failed to reroll quest $questId: $e ---');
       return false;
     }
-  }
-
-  List<QuestNodeModel> _buildVisibleQuestWindow(List<QuestNodeModel> quests) {
-    final normalized = _buildNormalizedQuestGraph(quests);
-    final readyQuests = normalized
-        .where((quest) => !quest.isCompleted && _isQuestReady(quest, normalized))
-        .toList();
-
-    return readyQuests.take(3).toList();
   }
 
   List<QuestNodeModel> _buildNormalizedQuestGraph(

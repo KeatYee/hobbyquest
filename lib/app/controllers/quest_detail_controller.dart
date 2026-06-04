@@ -7,7 +7,6 @@ import 'progression_controller.dart';
 import '../services/quest_service.dart';
 import '../services/imgbb_service.dart';
 import '../services/gemini_service.dart';
-import '../routes/app_routes.dart';
 import '../../core/constants/color_constants.dart';
 
 class QuestDetailController extends GetxController {
@@ -24,7 +23,12 @@ class QuestDetailController extends GetxController {
     String reflectionNote, {
     XFile? imageFile,
   }) async {
-    if (currentQuest.value.isCompleted) return true;
+    print('--- DEBUG: completeQuest() called for quest ${currentQuest.value.nodeId} ---');
+    
+    if (currentQuest.value.isCompleted) {
+      print('--- DEBUG: Quest already completed, returning true ---');
+      return true;
+    }
 
     isSubmitting.value = true;
     final questService = QuestService();
@@ -40,7 +44,10 @@ class QuestDetailController extends GetxController {
       String? observation;
       String? tip;
 
+      print('--- DEBUG: imageFile is ${imageFile == null ? 'NULL' : 'NOT NULL'} ---');
+      
       if (imageFile != null) {
+        print('--- DEBUG: Processing image evidence ---');
         final feedbackResult = await geminiService.generateQuestImageFeedback(
           imageFile: imageFile,
           questTitle: currentQuest.value.title,
@@ -56,6 +63,8 @@ class QuestDetailController extends GetxController {
         }
 
         final isApproved = feedbackResult['is_approved'] as bool? ?? false;
+        print('--- DEBUG: Gemini feedback received. Approved: $isApproved ---');
+        
         greeting = feedbackResult['greeting'] as String? ?? '';
         observation = feedbackResult['observation'] as String? ?? '';
         tip = feedbackResult['tip'] as String? ?? '';
@@ -136,13 +145,22 @@ class QuestDetailController extends GetxController {
           barrierDismissible: false,
         );
 
+        print('--- DEBUG: Dialog closed. isApproved: $isApproved ---');
+        
         if (!isApproved) {
+          print('--- DEBUG: Quest not approved, returning false ---');
           return false;
         }
 
+        print('--- DEBUG: Uploading image to ImgBB ---');
         imageUrl = await imageUploadService.uploadImage(imageFile.path);
+        print('--- DEBUG: Image uploaded. URL: ${imageUrl ?? 'NULL'} ---');
+      } else {
+        print('--- DEBUG: No image file provided ---');
       }
 
+      print('--- DEBUG: Starting quest completion transaction for $questId ---');
+      
       final updatedUser = await questService.completeQuestTransaction(
         uid: homeController.user.value?.id ?? '',
         questId: questId,
@@ -153,19 +171,38 @@ class QuestDetailController extends GetxController {
         tip: tip,
       );
 
+      print('--- DEBUG: completeQuestTransaction returned. updatedUser is ${updatedUser == null ? 'NULL' : 'NOT NULL'} ---');
+
       if (updatedUser == null) {
+        print('--- ERROR: updatedUser is null, returning false ---');
         isSubmitting.value = false;
         return false;
       }
 
+      print('--- DEBUG: Calling progressionController.completeQuest ---');
       await progressionController.completeQuest(
         questId: questId,
         xpReward: currentQuest.value.xpReward,
       );
+      print('--- DEBUG: progressionController.completeQuest completed ---');
 
       // Refresh local UI state from updated user
+      print('--- DEBUG: Updating homeController.user ---');
       homeController.user.value = updatedUser;
-      homeController.dailyQuests.value = _buildVisibleQuestWindow(updatedUser.currentPlan.quests);
+      print('--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---');
+      
+      // Rebuild the visible quest window using HomeController's method for consistency
+      print('--- DEBUG: Calling getVisibleQuestWindow ---');
+      final visibleWindow = homeController.getVisibleQuestWindow(updatedUser.currentPlan.quests);
+      print('--- DEBUG: getVisibleQuestWindow returned ${visibleWindow.length} visible quests ---');
+      
+      homeController.dailyQuests.value = visibleWindow;
+      print('--- DEBUG: homeController.dailyQuests updated ---');
+
+      print('--- INFO: Quest $questId completed. New visible quests: ${visibleWindow.length} ---');
+      for (final q in visibleWindow) {
+        print('  - ${q.nodeId}: ${q.title}');
+      }
 
       final updated = updatedUser.currentPlan.quests.firstWhere(
         (q) => q.nodeId == questId,
@@ -178,6 +215,8 @@ class QuestDetailController extends GetxController {
 
       return true;
     } catch (e) {
+      print('--- ERROR: Exception in completeQuest: $e ---');
+      print(e);
       Get.snackbar(
         'Failed to complete quest',
         e.toString(),
@@ -185,49 +224,8 @@ class QuestDetailController extends GetxController {
       );
       return false;
     } finally {
+      print('--- DEBUG: completeQuest finally block - setting isSubmitting to false ---');
       isSubmitting.value = false;
     }
-  }
-
-  List<QuestNodeModel> _buildVisibleQuestWindow(List<QuestNodeModel> quests) {
-    final normalized = _buildNormalizedQuestGraph(quests);
-    final readyQuests = normalized
-        .where((quest) => !quest.isCompleted && _isQuestReady(quest, normalized))
-        .toList();
-
-    return readyQuests.take(3).toList();
-  }
-
-  List<QuestNodeModel> _buildNormalizedQuestGraph(List<QuestNodeModel> quests) {
-    final completedIds = quests.where((quest) => quest.isCompleted).map((quest) => quest.nodeId).toSet();
-
-    final visibleIds = _computeVisibleQuestIds(quests, completedIds);
-
-    return quests.map((quest) {
-      final shouldBeActive = visibleIds.contains(quest.nodeId) && !quest.isCompleted;
-      return quest.copyWith(isActive: shouldBeActive);
-    }).toList();
-  }
-
-  Set<String> _computeVisibleQuestIds(List<QuestNodeModel> quests, Set<String> completedIds) {
-    final visible = <String>{};
-
-    for (final quest in quests) {
-      if (quest.isCompleted) continue;
-
-      final isReady = _isQuestReady(quest, quests, completedIds: completedIds);
-      if (isReady) visible.add(quest.nodeId);
-      if (visible.length == 3) break;
-    }
-
-    return visible;
-  }
-
-  bool _isQuestReady(QuestNodeModel quest, List<QuestNodeModel> quests, {Set<String>? completedIds}) {
-    final completed = completedIds ?? quests.where((item) => item.isCompleted).map((item) => item.nodeId).toSet();
-
-    if (quest.dependsOn.isEmpty) return true;
-
-    return quest.dependsOn.every(completed.contains);
   }
 }
