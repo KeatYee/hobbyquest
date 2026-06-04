@@ -270,8 +270,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       "steps": [
         "String",
         "String",
-        "String"
+        "String",
+        "String",
+        "String (You MUST provide exactly 5 steps, even if some are very simple. Do not output fewer than 5 steps.)"
       ],
+      "duration_minutes": Integer (estimated time to complete this node, within 5 to 60 minutes range),
       "type": "String", 
       "youtube_search_query": "String (a 3-to-5 word YouTube search query for this specific skill node)",
       "depends_on": ["array of previous node_ids"]
@@ -441,29 +444,13 @@ The REJECTED Quest (DO NOT DUPLICATE THIS):
 Instructions:
 1. Generate EXACTLY ONE new skill node to replace the rejected quest.
 2. It must be a completely different task/exercise from the rejected one, but still relevant to the "$milestoneTitle".
-3. The new quest MUST strictly be a "$questType" task that takes approximately $durationMinutes minutes to complete. 
-4. STRICT TYPE DEFINITIONS:
+3. Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+4. The new quest MUST strictly be a "$questType" task that takes approximately $durationMinutes minutes to complete. 
+5. STRICT TYPE DEFINITIONS:
    - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
    - "practice": Physical, hands-on drills to build muscle memory. 
    - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
 
-PEDAGOGICAL RULES (CRITICAL FOR QUALITY):
-5. Zero Fluff: Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
-6. THE CONDITIONAL MICRO-STEP FORMULA (CRITICAL): The 'steps' array MUST dynamically change based on the 'type' of the node:
-   - IF TYPE IS "knowledge": The steps MUST be purely observational or analytical. 
-     * Step 1: Find a specific reference (e.g., "Find a photo of a face").
-     * Step 2: Mentally identify a concept (e.g., "Trace the invisible geometric lines with your eyes").
-     * Step 3: Write down a reflection (e.g., "Write down how the lighting changes the shadow").
-     * ABSOLUTELY NO PHYSICAL EXECUTION ALLOWED. Do NOT ask them to draw, build, or use tools.
-   - IF TYPE IS "practice" OR "challenge":
-     * Step 1: Physical Setup (e.g., "Hold the pencil at a 45-degree angle").
-     * Step 2: Precise mechanical execution (e.g., "Use your shoulder, not your wrist, to pull the line").
-     * Step 3: Self-validation check (e.g., "If the line is wobbly, you are gripping too tight").
-7. SCOPE SCALING (Difficulty Control): You MUST scale the density and complexity of this 20-node milestone based on the user's "$frequency".
-   - If "Casual Explorer": Break the milestone into tiny, 5-to-10 minute micro-lessons.
-   - If "Steady Learner": Create balanced, 15-to-25 minute standard lessons.
-   - If "Hardcore Grinder": Group multiple mechanics into heavy, 30-to-60 minute intensive lessons.
-8. YOUTUBE QUERIES: You MUST generate a 3-to-5 word YouTube search query for EVERY node. DO NOT EVER output "N/A", "None", or leave it blank. You must generate a highly optimized SEO phrase that will yield the best tutorial for that specific task.
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Use this exact schema:
@@ -473,9 +460,11 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
   "steps": [
     "String",
     "String",
-    "String"
+    "String",
+    "String",
+    "String (You MUST provide exactly 5 steps, even if some are very simple. Do not output fewer than 5 steps.)"
   ],
-  "youtube_search_query": "String"
+  "youtube_search_query": "String (3-to-5 word YouTube search query for this specific skill node)"
 }
 ''';
 
@@ -484,6 +473,9 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
+
+      debugPrint('[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------');
+
       final title = (jsonMap['title']?.toString().trim().isNotEmpty ?? false)
           ? jsonMap['title'].toString().trim()
           : _getAlternativeTaskFallback(
