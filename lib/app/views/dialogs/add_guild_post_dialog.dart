@@ -3,25 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controllers/guild_controller.dart';
-import '../../models/category_model.dart';
 import '../../../core/constants/color_constants.dart';
 
 class AddGuildPostDialog extends StatefulWidget {
-  final List<CategoryModel> categories;
-  final List<String> hobbies;
+  final String hobby;
+  final String categoryId;
   final String? initialTitle;
   final String? initialBody;
-  final String? initialHobby;
-  final String? initialCategoryId;
   final XFile? initialImageFile;
 
   const AddGuildPostDialog({
-    required this.categories,
-    required this.hobbies,
+    required this.hobby,
+    required this.categoryId,
     this.initialTitle,
     this.initialBody,
-    this.initialHobby,
-    this.initialCategoryId,
     this.initialImageFile,
     super.key,
   });
@@ -36,8 +31,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
 
-  String? _selectedCategoryId;
-  String? _selectedHobby;
   bool _isSubmitting = false;
   File? _selectedImage;
   XFile? _selectedImageFile;
@@ -54,8 +47,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
     if (widget.initialBody != null) {
       _bodyController.text = widget.initialBody!;
     }
-    _selectedHobby = widget.initialHobby;
-    _selectedCategoryId = widget.initialCategoryId;
     if (widget.initialImageFile != null) {
       _selectedImageFile = widget.initialImageFile;
       _selectedImage = File(widget.initialImageFile!.path);
@@ -94,9 +85,7 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   }
 
   Future<void> _submitPost() async {
-    if (_selectedCategoryId == null ||
-        _selectedHobby == null ||
-        _titleController.text.trim().isEmpty ||
+    if (_titleController.text.trim().isEmpty ||
         _bodyController.text.trim().isEmpty) {
       Get.snackbar(
         'Incomplete Form',
@@ -110,8 +99,8 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
     setState(() => _isSubmitting = true);
 
     final postId = await _guildController.addPost(
-      hobby: _selectedHobby!,
-      categoryId: _selectedCategoryId!,
+      hobby: widget.hobby,
+      categoryId: widget.categoryId,
       title: _titleController.text.trim(),
       body: _bodyController.text.trim(),
       imageFile: _selectedImageFile,
@@ -186,50 +175,26 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category Dropdown
-                  _buildLabel('Category'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategoryId,
-                    hint: const Text('Select a category'),
-                    items: widget.categories
-                        .map((category) => DropdownMenuItem(
-                      value: category.id,
-                      child: Text(category.name),
-                    ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedCategoryId = value);
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  // Hobby chip (read-only, from user's current hobby)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Hobby Dropdown
-                  _buildLabel('Hobby'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: _selectedHobby,
-                    hint: const Text('Select your hobby'),
-                    items: widget.hobbies
-                        .map((hobby) => DropdownMenuItem(
-                      value: hobby,
-                      child: Text(hobby),
-                    ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedHobby = value);
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_fire_department_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.hobby,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),

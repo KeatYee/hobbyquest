@@ -8,8 +8,7 @@ class GuildPostModel {
   final String title;
   final String body;
   final String imageUrl;
-  final int likes;
-  final int replies;
+  final Map<String, List<String>> reactions;
   final DateTime? createdAt;
 
   const GuildPostModel({
@@ -20,8 +19,7 @@ class GuildPostModel {
     required this.title,
     required this.body,
     this.imageUrl = '',
-    required this.likes,
-    required this.replies,
+    this.reactions = const {},
     this.createdAt,
   });
 
@@ -34,8 +32,9 @@ class GuildPostModel {
       title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? (json['content'] as String? ?? ''),
       imageUrl: json['imageUrl'] as String? ?? '',
-      likes: _readInt(json['likes']) ?? 0,
-      replies: _readInt(json['replies']) ?? 0,
+      reactions: (json['reactions'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, (value as List<dynamic>).map((e) => e.toString()).toList()),
+          ) ?? {},
       createdAt: _readDateTime(json['createdAt'] ?? json['created_at']),
     );
   }
@@ -48,8 +47,7 @@ class GuildPostModel {
       'title': title,
       'body': body,
       'imageUrl': imageUrl,
-      'likes': likes,
-      'replies': replies,
+      'reactions': reactions,
       'createdAt': createdAt,
     };
   }
@@ -62,8 +60,7 @@ class GuildPostModel {
     String? title,
     String? body,
     String? imageUrl,
-    int? likes,
-    int? replies,
+    Map<String, List<String>>? reactions,
     DateTime? createdAt,
   }) {
     return GuildPostModel(
@@ -74,22 +71,9 @@ class GuildPostModel {
       title: title ?? this.title,
       body: body ?? this.body,
       imageUrl: imageUrl ?? this.imageUrl,
-      likes: likes ?? this.likes,
-      replies: replies ?? this.replies,
+      reactions: reactions ?? this.reactions,
       createdAt: createdAt ?? this.createdAt,
     );
-  }
-
-  static int? _readInt(dynamic value) {
-    if (value is int) {
-      return value;
-    }
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(value?.toString() ?? '');
   }
 
   static DateTime? _readDateTime(dynamic value) {

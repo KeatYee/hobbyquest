@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../controllers/guild_controller.dart';
+import '../../controllers/home_controller.dart';
 import '../../models/guild_post_model.dart';
 import '../../models/category_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
@@ -67,6 +68,26 @@ class GuildPage extends StatelessWidget {
 
   void _showAddPostDialog(BuildContext context, GuildController controller) {
     if (controller.categories.isEmpty) return;
+
+    // Resolve hobby and categoryId from user's current plan
+    String hobby = '';
+    String categoryId = '';
+    try {
+      final homeController = Get.find<HomeController>();
+      hobby = homeController.hobby.value;
+    } catch (_) {}
+
+    // Match hobby to a category
+    for (final category in controller.categories) {
+      if (category.hobbies.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+        categoryId = category.id;
+        break;
+      }
+    }
+    if (categoryId.isEmpty && controller.categories.isNotEmpty) {
+      categoryId = controller.categories.first.id;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -76,8 +97,8 @@ class GuildPage extends StatelessWidget {
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: AddGuildPostDialog(
-          categories: controller.categories,
-          hobbies: controller.allHobbies,
+          hobby: hobby,
+          categoryId: categoryId,
         ),
       ),
     );
@@ -263,12 +284,46 @@ class GuildPage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          // Metrics row
+          // Metrics row: reactions + category
           Row(
             children: [
-              _buildMetric(Icons.favorite_border, post.likes.toString()),
-              const SizedBox(width: 14),
-              _buildMetric(Icons.chat_bubble_outline, post.replies.toString()),
+              // Reaction buttons — gamified
+              ...GuildController.reactionEmojis.map((emoji) {
+                final isReacted = (controller.userReactions[post.id] ?? <String>{}).contains(emoji);
+                final count = post.reactions[emoji]?.length ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => controller.toggleReaction(post.id, emoji),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isReacted ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isReacted ? AppColors.primary.withOpacity(0.5) : AppColors.border.withOpacity(0.6),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(emoji, style: const TextStyle(fontSize: 15)),
+                          const SizedBox(width: 3),
+                          Text(
+                            count.toString(),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(width: 8),
               const Spacer(),
               Container(
                 padding:
@@ -304,23 +359,6 @@ class GuildPage extends StatelessWidget {
       );
     }
     return const SizedBox.shrink();
-  }
-
-  Widget _buildMetric(IconData icon, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildLoadingView(BuildContext context) {

@@ -13,12 +13,16 @@ class GuildController extends GetxController {
 
   static const String _guildPostsCollection = 'guild_posts';
 
+  /// Reaction emojis available for guild posts
+  static const List<String> reactionEmojis = ['🔥', '👏', '💡'];
+
   final posts = <GuildPostModel>[].obs;
   final categories = <CategoryModel>[].obs;
   final isLoading = false.obs;
   final userAvatars = <String, String>{}.obs;
   final userNicknames = <String, String>{}.obs;
   final selectedCategoryId = Rx<String?>(null);
+  final userReactions = <String, Set<String>>{}.obs;
 
   @override
   void onInit() {
@@ -70,6 +74,22 @@ class GuildController extends GetxController {
       posts.value = loadedPosts;
       userAvatars.value = loadedUserAvatars;
       userNicknames.value = loadedUserNicknames;
+
+      // Populate userReactions from current user
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        for (final post in loadedPosts) {
+          final reactedEmojis = <String>{};
+          for (final entry in post.reactions.entries) {
+            if (entry.value.contains(currentUser.uid)) {
+              reactedEmojis.add(entry.key);
+            }
+          }
+          if (reactedEmojis.isNotEmpty) {
+            userReactions[post.id] = reactedEmojis;
+          }
+        }
+      }
     } catch (e) {
       print('--- ERROR: Failed to load guild data: $e ---');
     } finally {
@@ -150,8 +170,7 @@ class GuildController extends GetxController {
         title: title,
         body: body,
         imageUrl: imageUrl,
-        likes: 0,
-        replies: 0,
+        reactions: {},
         createdAt: DateTime.now(),
       );
 
@@ -172,47 +191,71 @@ class GuildController extends GetxController {
     }
   }
 
-  /// Like a post (increment likes count)
-  Future<void> likePost(String postId) async {
+  /// Toggle a reaction emoji on a post
+  Future<void> toggleReaction(String postId, String emoji) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      await postRef.update({
-        'likes': FieldValue.increment(1),
-      });
-
-      // Update local post
       final index = posts.indexWhere((p) => p.id == postId);
-      if (index >= 0) {
-        final updatedPost = posts[index].copyWith(likes: posts[index].likes + 1);
-        posts[index] = updatedPost;
-        posts.refresh();
+      if (index < 0) return;
+
+      final post = posts[index];
+      final currentUserEmojis = Set<String>.from(userReactions[postId] ?? {});
+      final alreadyReacted = currentUserEmojis.contains(emoji);
+
+      if (alreadyReacted) {
+        // Remove reaction
+        await postRef.update({
+          'reactions.$emoji': FieldValue.arrayRemove([user.uid]),
+        });
+
+        final updatedReactions = Map<String, List<String>>.from(post.reactions);
+        final currentList = List<String>.from(updatedReactions[emoji] ?? []);
+        currentList.remove(user.uid);
+        if (currentList.isEmpty) {
+          updatedReactions.remove(emoji);
+        } else {
+          updatedReactions[emoji] = currentList;
+        }
+
+        posts[index] = post.copyWith(
+          reactions: updatedReactions,
+        );
+
+        currentUserEmojis.remove(emoji);
+        if (currentUserEmojis.isEmpty) {
+          userReactions.remove(postId);
+        } else {
+          userReactions[postId] = currentUserEmojis;
+        }
+
+        print('--- SUCCESS: Removed reaction $emoji from post $postId ---');
+      } else {
+        // Add reaction
+        await postRef.update({
+          'reactions.$emoji': FieldValue.arrayUnion([user.uid]),
+        });
+
+        final updatedReactions = Map<String, List<String>>.from(post.reactions);
+        final currentList = List<String>.from(updatedReactions[emoji] ?? []);
+        currentList.add(user.uid);
+        updatedReactions[emoji] = currentList;
+
+        posts[index] = post.copyWith(
+          reactions: updatedReactions,
+        );
+
+        currentUserEmojis.add(emoji);
+        userReactions[post.id] = currentUserEmojis;
+
+        print('--- SUCCESS: Added reaction $emoji to post $postId ---');
       }
 
-      print('--- SUCCESS: Post liked: $postId ---');
+      posts.refresh();
     } catch (e) {
-      print('--- ERROR: Failed to like post: $e ---');
-    }
-  }
-
-  /// Increment reply count for a post
-  Future<void> incrementReplyCount(String postId) async {
-    try {
-      final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      await postRef.update({
-        'replies': FieldValue.increment(1),
-      });
-
-      // Update local post
-      final index = posts.indexWhere((p) => p.id == postId);
-      if (index >= 0) {
-        final updatedPost = posts[index].copyWith(replies: posts[index].replies + 1);
-        posts[index] = updatedPost;
-        posts.refresh();
-      }
-
-      print('--- SUCCESS: Reply count incremented for post: $postId ---');
-    } catch (e) {
-      print('--- ERROR: Failed to increment reply count: $e ---');
+      print('--- ERROR: Failed to toggle reaction on post $postId: $e ---');
     }
   }
 
@@ -328,8 +371,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Creative Arts'] ?? '',
         'title': 'Best watercolor techniques for beginners',
         'body': 'I have been experimenting with wet-on-wet and wet-on-dry techniques. Would love to hear what everyone else recommends for someone just starting out!',
-        'likes': 12,
-        'replies': 5,
+        'reactions': {'🔥': ['seed_u1', 'seed_u2'], '👏': ['seed_u3']},
         'createdAt': DateTime.now().subtract(const Duration(days: 2)),
       },
       {
@@ -338,8 +380,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Creative Arts'] ?? '',
         'title': 'Golden hour photography spots in town',
         'body': 'Compiling a list of the best locations for sunset and sunrise shots. Drop your favorite spots below!',
-        'likes': 24,
-        'replies': 8,
+        'reactions': {'🔥': ['seed_u1', 'seed_u4'], '👏': ['seed_u2', 'seed_u3'], '💡': ['seed_u5']},
         'createdAt': DateTime.now().subtract(const Duration(days: 3)),
       },
       {
@@ -348,8 +389,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Music & Performing'] ?? '',
         'title': 'Learning my first chord progression',
         'body': 'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice?',
-        'likes': 8,
-        'replies': 3,
+        'reactions': {'👏': ['seed_u1', 'seed_u2']},
         'createdAt': DateTime.now().subtract(const Duration(days: 5)),
       },
       {
@@ -358,8 +398,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Lifestyle & Wellness'] ?? '',
         'title': '30-day yoga challenge - who is in?',
         'body': 'Starting a 30-day yoga challenge starting next Monday. We will do 15 minutes minimum each day. Comment if you want to join!',
-        'likes': 35,
-        'replies': 15,
+        'reactions': {'🔥': ['seed_u1', 'seed_u3', 'seed_u4', 'seed_u5'], '👏': ['seed_u2']},
         'createdAt': DateTime.now().subtract(const Duration(days: 1)),
       },
       {
@@ -368,8 +407,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Skill & Strategy'] ?? '',
         'title': 'Best resources for learning Flutter',
         'body': 'I am diving into Flutter development and looking for the best courses, YouTube channels, and books. What has worked for you?',
-        'likes': 18,
-        'replies': 7,
+        'reactions': {'💡': ['seed_u1', 'seed_u2', 'seed_u3'], '🔥': ['seed_u4']},
         'createdAt': DateTime.now().subtract(const Duration(hours: 12)),
       },
       {
@@ -378,8 +416,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Lifestyle & Wellness'] ?? '',
         'title': 'Share your favorite quick weeknight dinner',
         'body': 'Need some inspiration for quick dinners under 30 minutes. Please share your go-to recipes!',
-        'likes': 42,
-        'replies': 20,
+        'reactions': {'🔥': ['seed_u1', 'seed_u2', 'seed_u3', 'seed_u4', 'seed_u5'], '👏': ['seed_u6']},
         'createdAt': DateTime.now().subtract(const Duration(days: 4)),
       },
       {
@@ -388,8 +425,7 @@ class GuildController extends GetxController {
         'categoryId': categoryMap['Skill & Strategy'] ?? '',
         'title': 'Chess tactics puzzle of the day',
         'body': 'White to move and win material in 3 moves. I will post the solution tomorrow!',
-        'likes': 15,
-        'replies': 10,
+        'reactions': {'💡': ['seed_u1'], '🔥': ['seed_u2', 'seed_u3']},
         'createdAt': DateTime.now().subtract(const Duration(hours: 6)),
       },
     ];
