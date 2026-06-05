@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../controllers/guild_controller.dart';
+import '../../models/guild_post_model.dart';
+import '../../models/category_model.dart';
+import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
 
 class GuildPage extends StatelessWidget {
@@ -19,29 +22,63 @@ class GuildPage extends StatelessWidget {
     });
 
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const SizedBox(height: 8),
+          // Main content — full screen
           Obx(() {
             if (controller.isLoading.value) {
-              return Expanded(child: _buildLoadingView(context));
+              return _buildLoadingView(context);
             } else if (controller.categories.isEmpty) {
-              return _buildEmptyState(context, 'No categories found in Firestore.');
-            } else {
-              return Column(
-                children: [
-                  _buildCategoryChips(context, controller),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.6,
-                    child: _buildFilteredFeed(context, controller),
-                  ),
-                ],
-              );
+              return _buildEmptyState(context, controller, 'No categories found in Firestore.');
             }
+
+            return Column(
+              children: [
+                _buildCategoryChips(context, controller),
+                Expanded(child: _buildFilteredFeed(context, controller)),
+              ],
+            );
           }),
+          // Floating Add Post button
+          Positioned(
+            right: 20,
+            bottom: 16,
+            child: Obx(() => AnimatedOpacity(
+              opacity: controller.isLoading.value || controller.categories.isEmpty ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: controller.isLoading.value || controller.categories.isEmpty,
+                child: FloatingActionButton(
+                  onPressed: () => _showAddPostDialog(context, controller),
+                  backgroundColor: AppColors.primary,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.edit_rounded, color: Colors.white),
+                ),
+              ),
+            )),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showAddPostDialog(BuildContext context, GuildController controller) {
+    if (controller.categories.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: AddGuildPostDialog(
+          categories: controller.categories,
+          hobbies: controller.allHobbies,
+        ),
       ),
     );
   }
@@ -54,18 +91,19 @@ class GuildPage extends StatelessWidget {
         .firstOrNull;
 
     if (selectedCategory == null) {
-      return _buildEmptyState(context, 'Select a category to view the guild feed.');
+      return _buildEmptyState(context, controller, 'Select a category to view the guild feed.');
     }
 
     if (filteredPosts.isEmpty) {
       return _buildEmptyState(
         context,
+        controller,
         'No posts yet in ${selectedCategory.name.toLowerCase()}.',
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
       physics: const BouncingScrollPhysics(),
       itemCount: filteredPosts.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -77,8 +115,9 @@ class GuildPage extends StatelessWidget {
   }
 
   Widget _buildCategoryChips(BuildContext context, GuildController controller) {
-    return SizedBox(
-      height: 60,
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.only(top: 8),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
@@ -120,8 +159,8 @@ class GuildPage extends StatelessWidget {
   Widget _buildPostCard(
     BuildContext context,
     GuildController controller,
-    dynamic post,
-    dynamic category,
+    GuildPostModel post,
+    CategoryModel category,
   ) {
     final avatarLabel = post.userId.trim().isNotEmpty
         ? post.userId.trim()[0].toUpperCase()
@@ -129,6 +168,7 @@ class GuildPage extends StatelessWidget {
     final avatarSvg = controller.userAvatars[post.userId];
     final hasAvatarSvg = avatarSvg != null && avatarSvg.trim().isNotEmpty;
     final displayName = controller.userNicknames[post.userId] ?? post.userId;
+    final hasImage = post.imageUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -147,6 +187,7 @@ class GuildPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             children: [
               CircleAvatar(
@@ -196,6 +237,7 @@ class GuildPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+          // Title
           Text(
             post.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -204,6 +246,7 @@ class GuildPage extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 6),
+          // Body
           Text(
             post.body,
             style: const TextStyle(
@@ -211,7 +254,16 @@ class GuildPage extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          // Image
+          if (hasImage) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: _buildPostImage(post.imageUrl),
+            ),
+          ],
           const SizedBox(height: 14),
+          // Metrics row
           Row(
             children: [
               _buildMetric(Icons.favorite_border, post.likes.toString()),
@@ -239,6 +291,19 @@ class GuildPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildPostImage(String imageUrl) {
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildMetric(IconData icon, String value) {
@@ -302,7 +367,7 @@ class GuildPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, String message) {
+  Widget _buildEmptyState(BuildContext context, GuildController controller, String message) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -320,23 +385,18 @@ class GuildPage extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Add posts to the guild_posts collection in Firestore to populate this feed.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: null,
-              style: ElevatedButton.styleFrom(
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _showAddPostDialog(context, controller),
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text('Create a post'),
+              style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('How to post'),
             ),
           ],
         ),

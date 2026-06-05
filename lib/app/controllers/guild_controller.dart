@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/guild_post_model.dart';
 import '../models/category_model.dart';
+import '../services/imgbb_service.dart';
 import 'home_controller.dart';
 
 class GuildController extends GetxController {
@@ -111,17 +113,33 @@ class GuildController extends GetxController {
     }).toList();
   }
 
+  /// Get all hobbies from all categories
+  List<String> get allHobbies {
+    return categories.expand((c) => c.hobbies).toList();
+  }
+
+  final ImgBBService _imgbbService = ImgBBService();
+
   /// Add a new post to the guild_posts collection
   Future<String?> addPost({
     required String hobby,
     required String categoryId,
     required String title,
     required String body,
+    XFile? imageFile,
   }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
         throw Exception('User not authenticated');
+      }
+
+      // Upload image to ImgBB if provided
+      String imageUrl = '';
+      if (imageFile != null) {
+        print('--- Uploading guild post image to ImgBB ---');
+        imageUrl = await _imgbbService.uploadImage(imageFile.path);
+        print('--- Image uploaded. URL: $imageUrl ---');
       }
 
       final newPost = GuildPostModel(
@@ -131,6 +149,7 @@ class GuildController extends GetxController {
         categoryId: categoryId,
         title: title,
         body: body,
+        imageUrl: imageUrl,
         likes: 0,
         replies: 0,
         createdAt: DateTime.now(),

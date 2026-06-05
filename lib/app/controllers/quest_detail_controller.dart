@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/quest_node_model.dart';
+import '../views/dialogs/add_guild_post_dialog.dart';
+import 'guild_controller.dart';
 import 'home_controller.dart';
 import 'progression_controller.dart';
 import '../services/quest_service.dart';
@@ -210,6 +212,15 @@ class QuestDetailController extends GetxController {
       );
       currentQuest.value = updated;
 
+      // Ask user if they want to share this achievement to the guild
+      await _promptShareToGuild(
+        questTitle: currentQuest.value.title,
+        reflectionNote: reflectionNote,
+        hobby: homeController.user.value?.currentPlan.hobby ?? '',
+        imageUrl: imageUrl,
+        imageFile: imageFile,
+      );
+
       await Future.delayed(const Duration(milliseconds: 300));
       Get.back();
 
@@ -226,6 +237,115 @@ class QuestDetailController extends GetxController {
     } finally {
       print('--- DEBUG: completeQuest finally block - setting isSubmitting to false ---');
       isSubmitting.value = false;
+    }
+  }
+
+  /// Prompt the user to share their completed quest to the guild.
+  /// Shows a confirmation dialog first, then opens the full AddGuildPostDialog
+  /// with pre-filled data so the user can review before posting.
+  Future<void> _promptShareToGuild({
+    required String questTitle,
+    required String reflectionNote,
+    required String hobby,
+    required String? imageUrl,
+    required XFile? imageFile,
+  }) async {
+    // Step 1: Ask if they want to share
+    final shouldShare = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Share Your Achievement?',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You just completed "$questTitle"!',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Want to share this achievement with the guild? You can review and edit before posting.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text(
+              'Not Now',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Get.back(result: true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Share to Guild'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    if (shouldShare != true) return;
+
+    // Step 2: Resolve category and hobby for pre-filling
+    try {
+      final guildController = Get.find<GuildController>();
+
+      String? categoryId;
+      for (final category in guildController.categories) {
+        if (category.hobbies.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+          categoryId = category.id;
+          break;
+        }
+      }
+
+      // Step 3: Open the full AddGuildPostDialog with pre-filled data
+      await Get.bottomSheet<void>(
+        Padding(
+          padding: EdgeInsets.only(
+            bottom: Get.mediaQuery.viewInsets.bottom,
+          ),
+          child: AddGuildPostDialog(
+            categories: guildController.categories,
+            hobbies: guildController.allHobbies,
+            initialTitle: 'Completed: $questTitle',
+            initialBody: reflectionNote,
+            initialHobby: hobby,
+            initialCategoryId: categoryId,
+            initialImageFile: imageFile,
+          ),
+        ),
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        enableDrag: true,
+      );
+    } catch (e) {
+      print('--- ERROR: Failed to open guild post dialog: $e ---');
     }
   }
 }

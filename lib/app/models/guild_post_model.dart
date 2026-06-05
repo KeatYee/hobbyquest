@@ -7,6 +7,7 @@ class GuildPostModel {
   final String categoryId;
   final String title;
   final String body;
+  final String imageUrl;
   final int likes;
   final int replies;
   final DateTime? createdAt;
@@ -18,6 +19,7 @@ class GuildPostModel {
     required this.categoryId,
     required this.title,
     required this.body,
+    this.imageUrl = '',
     required this.likes,
     required this.replies,
     this.createdAt,
@@ -31,6 +33,7 @@ class GuildPostModel {
       categoryId: json['categoryId'] as String? ?? (json['category_id'] as String? ?? ''),
       title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? (json['content'] as String? ?? ''),
+      imageUrl: json['imageUrl'] as String? ?? '',
       likes: _readInt(json['likes']) ?? 0,
       replies: _readInt(json['replies']) ?? 0,
       createdAt: _readDateTime(json['createdAt'] ?? json['created_at']),
@@ -44,6 +47,7 @@ class GuildPostModel {
       'categoryId': categoryId,
       'title': title,
       'body': body,
+      'imageUrl': imageUrl,
       'likes': likes,
       'replies': replies,
       'createdAt': createdAt,
@@ -57,6 +61,7 @@ class GuildPostModel {
     String? categoryId,
     String? title,
     String? body,
+    String? imageUrl,
     int? likes,
     int? replies,
     DateTime? createdAt,
@@ -68,6 +73,7 @@ class GuildPostModel {
       categoryId: categoryId ?? this.categoryId,
       title: title ?? this.title,
       body: body ?? this.body,
+      imageUrl: imageUrl ?? this.imageUrl,
       likes: likes ?? this.likes,
       replies: replies ?? this.replies,
       createdAt: createdAt ?? this.createdAt,

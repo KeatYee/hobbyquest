@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../controllers/guild_controller.dart';
 import '../../models/category_model.dart';
 import '../../../core/constants/color_constants.dart';
@@ -7,10 +9,20 @@ import '../../../core/constants/color_constants.dart';
 class AddGuildPostDialog extends StatefulWidget {
   final List<CategoryModel> categories;
   final List<String> hobbies;
+  final String? initialTitle;
+  final String? initialBody;
+  final String? initialHobby;
+  final String? initialCategoryId;
+  final XFile? initialImageFile;
 
   const AddGuildPostDialog({
     required this.categories,
     required this.hobbies,
+    this.initialTitle,
+    this.initialBody,
+    this.initialHobby,
+    this.initialCategoryId,
+    this.initialImageFile,
     super.key,
   });
 
@@ -27,11 +39,27 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   String? _selectedCategoryId;
   String? _selectedHobby;
   bool _isSubmitting = false;
+  File? _selectedImage;
+  XFile? _selectedImageFile;
 
   @override
   void initState() {
     super.initState();
     _guildController = Get.find<GuildController>();
+
+    // Pre-fill from initial values (e.g. quest completion share)
+    if (widget.initialTitle != null) {
+      _titleController.text = widget.initialTitle!;
+    }
+    if (widget.initialBody != null) {
+      _bodyController.text = widget.initialBody!;
+    }
+    _selectedHobby = widget.initialHobby;
+    _selectedCategoryId = widget.initialCategoryId;
+    if (widget.initialImageFile != null) {
+      _selectedImageFile = widget.initialImageFile;
+      _selectedImage = File(widget.initialImageFile!.path);
+    }
   }
 
   @override
@@ -39,6 +67,30 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 70,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+        _selectedImageFile = picked;
+      });
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+      _selectedImageFile = null;
+    });
   }
 
   Future<void> _submitPost() async {
@@ -62,6 +114,7 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
       categoryId: _selectedCategoryId!,
       title: _titleController.text.trim(),
       body: _bodyController.text.trim(),
+      imageFile: _selectedImageFile,
     );
 
     setState(() => _isSubmitting = false);
@@ -86,157 +139,242 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Share with Guild',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Share with Guild',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  IconButton(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Category Dropdown
-              Text(
-                'Category',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
                 ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedCategoryId,
-                hint: const Text('Select a category'),
-                items: widget.categories
-                    .map((category) => DropdownMenuItem(
+                IconButton(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          // Scrollable form content
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + MediaQuery.of(context).padding.bottom),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Category Dropdown
+                  _buildLabel('Category'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategoryId,
+                    hint: const Text('Select a category'),
+                    items: widget.categories
+                        .map((category) => DropdownMenuItem(
                       value: category.id,
                       child: Text(category.name),
                     ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedCategoryId = value);
-                },
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedCategoryId = value);
+                    },
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-              // Hobby Dropdown
-              Text(
-                'Hobby',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedHobby,
-                hint: const Text('Select your hobby'),
-                items: widget.hobbies
-                    .map((hobby) => DropdownMenuItem(
+                  // Hobby Dropdown
+                  _buildLabel('Hobby'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedHobby,
+                    hint: const Text('Select your hobby'),
+                    items: widget.hobbies
+                        .map((hobby) => DropdownMenuItem(
                       value: hobby,
                       child: Text(hobby),
                     ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedHobby = value);
-                },
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedHobby = value);
+                    },
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-              // Title Input
-              Text(
-                'Title',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: 'What is your post about?',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  // Title Input
+                  _buildLabel('Title'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _titleController,
+                    decoration: InputDecoration(
+                      hintText: 'What is your post about?',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    maxLines: 1,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                maxLines: 1,
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-              // Body Input
-              Text(
-                'Content',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _bodyController,
-                decoration: InputDecoration(
-                  hintText: 'Share your thoughts, tips, or experiences...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  // Content Input
+                  _buildLabel('Content'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _bodyController,
+                    decoration: InputDecoration(
+                      hintText: 'Share your thoughts, tips, or experiences...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    maxLines: 4,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-              // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isSubmitting ? null : () => Get.back(),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton(
-                    onPressed: _isSubmitting ? null : _submitPost,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  // Image Picker
+                  _buildLabel('Image (optional)'),
+                  const SizedBox(height: 8),
+                  if (_selectedImage != null)
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(
+                            _selectedImage!,
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: _removeImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
                     )
-                        : const Text('Post'),
+                  else
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: double.infinity,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined, size: 32, color: AppColors.textSecondary),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap to add an image',
+                              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isSubmitting ? null : () => Get.back(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _isSubmitting ? null : _submitPost,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                              : const Text('Post'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        fontWeight: FontWeight.bold,
       ),
     );
   }
