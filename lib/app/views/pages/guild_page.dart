@@ -1,147 +1,61 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../controllers/home_controller.dart';
-import '../../models/category_model.dart';
-import '../../models/guild_post_model.dart';
+import '../../controllers/guild_controller.dart';
 import '../../../core/constants/color_constants.dart';
 
-class GuildPage extends StatefulWidget {
+class GuildPage extends StatelessWidget {
   const GuildPage({super.key});
 
   @override
-  State<GuildPage> createState() => _GuildPageState();
-}
-
-class _GuildPageState extends State<GuildPage> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static const String _guildPostsCollection = 'guild_posts';
-
-  List<CategoryModel> _categories = [];
-  List<GuildPostModel> _posts = [];
-  Map<String, String> _userAvatars = {};
-  Map<String, String> _userNicknames = {};
-  bool _isLoading = true;
-  String? _selectedCategoryId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    try {
-      final results = await Future.wait([
-        _db.collection('categories').get(),
-        _db.collection(_guildPostsCollection).orderBy('createdAt', descending: true).get(),
-      ]);
-
-      final categorySnapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
-      final postSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
-
-      final loadedCategories = categorySnapshot.docs
-          .map((doc) => CategoryModel.fromJson(doc.data(), doc.id))
-          .where((category) => category.name.trim().isNotEmpty)
-          .toList();
-
-      final loadedPosts = postSnapshot.docs
-          .map((doc) => GuildPostModel.fromJson(doc.data(), doc.id))
-          .where((post) => post.title.trim().isNotEmpty)
-          .toList();
-
-      final userIds = loadedPosts
-          .map((post) => post.userId.trim())
-          .where((userId) => userId.isNotEmpty)
-          .toSet();
-
-      final userProfilePairs = await Future.wait(
-        userIds.map((userId) async {
-          final userDoc = await _db.collection('users').doc(userId).get();
-          final data = userDoc.data();
-          final avatarSvg = data?['avatarSvg'] as String? ?? '';
-          final nickname = data?['nickname'] as String? ?? '';
-          return MapEntry(userId, {'avatarSvg': avatarSvg, 'nickname': nickname});
-        }),
-      );
-
-      final loadedUserAvatars = <String, String>{};
-      final loadedUserNicknames = <String, String>{};
-      for (final entry in userProfilePairs) {
-        final map = entry.value;
-        final avatar = (map['avatarSvg'] ?? '').toString();
-        final nick = (map['nickname'] ?? '').toString();
-        if (avatar.trim().isNotEmpty) {
-          loadedUserAvatars[entry.key] = avatar;
-        }
-        if (nick.trim().isNotEmpty) {
-          loadedUserNicknames[entry.key] = nick;
-        }
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _categories = loadedCategories;
-        _posts = loadedPosts;
-        _userAvatars = loadedUserAvatars;
-        _userNicknames = loadedUserNicknames;
-        _selectedCategoryId = _resolveDefaultCategoryId(loadedCategories);
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _categories = [];
-        _posts = [];
-        _userAvatars = {};
-        _selectedCategoryId = null;
-        _isLoading = false;
-      });
-      print('--- ERROR: Failed to load guild data: $e ---');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final GuildController controller = Get.find<GuildController>();
+
+    // Set default category once data loads
+    ever(controller.categories, (_) {
+      if (controller.selectedCategoryId.value == null && controller.categories.isNotEmpty) {
+        controller.selectedCategoryId.value = controller.resolveDefaultCategoryId();
+      }
+    });
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          if (_isLoading)
-            Expanded(child: _buildLoadingView(context))
-          else if (_categories.isEmpty)
-            _buildEmptyState(context, 'No categories found in Firestore.')
-          else ...[
-            _buildCategoryChips(context),
-            const SizedBox(height: 12),
-            Expanded(child: _buildFilteredFeed(context)),
-          ],
+          Obx(() {
+            if (controller.isLoading.value) {
+              return Expanded(child: _buildLoadingView(context));
+            } else if (controller.categories.isEmpty) {
+              return _buildEmptyState(context, 'No categories found in Firestore.');
+            } else {
+              return Column(
+                children: [
+                  _buildCategoryChips(context, controller),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: _buildFilteredFeed(context, controller),
+                  ),
+                ],
+              );
+            }
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildFilteredFeed(BuildContext context) {
-    final selectedCategory = _selectedCategory;
+  Widget _buildFilteredFeed(BuildContext context, GuildController controller) {
+    final filteredPosts = controller.filteredPosts;
+    final selectedCategoryId = controller.selectedCategoryId.value;
+    final selectedCategory = controller.categories
+        .where((c) => c.id == selectedCategoryId)
+        .firstOrNull;
+
     if (selectedCategory == null) {
       return _buildEmptyState(context, 'Select a category to view the guild feed.');
     }
-
-    final filteredPosts = _posts.where((post) {
-      final matchesCategoryId = post.categoryId.trim().isNotEmpty && post.categoryId == selectedCategory.id;
-      final matchesHobby = selectedCategory.hobbies.any(
-        (hobby) => hobby.toLowerCase() == post.hobby.toLowerCase(),
-      );
-      return matchesCategoryId || matchesHobby;
-    }).toList();
 
     if (filteredPosts.isEmpty) {
       return _buildEmptyState(
@@ -157,12 +71,12 @@ class _GuildPageState extends State<GuildPage> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final post = filteredPosts[index];
-        return _buildPostCard(context, post, selectedCategory);
+        return _buildPostCard(context, controller, post, selectedCategory);
       },
     );
   }
 
-  Widget _buildCategoryChips(BuildContext context) {
+  Widget _buildCategoryChips(BuildContext context, GuildController controller) {
     return SizedBox(
       height: 60,
       child: ListView.separated(
@@ -170,8 +84,8 @@ class _GuildPageState extends State<GuildPage> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = category.id == _selectedCategoryId;
+          final category = controller.categories[index];
+          final isSelected = category.id == controller.selectedCategoryId.value;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: ChoiceChip(
@@ -180,9 +94,7 @@ class _GuildPageState extends State<GuildPage> {
               label: Text(category.name),
               selected: isSelected,
               onSelected: (_) {
-                setState(() {
-                  _selectedCategoryId = category.id;
-                });
+                controller.selectedCategoryId.value = category.id;
               },
               selectedColor: AppColors.primary.withOpacity(0.22),
               backgroundColor: AppColors.surface,
@@ -200,16 +112,23 @@ class _GuildPageState extends State<GuildPage> {
           );
         },
         separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemCount: _categories.length,
+        itemCount: controller.categories.length,
       ),
     );
   }
 
-  Widget _buildPostCard(BuildContext context, GuildPostModel post, CategoryModel category) {
-    final avatarLabel = post.userId.trim().isNotEmpty ? post.userId.trim()[0].toUpperCase() : '?';
-    final avatarSvg = _userAvatars[post.userId];
+  Widget _buildPostCard(
+    BuildContext context,
+    GuildController controller,
+    dynamic post,
+    dynamic category,
+  ) {
+    final avatarLabel = post.userId.trim().isNotEmpty
+        ? post.userId.trim()[0].toUpperCase()
+        : '?';
+    final avatarSvg = controller.userAvatars[post.userId];
     final hasAvatarSvg = avatarSvg != null && avatarSvg.trim().isNotEmpty;
-    final displayName = _userNicknames[post.userId] ?? post.userId;
+    final displayName = controller.userNicknames[post.userId] ?? post.userId;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -236,7 +155,7 @@ class _GuildPageState extends State<GuildPage> {
                 child: hasAvatarSvg
                     ? ClipOval(
                         child: SvgPicture.string(
-                          avatarSvg!,
+                          avatarSvg,
                           width: 44,
                           height: 44,
                           fit: BoxFit.cover,
@@ -300,7 +219,8 @@ class _GuildPageState extends State<GuildPage> {
               _buildMetric(Icons.chat_bubble_outline, post.replies.toString()),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(999),
@@ -344,7 +264,6 @@ class _GuildPageState extends State<GuildPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // chips skeleton
           SizedBox(
             height: 60,
             child: ListView.separated(
@@ -363,7 +282,6 @@ class _GuildPageState extends State<GuildPage> {
             ),
           ),
           const SizedBox(height: 12),
-          // posts skeleton
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -391,7 +309,8 @@ class _GuildPageState extends State<GuildPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.forum_outlined, size: 42, color: AppColors.textSecondary),
+            const Icon(Icons.forum_outlined,
+                size: 42, color: AppColors.textSecondary),
             const SizedBox(height: 12),
             Text(
               message,
@@ -402,82 +321,35 @@ class _GuildPageState extends State<GuildPage> {
                   ),
             ),
             const SizedBox(height: 6),
-              const Text(
-                'Add posts to the guild_posts collection in Firestore to populate this feed.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+            const Text(
+              'Add posts to the guild_posts collection in Firestore to populate this feed.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('How to post'),
-              ),
+              child: const Text('How to post'),
+            ),
           ],
         ),
       ),
     );
   }
 
-  CategoryModel? get _selectedCategory {
-    if (_categories.isEmpty) {
-      return null;
-    }
-
-    final selectedId = _selectedCategoryId;
-    if (selectedId != null && selectedId.isNotEmpty) {
-      for (final category in _categories) {
-        if (category.id == selectedId) {
-          return category;
-        }
-      }
-    }
-
-    return _categories.first;
-  }
-
-  String _resolveDefaultCategoryId(List<CategoryModel> categories) {
-    if (categories.isEmpty) {
-      return '';
-    }
-
-    if (Get.isRegistered<HomeController>()) {
-      final homeController = Get.find<HomeController>();
-      final hobby = homeController.hobby.value.trim().toLowerCase();
-
-      for (final category in categories) {
-        final matches = category.hobbies.any(
-          (item) => item.toLowerCase() == hobby,
-        );
-        if (matches) {
-          return category.id;
-        }
-      }
-    }
-
-    return categories.first.id;
-  }
-
   String? _formatTime(DateTime? createdAt) {
-    if (createdAt == null) {
-      return null;
-    }
-
+    if (createdAt == null) return null;
     final difference = DateTime.now().difference(createdAt);
-    if (difference.inMinutes < 1) {
-      return 'just now';
-    }
-    if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    }
-    if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    }
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
     return '${difference.inDays}d ago';
   }
 }

@@ -220,7 +220,7 @@ class HomePage extends StatelessWidget {
                     Flexible(
                       child: Obx(
                         () => Text(
-                          " ${progressionController.totalXP.value} XP",
+                          " ${progressionController.streak.value} day${progressionController.streak.value == 1 ? '' : 's'}",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

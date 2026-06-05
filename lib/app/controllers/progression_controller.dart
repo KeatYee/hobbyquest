@@ -63,6 +63,7 @@ class ProgressionController extends GetxController {
 
     int previousXP = totalXP.value;
     int updatedXP = previousXP;
+    int updatedStreak = streak.value;
 
     await _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(userRef);
@@ -71,10 +72,47 @@ class ProgressionController extends GetxController {
       previousXP = currentXP;
       updatedXP = currentXP + xpReward;
 
+      // Handle streak calculation
+      final currentStreak = data?['currentStreak'] as int? ?? 0;
+      final lastStreakDateData = data?['lastStreakDate'];
+      DateTime? lastStreakDate;
+      
+      if (lastStreakDateData != null) {
+        if (lastStreakDateData is Timestamp) {
+          lastStreakDate = lastStreakDateData.toDate();
+        } else if (lastStreakDateData is String) {
+          lastStreakDate = DateTime.parse(lastStreakDateData);
+        }
+      }
+
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      if (lastStreakDate == null) {
+        // First quest completion
+        updatedStreak = 1;
+      } else {
+        final lastStreakDateOnly = DateTime(lastStreakDate.year, lastStreakDate.month, lastStreakDate.day);
+        final daysDifference = todayDate.difference(lastStreakDateOnly).inDays;
+
+        if (daysDifference == 0) {
+          // Quest already completed today, don't change streak
+          updatedStreak = currentStreak;
+        } else if (daysDifference == 1) {
+          // Consecutive day, increment streak
+          updatedStreak = currentStreak + 1;
+        } else {
+          // Streak broken, reset to 1
+          updatedStreak = 1;
+        }
+      }
+
       transaction.set(
         userRef,
         {
           'totalXP': updatedXP,
+          'currentStreak': updatedStreak,
+          'lastStreakDate': today,
           'updatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
@@ -82,6 +120,7 @@ class ProgressionController extends GetxController {
     });
 
     totalXP.value = updatedXP;
+    streak.value = updatedStreak;
 
     final previousLevel = (previousXP ~/ 1000) + 1;
     final newLevel = (updatedXP ~/ 1000) + 1;
