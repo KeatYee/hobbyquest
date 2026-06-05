@@ -45,7 +45,7 @@ class ProgressionController extends GetxController {
       }
 
       totalXP.value = _readTotalXP(data);
-      streak.value = data['streak'] as int? ?? 0;
+      streak.value = data['currentStreak'] as int? ?? 0;
     } catch (e) {
       print('--- ERROR: Failed to load progression: $e ---');
     } finally {
