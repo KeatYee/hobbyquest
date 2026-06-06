@@ -5,4 +5,5 @@ abstract class AppRoutes {
   static const DASHBOARD = '/dashboard';
   static const HOME = '/home';
   static const QUEST_DETAIL = '/quest-detail';
+  static const USER_PROFILE = '/user-profile';
 }

@@ -8,6 +8,7 @@ import '../views/pages/onboarding/onboarding_view.dart';
 import '../views/pages/home_page.dart';
 import '../views/pages/dashboard_page.dart';
 import '../views/pages/quest_detail_page.dart';
+import '../views/pages/user_profile_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -44,6 +45,13 @@ class AppPages {
       page: () {
         final quest = Get.arguments;
         return QuestDetailPage(quest: quest);
+      },
+    ),
+    GetPage(
+      name: AppRoutes.USER_PROFILE,
+      page: () {
+        final userId = Get.arguments as String;
+        return UserProfilePage(userId: userId);
       },
     ),
   ];

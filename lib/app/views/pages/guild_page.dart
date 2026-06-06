@@ -7,6 +7,7 @@ import '../../models/guild_post_model.dart';
 import '../../models/category_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../routes/app_routes.dart';
 
 class GuildPage extends StatelessWidget {
   const GuildPage({super.key});
@@ -211,25 +212,28 @@ class GuildPage extends StatelessWidget {
           // Header row
           Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.primary.withOpacity(0.12),
-                child: hasAvatarSvg
-                    ? ClipOval(
-                        child: SvgPicture.string(
-                          avatarSvg,
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
+              GestureDetector(
+                onTap: () => Get.toNamed(AppRoutes.USER_PROFILE, arguments: post.userId),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  child: hasAvatarSvg
+                      ? ClipOval(
+                          child: SvgPicture.string(
+                            avatarSvg,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Text(
+                          avatarLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                          ),
                         ),
-                      )
-                    : Text(
-                        avatarLabel,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
-                        ),
-                      ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
