@@ -4,7 +4,8 @@ import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/color_constants.dart';
-import '../../../../core/utils/validators.dart'; // Using your custom validator file
+import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/dialog_utils.dart';
 import '../../controllers/auth_controller.dart';
 import '../../routes/app_routes.dart'; 
 import '../widgets/mascot_widget.dart';
@@ -126,11 +127,9 @@ class _LoginPageState extends State<LoginPage> {
         print("--- SUCCESS: User Registered ---"); // Debug: Success
         
         if (mounted) {
-          Get.snackbar(
-            "Success", 
-            "Character Created!", 
-            backgroundColor: AppColors.success, 
-            colorText: Colors.white
+          AppDialogs.success(
+            "Success",
+            "Character Created!",
           );
           // Navigate to Onboarding (Removes previous routes to prevent back button issues)
           Get.offAllNamed(AppRoutes.ONBOARDING); 
@@ -148,11 +147,9 @@ class _LoginPageState extends State<LoginPage> {
         print("--- SUCCESS: User Logged In ---"); // Debug: Success
 
         if (mounted) {
-          Get.snackbar(
-            "Welcome Back", 
-            "Resuming your quest...", 
-            backgroundColor: AppColors.accent, 
-            colorText: Colors.white
+          AppDialogs.info(
+            "Welcome Back",
+            "Resuming your quest...",
           );
           // Use checkUserStatus() to verify profile exists (same as Google Sign-In)
           // This ensures we don't send users to DASHBOARD if their profile is missing
@@ -171,24 +168,14 @@ class _LoginPageState extends State<LoginPage> {
       if (e.code == 'network-request-failed') message = "Check your internet connection!";
       if (e.code == 'invalid-email') message = "The email address is badly formatted.";
       
-      Get.snackbar(
-        "Error", 
-        message, 
-        backgroundColor: AppColors.error, 
-        colorText: Colors.white
-      );
+      AppDialogs.error("Error", message);
         
     } catch (e) {
       // Step 5: Handle Generic Errors
       // Catches unexpected crashes or system errors
       print("--- UNKNOWN EXCEPTION: $e ---"); // Debug: Generic Error
       
-      Get.snackbar(
-        "Error", 
-        "Something unexpected happened: $e", 
-        backgroundColor: AppColors.error, 
-        colorText: Colors.white
-      );
+      AppDialogs.error("Error", "Something unexpected happened: $e");
         
     } finally {
       // Step 6: Reset Loading State
@@ -250,11 +237,9 @@ class _LoginPageState extends State<LoginPage> {
       print("--- FIREBASE SIGN-IN SUCCESS ---");
 
       if (mounted) {
-        Get.snackbar(
+        AppDialogs.info(
           "Welcome",
           "Google account linked successfully.",
-          backgroundColor: AppColors.accent,
-          colorText: Colors.white,
         );
 
         await Get.find<AuthController>().checkUserStatus();
@@ -269,21 +254,11 @@ class _LoginPageState extends State<LoginPage> {
         message = "Check your internet connection!";
       }
 
-      Get.snackbar(
-        "Error",
-        message,
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-      );
+      AppDialogs.error("Error", message);
     } catch (e) {
       print("--- GOOGLE SIGN-IN EXCEPTION: $e ---");
 
-      Get.snackbar(
-        "Error",
-        "Something unexpected happened: $e",
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-      );
+      AppDialogs.error("Error", "Something unexpected happened: $e");
     } finally {
       print("--- GOOGLE SIGN-IN COMPLETE ---");
       if (mounted) setState(() => isLoading = false);

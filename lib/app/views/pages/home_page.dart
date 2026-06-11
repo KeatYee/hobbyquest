@@ -5,6 +5,7 @@ import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/utils/dialog_utils.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -736,33 +737,10 @@ class HomePage extends StatelessWidget {
                                 // REROLL BUTTON — UNCHANGED logic
                                 TextButton.icon(
                                   onPressed: () async {
-                                    final confirmed =
-                                        await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        title: const Text(
-                                            'Reroll this quest?'),
-                                        content: const Text(
-                                          'This will generate a new task for the same skill.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(ctx)
-                                                    .pop(false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          FilledButton(
-                                            onPressed: () =>
-                                                Navigator.of(ctx).pop(true),
-                                            child: const Text('Reroll'),
-                                          ),
-                                        ],
-                                      ),
+                                    final confirmed = await AppDialogs.confirm(
+                                      title: 'Reroll this quest?',
+                                      message: 'This will generate a new task for the same skill.',
+                                      confirmLabel: 'Reroll',
                                     );
 
                                     if (confirmed != true) return;
@@ -771,18 +749,14 @@ class HomePage extends StatelessWidget {
                                         .rerollQuestWithGemini(questId);
 
                                     if (didReroll) {
-                                      Get.snackbar(
+                                      AppDialogs.success(
                                         'Quest rerolled',
                                         'The new quest version has been saved.',
-                                        backgroundColor: AppColors.success,
-                                        colorText: AppColors.textOnPrimary,
                                       );
                                     } else {
-                                      Get.snackbar(
+                                      AppDialogs.error(
                                         'Reroll unavailable',
                                         'Unable to reroll this quest right now',
-                                        backgroundColor: AppColors.error,
-                                        colorText: AppColors.textOnPrimary,
                                       );
                                     }
                                   },

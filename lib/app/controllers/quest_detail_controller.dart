@@ -10,6 +10,7 @@ import '../services/quest_service.dart';
 import '../services/imgbb_service.dart';
 import '../services/gemini_service.dart';
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/dialog_utils.dart';
 
 class QuestDetailController extends GetxController {
   final Rx<QuestNodeModel> currentQuest;
@@ -71,53 +72,59 @@ class QuestDetailController extends GetxController {
         observation = feedbackResult['observation'] as String? ?? '';
         tip = feedbackResult['tip'] as String? ?? '';
 
-        await Get.dialog(
-          isApproved
-              ? AlertDialog(
-                  title: const Text('Quest Approved'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (greeting.isNotEmpty) ...[
-                        Text(
-                          greeting,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      if (observation.isNotEmpty) ...[
-                        Text(observation),
-                        const SizedBox(height: 8),
-                      ],
-                      if (tip.isNotEmpty) Text(tip),
-                      if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
-                        const Text('Your submission was approved.'),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(result: true),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                )
-              : AlertDialog(
-                  title: const Text(
-                    'Oops!',
-                    style: TextStyle(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+        await AppDialogs.custom<void>(
+          builder: (context) => Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: isApproved
+                  ? [
+                      const Text(
+                        'Quest Approved',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                      ),
                       const SizedBox(height: 12),
-                      if (greeting.isNotEmpty) ...[
+                      if (greeting!.isNotEmpty) ...[
+                        Text(greeting!, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                      ],
+                      if (observation!.isNotEmpty) ...[
+                        Text(observation!),
+                        const SizedBox(height: 8),
+                      ],
+                      if (tip!.isNotEmpty) Text(tip!),
+                      if (greeting!.isEmpty && observation!.isEmpty && tip!.isEmpty)
+                        const Text('Your submission was approved.'),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          FilledButton(
+                            onPressed: () => Get.back(),
+                            style: FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    ]
+                  : [
+                      const Text(
+                        'Oops!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          color: AppColors.error,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (greeting!.isNotEmpty) ...[
                         Text(
-                          greeting,
+                          greeting!,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             color: AppColors.error,
@@ -125,25 +132,29 @@ class QuestDetailController extends GetxController {
                         ),
                         const SizedBox(height: 8),
                       ],
-                      if (observation.isNotEmpty) ...[
-                        Text(observation),
+                      if (observation!.isNotEmpty) ...[
+                        Text(observation!),
                         const SizedBox(height: 8),
                       ],
-                      if (tip.isNotEmpty) Text(tip),
-                      if (greeting.isEmpty && observation.isEmpty && tip.isEmpty)
+                      if (tip!.isNotEmpty) Text(tip!),
+                      if (greeting!.isEmpty && observation!.isEmpty && tip!.isEmpty)
                         const Text('Retake the photo and make the completed quest easier to see.'),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(result: false),
-                      child: const Text(
-                        'Retake Photo',
-                        style: TextStyle(color: AppColors.error),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Get.back(),
+                            child: const Text(
+                              'Retake Photo',
+                              style: TextStyle(color: AppColors.error),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+            ),
+          ),
           barrierDismissible: false,
         );
 
@@ -228,11 +239,7 @@ class QuestDetailController extends GetxController {
     } catch (e) {
       print('--- ERROR: Exception in completeQuest: $e ---');
       print(e);
-      Get.snackbar(
-        'Failed to complete quest',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      AppDialogs.error('Failed to complete quest', e.toString());
       return false;
     } finally {
       print('--- DEBUG: completeQuest finally block - setting isSubmitting to false ---');
@@ -251,32 +258,33 @@ class QuestDetailController extends GetxController {
     required XFile? imageFile,
   }) async {
     // Step 1: Ask if they want to share
-    final shouldShare = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Share Your Achievement?',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
+    final shouldShare = await AppDialogs.custom<bool>(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Share Your Achievement?',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Text(
               'You just completed "$questTitle"!',
               style: const TextStyle(fontWeight: FontWeight.w600),
@@ -286,25 +294,30 @@ class QuestDetailController extends GetxController {
               'Want to share this achievement with the guild? You can review and edit before posting.',
               style: TextStyle(color: AppColors.textSecondary, height: 1.4),
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Get.back(result: false),
+                  child: const Text(
+                    'Not Now',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () => Get.back(result: true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Share to Guild'),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text(
-              'Not Now',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Get.back(result: true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Share to Guild'),
-          ),
-        ],
       ),
       barrierDismissible: false,
     );

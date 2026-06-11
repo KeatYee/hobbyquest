@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controllers/guild_controller.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/utils/dialog_utils.dart';
 
 class AddGuildPostDialog extends StatefulWidget {
   final String hobby;
@@ -87,11 +88,9 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   Future<void> _submitPost() async {
     if (_titleController.text.trim().isEmpty ||
         _bodyController.text.trim().isEmpty) {
-      Get.snackbar(
+      AppDialogs.error(
         'Incomplete Form',
         'Please fill in all fields',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
       );
       return;
     }
@@ -110,18 +109,14 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
 
     if (postId != null) {
       Get.back();
-      Get.snackbar(
+      AppDialogs.success(
         'Post Created',
         'Your post has been shared with the guild!',
-        backgroundColor: AppColors.success,
-        colorText: Colors.white,
       );
     } else {
-      Get.snackbar(
+      AppDialogs.error(
         'Error',
         'Failed to create post. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
       );
     }
   }

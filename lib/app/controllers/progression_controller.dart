@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import '../../core/utils/dialog_utils.dart';
 
 class ProgressionController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -138,18 +139,16 @@ class ProgressionController extends GetxController {
   }
 
   void showLevelUpModal(int newLevel) {
-    Get.snackbar(
+    AppDialogs.success(
       'Level Up!',
       'You reached Level $newLevel',
-      snackPosition: SnackPosition.BOTTOM,
     );
   }
 
   void showMilestoneUnlockedModal(int milestoneNumber, int thresholdXP) {
-    Get.snackbar(
+    AppDialogs.warning(
       'Milestone Unlocked',
       'Milestone $milestoneNumber unlocked at $thresholdXP XP',
-      snackPosition: SnackPosition.BOTTOM,
     );
   }
 

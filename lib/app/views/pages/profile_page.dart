@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../models/user_model.dart';
-import '../../routes/app_routes.dart';
+import '../../controllers/profile_controller.dart';
+import '../../../core/utils/dialog_utils.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -16,160 +15,136 @@ class ProfilePage extends StatelessWidget {
   // ───────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final controller = Get.put(ProfileController());
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: currentUser == null
-          ? Center(
-              child: Text(
-                "Not logged in",
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            )
-          : FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(currentUser.uid)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  );
-                }
-                if (!snapshot.hasData || !snapshot.data!.exists) {
-                  return const Center(child: Text("No profile data found"));
-                }
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
+        }
 
-                final data      = snapshot.data!.data() as Map<String, dynamic>;
-                final userModel = UserModel.fromJson(data, currentUser.uid);
-
-                // Derive XP data right here so hero + stats share one fetch
-                final totalXP = data['totalXP'] ??
-                    (((data['level'] ?? 1) - 1) * 1000 + (data['currentXp'] ?? 0));
-                final level = (totalXP ~/ 1000) + 1;
-                final xp    = totalXP % 1000;
-
-                return CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    // ── Hero ──────────────────────────────────────
-                    SliverToBoxAdapter(
-                      child: _HeroHeader(
-                        currentUser: currentUser,
-                        userModel: userModel,
-                        level: level,
-                        xp: xp,
-                        totalXP: totalXP,
-                      ),
-                    ),
-                    // ── Body ──────────────────────────────────────
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate([
-                          _buildStatsSection(level, totalXP, xp),
-                          const SizedBox(height: 24),
-                          _buildAccountSection(currentUser, userModel),
-                          const SizedBox(height: 24),
-                          _buildGeneralSection(),
-                          const SizedBox(height: 28),
-                          _buildLogoutButton(context),
-                        ]),
-                      ),
-                    ),
-                  ],
-                );
-              },
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null || controller.userModel.value == null) {
+          return Center(
+            child: Text(
+              "No profile data found",
+              style: TextStyle(color: AppColors.textSecondary),
             ),
+          );
+        }
+
+        final userModel = controller.userModel.value!;
+
+        return CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // ── Hero ──────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _HeroHeader(
+                currentUser: currentUser,
+                userModel: userModel,
+                level: controller.level,
+                xp: controller.xp,
+                totalXP: controller.totalXP,
+              ),
+            ),
+            // ── Body ──────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildStatsSection(),
+                  const SizedBox(height: 24),
+                  _buildAccountSection(context, currentUser, userModel),
+                  const SizedBox(height: 24),
+                  _buildGeneralSection(),
+                  const SizedBox(height: 28),
+                  _buildLogoutButton(context),
+                  const SizedBox(height: 12),
+                  _buildDeleteAccountButton(context),
+                ]),
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 
   // ───────────────────────────────────────────
   //  Stats section
   // ───────────────────────────────────────────
-  Widget _buildStatsSection(int level, int totalXP, int xp) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+  Widget _buildStatsSection() {
+    final ctrl = Get.find<ProfileController>();
 
-    return FutureBuilder<QuerySnapshot>(
-      future: uid != null
-          ? FirebaseFirestore.instance
-              .collection('guild_posts')
-              .where('userId', isEqualTo: uid)
-              .get()
-          : Future.value(null as QuerySnapshot),
-      builder: (context, postSnap) {
-        final guildPostCount = (postSnap.hasData && postSnap.data != null)
-            ? postSnap.data!.docs.length
-            : 0;
-        final xpToNext = 1000 - xp;
-
-        return _SectionCard(
-          label: "ADVENTURE STATS",
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+    return _SectionCard(
+      label: "ADVENTURE STATS",
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatTile(
-                        icon: Icons.stars_rounded,
-                        iconColor: AppColors.primary,
-                        bgColor: AppColors.primaryLight,
-                        value: "LVL $level",
-                        label: "Rank",
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatTile(
-                        icon: Icons.flash_on_rounded,
-                        iconColor: AppColors.warning,
-                        bgColor: AppColors.warning.withOpacity(0.12),
-                        value: totalXP.toString(),
-                        label: "Total XP",
-                      ),
-                    ),
-                  ],
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.stars_rounded,
+                    iconColor: AppColors.primary,
+                    bgColor: AppColors.primaryLight,
+                    value: "LVL ${ctrl.level}",
+                    label: "Rank",
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatTile(
-                        icon: Icons.rocket_launch_rounded,
-                        iconColor: AppColors.error,
-                        bgColor: AppColors.error.withOpacity(0.08),
-                        value: "$xpToNext XP",
-                        label: "Next Level",
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatTile(
-                        icon: Icons.forum_rounded,
-                        iconColor: AppColors.info,
-                        bgColor: AppColors.info.withOpacity(0.1),
-                        value: guildPostCount.toString(),
-                        label: "Guild Posts",
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.flash_on_rounded,
+                    iconColor: AppColors.warning,
+                    bgColor: AppColors.warning.withOpacity(0.12),
+                    value: ctrl.totalXP.toString(),
+                    label: "Total XP",
+                  ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.local_fire_department_rounded,
+                    iconColor: AppColors.warning,
+                    bgColor: AppColors.warning.withOpacity(0.12),
+                    value: "${ctrl.streak} day${ctrl.streak == 1 ? '' : 's'}",
+                    label: "Streak",
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Obx(
+                    () => _StatTile(
+                      icon: Icons.forum_rounded,
+                      iconColor: AppColors.info,
+                      bgColor: AppColors.info.withOpacity(0.1),
+                      value: ctrl.guildPostCount.toString(),
+                      label: "Guild Posts",
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   // ───────────────────────────────────────────
   //  Account section
   // ───────────────────────────────────────────
-  Widget _buildAccountSection(User currentUser, UserModel userModel) {
+  Widget _buildAccountSection(BuildContext context, User currentUser, UserModel userModel) {
     return _SectionCard(
       label: "ACCOUNT",
       child: Column(
@@ -179,7 +154,7 @@ class ProfilePage extends StatelessWidget {
             iconColor: AppColors.primary,
             title: "Email",
             subtitle: currentUser.email ?? "No email",
-            onTap: () {},
+            onTap: () => _showEditEmailDialog(context),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -187,7 +162,7 @@ class ProfilePage extends StatelessWidget {
             iconColor: AppColors.secondary,
             title: "Avatar Name",
             subtitle: userModel.nickname,
-            onTap: () {},
+            onTap: () => _showEditNameDialog(context),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -197,7 +172,7 @@ class ProfilePage extends StatelessWidget {
             subtitle: userModel.birthDate.isNotEmpty
                 ? userModel.birthDate
                 : "Not set",
-            onTap: () {},
+            onTap: () => _showEditBirthDateDialog(context),
           ),
         ],
       ),
@@ -217,7 +192,7 @@ class ProfilePage extends StatelessWidget {
             iconColor: AppColors.warning,
             title: "Notifications",
             subtitle: "Manage your alerts",
-            onTap: () => Get.snackbar("Coming Soon", "Notification settings coming soon!"),
+            onTap: () => AppDialogs.info('Coming Soon', 'Notification settings coming soon!'),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -225,7 +200,7 @@ class ProfilePage extends StatelessWidget {
             iconColor: AppColors.info,
             title: "Privacy & Security",
             subtitle: "Control your data",
-            onTap: () => Get.snackbar("Coming Soon", "Privacy settings coming soon!"),
+            onTap: () => AppDialogs.info('Coming Soon', 'Privacy settings coming soon!'),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -233,7 +208,7 @@ class ProfilePage extends StatelessWidget {
             iconColor: AppColors.success,
             title: "Help & Support",
             subtitle: "Get help with HobbyQuest",
-            onTap: () => Get.snackbar("Coming Soon", "Support coming soon!"),
+            onTap: () => AppDialogs.info('Coming Soon', 'Support coming soon!'),
           ),
         ],
       ),
@@ -270,95 +245,113 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ───────────────────────────────────────────
-  //  Backend — UNCHANGED
+  //  Delete account button
   // ───────────────────────────────────────────
-  Future<void> _handleLogout(BuildContext context) async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Logout", style: TextStyle(fontWeight: FontWeight.w700)),
-        content: const Text("Are you sure you want to logout?"),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text(
-              "Cancel",
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
+  Widget _buildDeleteAccountButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton.icon(
+        onPressed: () => _handleDeleteAccount(context),
+        icon: Icon(Icons.delete_forever_rounded, size: 20, color: AppColors.error),
+        label: Text(
+          "Delete Account",
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            letterSpacing: 0.3,
+            color: AppColors.error.withOpacity(0.7),
           ),
-          TextButton(
-            onPressed: () async {
-              Get.back();
-              await _performLogout();
-            },
-            child: Text(
-              "Logout",
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.error,
+          side: BorderSide(color: AppColors.error.withOpacity(0.18), width: 1),
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
     );
   }
 
-  Future<void> _performLogout() async {
-    try {
-      Get.dialog(
-        Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                CircularProgressIndicator(color: AppColors.primary),
-                SizedBox(height: 16),
-                Text("Logging out...", style: TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-        ),
-        barrierDismissible: false,
-      );
-
-      await GoogleSignIn.instance.signOut();
-      print("--- GOOGLE SIGN-OUT SUCCESS ---");
-
-      await FirebaseAuth.instance.signOut();
-      print("--- FIREBASE SIGN-OUT SUCCESS ---");
-
-      Get.back();
-
-      Get.snackbar(
-        "Logged Out",
-        "See you next time, adventurer!",
-        backgroundColor: AppColors.accent,
-        colorText: AppColors.textOnPrimary,
-        duration: const Duration(seconds: 2),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 500));
-      Get.offAllNamed(AppRoutes.WELCOME);
-    } catch (e) {
-      if (Get.isDialogOpen == true) Get.back();
-      print("--- LOGOUT ERROR: $e ---");
-      Get.snackbar(
-        "Logout Failed",
-        "Error: $e",
-        backgroundColor: AppColors.error,
-        colorText: AppColors.textOnPrimary,
-      );
-    }
+  // ───────────────────────────────────────────
+  //  Backend
+  // ───────────────────────────────────────────
+  void _handleDeleteAccount(BuildContext context) async {
+    final confirmed = await AppDialogs.dangerConfirm(
+      title: 'Delete Account',
+      message: 'This will permanently delete your account and all data. '
+          'This action cannot be undone.',
+      confirmText: 'DELETE',
+      confirmLabel: 'Delete',
+    );
+    if (confirmed == true) Get.find<ProfileController>().deleteAccount();
+  }
+  // ───────────────────────────────────────────
+  //  Backend
+  // ───────────────────────────────────────────
+  void _handleLogout(BuildContext context) async {
+    final confirmed = await AppDialogs.confirm(
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmLabel: 'Logout',
+      confirmColor: AppColors.error,
+    );
+    if (confirmed == true) Get.find<ProfileController>().logout();
   }
 }
 
 // ═══════════════════════════════════════════════
-//  Hero header widget
+//  Edit Dialogs
 // ═══════════════════════════════════════════════
+extension _EditDialogs on ProfilePage {
+  void _showEditNameDialog(BuildContext context) async {
+    final result = await AppDialogs.input(
+      title: 'Edit Avatar Name',
+      initialValue: Get.find<ProfileController>().nickname,
+      hintText: 'Enter your display name',
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) return 'Name cannot be empty';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        if (value.trim().length > 50) return 'Name must be 50 characters or less';
+        return null;
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      await Get.find<ProfileController>().updateNickname(result);
+    }
+  }
+
+  void _showEditEmailDialog(BuildContext context) async {
+    final result = await AppDialogs.input(
+      title: 'Change Email',
+      initialValue: Get.find<ProfileController>().email,
+      hintText: 'Enter new email address',
+      keyboardType: TextInputType.emailAddress,
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) return 'Email cannot be empty';
+        final trimmed = value.trim();
+        if (!trimmed.contains('@') || !trimmed.contains('.')) return 'Enter a valid email address';
+        if (trimmed.indexOf('@') == 0) return 'Email must have a username before @';
+        if (trimmed.lastIndexOf('.') < trimmed.indexOf('@')) return 'Email must have a domain after @';
+        return null;
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      await Get.find<ProfileController>().changeEmail(result);
+    }
+  }
+
+  void _showEditBirthDateDialog(BuildContext context) async {
+    final controller = Get.find<ProfileController>();
+    final result = await AppDialogs.datePicker(
+      title: 'Edit Birth Date',
+      initialValue: controller.birthDate,
+    );
+    if (result != null && result.isNotEmpty) {
+      await controller.updateBirthDate(result);
+    }
+  }
+}
 class _HeroHeader extends StatelessWidget {
   final User currentUser;
   final UserModel userModel;
