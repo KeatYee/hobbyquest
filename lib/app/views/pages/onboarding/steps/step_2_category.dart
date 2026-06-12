@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../../../core/constants/color_constants.dart';
+import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
 import '../../../widgets/mascot_widget.dart';
 
@@ -46,7 +47,7 @@ class _Step2CategoryState extends State<Step2Category> {
             Text(
               "CHOOSE YOUR PATH",
               style: GoogleFonts.openSans(
-                fontSize: 18,
+                fontSize: AppFonts.title,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
                 letterSpacing: 1.0,
@@ -64,7 +65,7 @@ class _Step2CategoryState extends State<Step2Category> {
                       "Select a hobby to continue",
                       style: TextStyle(
                         color: AppColors.error,
-                        fontSize: 12,
+                        fontSize: AppFonts.badge,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -130,7 +131,7 @@ class _Step2CategoryState extends State<Step2Category> {
               Text(
                 "PICK A HOBBY",
                 style: GoogleFonts.openSans(
-                  fontSize: 16,
+                  fontSize: AppFonts.body,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                   letterSpacing: 0.8,
@@ -237,7 +238,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.openSans(
-                                        fontSize: 14,
+                                        fontSize: AppFonts.bodyLg,
                                         fontWeight: FontWeight.w700,
                                         color: isLocked
                                             ? Colors.grey.withValues(alpha: 0.5)
@@ -292,10 +293,10 @@ class _Step2CategoryState extends State<Step2Category> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("NEXT STEP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("NEXT STEP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFonts.body)),
                     SizedBox(width: 8),
                     Icon(Icons.arrow_forward_rounded, size: 20),
                   ],

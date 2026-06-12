@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/constants/font_constants.dart';
 import '../../models/user_model.dart';
 
 class UserProfilePage extends StatelessWidget {
@@ -21,11 +22,11 @@ class UserProfilePage extends StatelessWidget {
               color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           "USER PROFILE",
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 13,
+            fontSize: AppFonts.caption,
             letterSpacing: 2.5,
             color: AppColors.textPrimary,
           ),
@@ -105,8 +106,8 @@ class UserProfilePage extends StatelessWidget {
                     // Nickname
                     Text(
                       userModel.nickname,
-                      style: const TextStyle(
-                        fontSize: 24,
+                      style: TextStyle(
+                        fontSize: AppFonts.titlePage,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                       ),
@@ -114,8 +115,8 @@ class UserProfilePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       userId,
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: AppFonts.badge,
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -244,7 +245,7 @@ class _StatTile extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: AppFonts.button,
                     fontWeight: FontWeight.w800,
                     color: iconColor,
                   ),
@@ -252,8 +253,8 @@ class _StatTile extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: AppFonts.micro,
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),

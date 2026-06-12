@@ -7,6 +7,7 @@ import '../../models/guild_post_model.dart';
 import '../../models/category_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/constants/font_constants.dart';
 import '../../routes/app_routes.dart';
 
 class GuildPage extends StatelessWidget {
@@ -250,9 +251,9 @@ class GuildPage extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${post.hobby} • ${_formatTime(post.createdAt) ?? post.hobby}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: AppFonts.badge,
                       ),
                     ),
                   ],
@@ -311,12 +312,12 @@ class GuildPage extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(emoji, style: const TextStyle(fontSize: 15)),
+                          Text(emoji, style: TextStyle(fontSize: AppFonts.button)),
                           const SizedBox(width: 3),
                           Text(
                             count.toString(),
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: AppFonts.caption,
                               fontWeight: FontWeight.w700,
                               color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
                             ),
@@ -338,8 +339,8 @@ class GuildPage extends StatelessWidget {
                 ),
                 child: Text(
                   category.name,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppFonts.badge,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textSecondary,
                   ),

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/constants/font_constants.dart';
 import '../../models/user_model.dart';
 import '../../controllers/profile_controller.dart';
 import '../../../core/utils/dialog_utils.dart';
@@ -229,7 +230,7 @@ class ProfilePage extends StatelessWidget {
           "Log Out",
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 15,
+            fontSize: AppFonts.button,
             letterSpacing: 0.3,
             color: AppColors.error,
           ),
@@ -258,7 +259,7 @@ class ProfilePage extends StatelessWidget {
           "Delete Account",
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 15,
+            fontSize: AppFonts.button,
             letterSpacing: 0.3,
             color: AppColors.error.withOpacity(0.7),
           ),
@@ -405,7 +406,7 @@ class _HeroHeader extends StatelessWidget {
                         "PROFILE",
                         style: TextStyle(
                           color: AppColors.textOnPrimary,
-                          fontSize: 13,
+                          fontSize: AppFonts.caption,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2.5,
                         ),
@@ -443,8 +444,8 @@ class _HeroHeader extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             userModel.nickname,
-                            style: const TextStyle(
-                              fontSize: 22,
+                            style: TextStyle(
+                              fontSize: AppFonts.valueLg,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textOnPrimary,
                               letterSpacing: 0.4,
@@ -454,7 +455,7 @@ class _HeroHeader extends StatelessWidget {
                           Text(
                             currentUser.email ?? '',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppFonts.badge,
                               color: AppColors.textOnPrimary.withOpacity(0.72),
                               fontWeight: FontWeight.w400,
                             ),
@@ -569,10 +570,10 @@ class _XPCard extends StatelessWidget {
                     ),
                     child: Text(
                       "LVL  $level",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textOnPrimary,
                         fontWeight: FontWeight.w900,
-                        fontSize: 12,
+                        fontSize: AppFonts.badge,
                         letterSpacing: 1.2,
                       ),
                     ),
@@ -580,8 +581,8 @@ class _XPCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     "$xp / 1000 XP",
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: AppFonts.caption,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
@@ -590,8 +591,8 @@ class _XPCard extends StatelessWidget {
               ),
               Text(
                 "${1000 - xp} to next level",
-                style: const TextStyle(
-                  fontSize: 11,
+                style: TextStyle(
+                  fontSize: AppFonts.micro,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -683,7 +684,7 @@ class _StatTile extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: AppFonts.button,
                     fontWeight: FontWeight.w800,
                     color: iconColor,
                   ),
@@ -691,8 +692,8 @@ class _StatTile extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: AppFonts.micro,
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -724,8 +725,8 @@ class _SectionCard extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
+            style: TextStyle(
+              fontSize: AppFonts.micro,
               fontWeight: FontWeight.w900,
               color: AppColors.textSecondary,
               letterSpacing: 1.8,
@@ -795,17 +796,17 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: AppFonts.bodyLg,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: AppFonts.badge,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
                     ),

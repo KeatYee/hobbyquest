@@ -2,6 +2,7 @@ import 'dart:async'; // Required for the Timer
 import 'package:flutter/material.dart';
 import '../../../../core/constants/asset_constants.dart';
 import '../../../../core/constants/color_constants.dart';
+import '../../../../core/constants/font_constants.dart';
 
 class MascotWidget extends StatefulWidget {
   final String emotion;
@@ -101,12 +102,12 @@ class _MascotWidgetState extends State<MascotWidget> {
               child: RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: AppFonts.body,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                     height: 1.4,
-                    fontFamily: 'OpenSans', // Ensure font matches app theme
+                    fontFamily: AppFonts.familyPrimary, // Ensure font matches app theme
                   ),
                   children: [
                     // 1. Visible Text (Black)

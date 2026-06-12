@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/color_constants.dart';
+import '../constants/font_constants.dart';
 
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
@@ -24,7 +25,7 @@ class AppTheme {
     textTheme: TextTheme(
       // ✅ ONLY FOR LOGO: "HOBBY QUEST" (Fredoka)
       displayLarge: GoogleFonts.fredoka(
-        fontSize: 32,
+        fontSize: AppFonts.logo,
         fontWeight: FontWeight.w900,
         color: AppColors.primary,
         letterSpacing: 2.0,
@@ -32,7 +33,7 @@ class AppTheme {
       
       // All other headers: Open Sans (Clean & Modern)
       headlineLarge: GoogleFonts.openSans(
-        fontSize: 24,
+        fontSize: AppFonts.titlePage,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
@@ -67,7 +68,7 @@ class AppTheme {
         ),
         // Use Open Sans for Buttons
         textStyle: GoogleFonts.openSans(
-          fontSize: 18, 
+          fontSize: AppFonts.title, 
           fontWeight: FontWeight.w800, // Extra Bold
         ),
       ),
@@ -116,7 +117,7 @@ class AppTheme {
       // Use Open Sans for page titles (Navigation)
       titleTextStyle: GoogleFonts.openSans(
         color: AppColors.textPrimary,
-        fontSize: 20,
+        fontSize: AppFonts.titleLg,
         fontWeight: FontWeight.bold,
       ),
     ),

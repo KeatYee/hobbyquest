@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/constants/color_constants.dart';
+import '../../../../core/constants/font_constants.dart';
 import '../../../controllers/onboarding_controller.dart';
 import 'steps/step_1_profile.dart';
 import 'steps/step_2_category.dart';
@@ -45,9 +46,9 @@ class OnboardingView extends StatelessWidget {
                   children: [
                     Obx(() => Text(
                       "Step ${controller.currentPage.value + 1}",
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: AppFonts.body),
                     )),
-                    const Text("of $totalSteps", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                    Text("of $totalSteps", style: TextStyle(color: AppColors.textSecondary, fontSize: AppFonts.bodyLg)),
                   ],
                 ),
                 const SizedBox(height: 8),

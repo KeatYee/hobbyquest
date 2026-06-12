@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
+import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
 import '../../../widgets/mascot_widget.dart';
 
@@ -58,7 +59,7 @@ class _Step3LevelState extends State<Step3Level> {
           // Section Title using Theme
           Text("YOUR CURRENT LEVEL", style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900, 
-              fontSize: 18,
+              fontSize: AppFonts.title,
               letterSpacing: 1.0
           )),
 

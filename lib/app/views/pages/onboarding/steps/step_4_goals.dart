@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
+import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
 import '../../../widgets/mascot_widget.dart';
 
@@ -82,7 +83,7 @@ class _Step4GoalsState extends State<Step4Goals> {
             // Section 1: The Main Goal
             Text("YOUR MAIN QUEST", style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900, 
-                fontSize: 18,
+                fontSize: AppFonts.title,
                 letterSpacing: 1.0
             )),
             const SizedBox(height: 15),
@@ -144,7 +145,7 @@ class _Step4GoalsState extends State<Step4Goals> {
             // Section 2: Frequency
             Text("LEARNING PACE", style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900, 
-                fontSize: 18,
+                fontSize: AppFonts.title,
                 letterSpacing: 1.0
             )),
 

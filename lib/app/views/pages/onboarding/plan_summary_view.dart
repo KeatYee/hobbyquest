@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../../../core/constants/color_constants.dart';
+import '../../../../core/constants/color_constants.dart';
+import '../../../../core/constants/font_constants.dart';
 import '../../../controllers/onboarding_controller.dart';
 
 class PlanSummaryView extends StatelessWidget {
@@ -14,7 +15,7 @@ class PlanSummaryView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Your Quest Blueprint", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text("Your Quest Blueprint", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFonts.title)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -58,7 +59,7 @@ class PlanSummaryView extends StatelessWidget {
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.textPrimary),
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: AppFonts.titleLg, color: AppColors.textPrimary),
                 children: [
                   TextSpan(text: controller.nickname.text),
                   const TextSpan(text: ", "),
@@ -104,7 +105,7 @@ class PlanSummaryView extends StatelessWidget {
                   const Text(
                     "0 / 8,000 XP",
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: AppFonts.body,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
                       letterSpacing: 0.5,
@@ -131,10 +132,10 @@ class PlanSummaryView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "YOUR MISSION",
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFonts.badge,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textSecondary,
                       letterSpacing: 1.0,
@@ -177,7 +178,7 @@ class PlanSummaryView extends StatelessWidget {
               child: Text(
                 "QUEST MILESTONES",
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppFonts.bodyLg,
                   fontWeight: FontWeight.w900,
                   color: AppColors.textSecondary,
                   letterSpacing: 1.0,
@@ -204,10 +205,10 @@ class PlanSummaryView extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 4,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("ACCEPT QUEST", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("ACCEPT QUEST", style: TextStyle(fontSize: AppFonts.body, fontWeight: FontWeight.bold, color: Colors.white)),
                     SizedBox(width: 8),
                     Icon(Icons.rocket_launch_rounded, size: 20),
                   ],
@@ -245,7 +246,7 @@ class PlanSummaryView extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: AppFonts.micro,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textSecondary,
                   letterSpacing: 0.5,
@@ -254,8 +255,8 @@ class PlanSummaryView extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: AppFonts.bodyLg,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
@@ -315,8 +316,8 @@ class PlanSummaryView extends StatelessWidget {
                   child: Center(
                     child: Text(
                       "${index + 1}",
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: AppFonts.body,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -331,7 +332,7 @@ class PlanSummaryView extends StatelessWidget {
                       Text(
                         labels[index],
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppFonts.micro,
                           fontWeight: FontWeight.bold,
                           color: isFinal ? AppColors.accent : AppColors.primary,
                           letterSpacing: 0.5,
@@ -340,8 +341,8 @@ class PlanSummaryView extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         milestones[index].title,
-                        style: const TextStyle(
-                          fontSize: 13,
+                        style: TextStyle(
+                          fontSize: AppFonts.caption,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
@@ -350,7 +351,7 @@ class PlanSummaryView extends StatelessWidget {
                       Text(
                         "Unlocks at ${xpThresholds[index].toString()} XP",
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppFonts.micro,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,
                         ),

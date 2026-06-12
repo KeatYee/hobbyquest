@@ -5,6 +5,7 @@ import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
 
 class HomePage extends StatelessWidget {
@@ -181,10 +182,10 @@ class HomePage extends StatelessWidget {
                       ),
                       child: Text(
                         "${progressionController.currentLevel}",
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w900,
-                          fontSize: 11,
+                          fontSize: AppFonts.micro,
                         ),
                       ),
                     ),
@@ -207,9 +208,9 @@ class HomePage extends StatelessWidget {
                               controller.nickname.value,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
-                                fontSize: 18,
+                                fontSize: AppFonts.title,
                                 color: AppColors.textOnPrimary,
                               ),
                             ),
@@ -237,9 +238,9 @@ class HomePage extends StatelessWidget {
                               Obx(
                                 () => Text(
                                   "${progressionController.streak.value} day${progressionController.streak.value == 1 ? '' : 's'}",
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 12,
+                                    fontSize: AppFonts.badge,
                                     color: AppColors.textOnPrimary,
                                   ),
                                 ),
@@ -265,7 +266,7 @@ class HomePage extends StatelessWidget {
                             "Learning: ${controller.hobby.value}",
                             style: TextStyle(
                               color: AppColors.textOnPrimary.withOpacity(0.85),
-                              fontSize: 12,
+                              fontSize: AppFonts.badge,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -297,7 +298,7 @@ class HomePage extends StatelessWidget {
                         "${progressionController.currentXpInLevel} / 1000 XP  ·  Level ${progressionController.currentLevel + 1} soon",
                         style: TextStyle(
                           color: AppColors.textOnPrimary.withOpacity(0.78),
-                          fontSize: 11,
+                          fontSize: AppFonts.micro,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -347,10 +348,10 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "MENTOR",
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: AppFonts.label,
                     fontWeight: FontWeight.w900,
                     color: AppColors.primary,
                     letterSpacing: 1.5,
@@ -359,10 +360,10 @@ class HomePage extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w500,
-                    fontSize: 13,
+                    fontSize: AppFonts.caption,
                     height: 1.4,
                   ),
                 ),
@@ -453,10 +454,10 @@ class HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "NEXT SKILL UNLOCK",
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppFonts.label,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textSecondary,
                       letterSpacing: 1.2,
@@ -466,9 +467,9 @@ class HomePage extends StatelessWidget {
                   Obx(
                     () => Text(
                       getNextSkill(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: AppFonts.body,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -504,9 +505,9 @@ class HomePage extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: 14,
+            fontSize: AppFonts.bodyLg,
             letterSpacing: 1.5,
             color: AppColors.textPrimary,
           ),
@@ -637,7 +638,7 @@ class HomePage extends StatelessWidget {
                                         style: TextStyle(
                                           color: color,
                                           fontWeight: FontWeight.w800,
-                                          fontSize: 10,
+                                          fontSize: AppFonts.label,
                                           letterSpacing: 0.8,
                                         ),
                                       ),
@@ -665,10 +666,10 @@ class HomePage extends StatelessWidget {
                                       ),
                                       Text(
                                         "+$xp XP",
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: AppColors.primaryDark,
                                           fontWeight: FontWeight.w800,
-                                          fontSize: 12,
+                                          fontSize: AppFonts.badge,
                                         ),
                                       ),
                                     ],
@@ -681,9 +682,9 @@ class HomePage extends StatelessWidget {
                             // TITLE
                             Text(
                               title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
+                                fontSize: AppFonts.button,
                                 color: AppColors.textPrimary,
                                 height: 1.3,
                               ),
@@ -693,9 +694,9 @@ class HomePage extends StatelessWidget {
                             // DESCRIPTION
                             Text(
                               desc,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 13,
+                                fontSize: AppFonts.caption,
                                 height: 1.4,
                               ),
                             ),
@@ -724,10 +725,10 @@ class HomePage extends StatelessWidget {
                                       const SizedBox(width: 4),
                                       Text(
                                         '$durationMinutes min',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: AppColors.textSecondary,
                                           fontWeight: FontWeight.w600,
-                                          fontSize: 12,
+                                          fontSize: AppFonts.badge,
                                         ),
                                       ),
                                     ],
@@ -764,9 +765,9 @@ class HomePage extends StatelessWidget {
                                     Icons.casino_rounded,
                                     size: 16,
                                   ),
-                                  label: const Text(
+                                  label: Text(
                                     'Reroll',
-                                    style: TextStyle(fontSize: 13),
+                                    style: TextStyle(fontSize: AppFonts.caption),
                                   ),
                                   style: TextButton.styleFrom(
                                     foregroundColor: AppColors.textSecondary,

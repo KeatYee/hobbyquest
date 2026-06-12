@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:avatar_maker/avatar_maker.dart';
 import '../../../../../../core/constants/color_constants.dart';
+import '../../../../../../core/constants/font_constants.dart';
 import '../../../../../../core/utils/validators.dart'; 
 import '../../../../controllers/onboarding_controller.dart';
 import '../../../widgets/mascot_widget.dart';
@@ -67,7 +68,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               "YOUR AVATAR",
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: AppFonts.title,
                 letterSpacing: 1.0,
               ),
             ),
@@ -160,7 +161,7 @@ class _Step1ProfileState extends State<Step1Profile> {
             // We use .copyWith to add the specific color/weight if the theme default isn't exact
             Text("Your Identity", style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900, 
-              fontSize: 18,
+              fontSize: AppFonts.title,
               letterSpacing: 1.0
             )),
             
@@ -182,7 +183,7 @@ class _Step1ProfileState extends State<Step1Profile> {
 
             Text("Character Type", style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900, 
-              fontSize: 18,
+              fontSize: AppFonts.title,
               letterSpacing: 1.0
             )),
             
@@ -320,7 +321,7 @@ class _Step1ProfileState extends State<Step1Profile> {
                   // ✅ Use Theme body text
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold, 
-                    fontSize: 14,
+                    fontSize: AppFonts.bodyLg,
                     color: isSelected ? AppColors.primary : Colors.grey,
                   ),
                 ),

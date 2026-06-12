@@ -8,11 +8,15 @@ import 'home_controller.dart';
 import 'progression_controller.dart';
 import '../services/quest_service.dart';
 import '../services/imgbb_service.dart';
+import '../../core/constants/font_constants.dart';
 import '../services/gemini_service.dart';
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/dialog_utils.dart';
 
 class QuestDetailController extends GetxController {
+  /// Extra XP awarded when a reflection is completed with an image.
+  static const int reflectionImageBonusXp = 50;
+
   final Rx<QuestNodeModel> currentQuest;
   final isSubmitting = false.obs;
 
@@ -82,7 +86,7 @@ class QuestDetailController extends GetxController {
                   ? [
                       const Text(
                         'Quest Approved',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: AppFonts.title),
                       ),
                       const SizedBox(height: 12),
                       if (greeting!.isNotEmpty) ...[
@@ -117,7 +121,7 @@ class QuestDetailController extends GetxController {
                         'Oops!',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 18,
+                          fontSize: AppFonts.title,
                           color: AppColors.error,
                         ),
                       ),
@@ -192,10 +196,12 @@ class QuestDetailController extends GetxController {
         return false;
       }
 
-      print('--- DEBUG: Calling progressionController.completeQuest ---');
+      final int totalXpReward = currentQuest.value.xpReward +
+          (imageUrl != null ? reflectionImageBonusXp : 0);
+      print('--- DEBUG: Calling progressionController.completeQuest with xpReward=$totalXpReward (base: ${currentQuest.value.xpReward}, bonus: ${imageUrl != null ? reflectionImageBonusXp : 0}) ---');
       await progressionController.completeQuest(
         questId: questId,
-        xpReward: currentQuest.value.xpReward,
+        xpReward: totalXpReward,
       );
       print('--- DEBUG: progressionController.completeQuest completed ---');
 
@@ -279,7 +285,7 @@ class QuestDetailController extends GetxController {
                 const Expanded(
                   child: Text(
                     'Share Your Achievement?',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: AppFonts.title),
                   ),
                 ),
               ],
@@ -305,14 +311,16 @@ class QuestDetailController extends GetxController {
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => Get.back(result: true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(width: 0),
+                Flexible(
+                  child: FilledButton(
+                    onPressed: () => Get.back(result: true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Share to Guild'),
                   ),
-                  child: const Text('Share to Guild'),
                 ),
               ],
             ),
