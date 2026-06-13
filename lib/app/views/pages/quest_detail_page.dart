@@ -88,7 +88,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 
   // ──────────────────────────────────────────────
-  //  Actions — UNCHANGED
+  //  Actions
   // ──────────────────────────────────────────────
   Future<void> _completeQuest() async {
     if (currentQuest.isCompleted) { Get.back(); return; }
@@ -784,7 +784,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 
   // ──────────────────────────────────────────────
-  //  ACTION BUTTON — UNCHANGED logic
+  //  ACTION BUTTON 
   // ──────────────────────────────────────────────
   Widget _buildActionButton(BuildContext context) {
     // State 1: active, not yet completed
@@ -904,7 +904,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 
   // ──────────────────────────────────────────────
-  //  _formatDate — UNCHANGED (kept for future use)
+  //  _formatDate
   // ──────────────────────────────────────────────
   String _formatDate(DateTime date) {
     final now       = DateTime.now();

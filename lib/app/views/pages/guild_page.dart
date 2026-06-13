@@ -42,27 +42,7 @@ class GuildPage extends StatelessWidget {
               ],
             );
           }),
-          // Floating Add Post button
-          Positioned(
-            right: 20,
-            bottom: 16,
-            child: Obx(() => AnimatedOpacity(
-              opacity: controller.isLoading.value || controller.categories.isEmpty ? 0.0 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: IgnorePointer(
-                ignoring: controller.isLoading.value || controller.categories.isEmpty,
-                child: FloatingActionButton(
-                  onPressed: () => _showAddPostDialog(context, controller),
-                  backgroundColor: AppColors.primary,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.edit_rounded, color: Colors.white),
-                ),
-              ),
-            )),
-          ),
+
         ],
       ),
     );
