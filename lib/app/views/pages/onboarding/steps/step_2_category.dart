@@ -32,7 +32,7 @@ class _Step2CategoryState extends State<Step2Category> {
       final activeCategoryModel = categoryList.firstWhereOrNull(
         (cat) => cat.name == activeCategoryName,
       );
-      final currentHobbies = activeCategoryModel?.hobbies ?? <String>[];
+      final currentHobbies = activeCategoryModel?.hobbyNames ?? <String>[];
 
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),

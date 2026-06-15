@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/guild_post_model.dart';
@@ -23,6 +24,7 @@ class GuildController extends GetxController {
   final userNicknames = <String, String>{}.obs;
   final selectedCategoryId = Rx<String?>(null);
   final userReactions = <String, Set<String>>{}.obs;
+  final userPeerReviews = <String, Set<String>>{}.obs;
 
   @override
   void onInit() {
@@ -88,6 +90,11 @@ class GuildController extends GetxController {
           if (reactedEmojis.isNotEmpty) {
             userReactions[post.id] = reactedEmojis;
           }
+
+          // Check if current user has already peer-reviewed this post
+          if (post.peerReviews.containsKey(currentUser.uid)) {
+            userPeerReviews[post.id] = <String>{currentUser.uid};
+          }
         }
       }
     } catch (e) {
@@ -106,7 +113,7 @@ class GuildController extends GetxController {
         final homeController = Get.find<HomeController>();
         final hobby = homeController.hobby.value.trim().toLowerCase();
         for (final category in categories) {
-          if (category.hobbies.any((item) => item.toLowerCase() == hobby)) {
+          if (category.hobbyNames.any((item) => item.toLowerCase() == hobby)) {
             return category.id;
           }
         }
@@ -126,7 +133,7 @@ class GuildController extends GetxController {
 
     return posts.where((post) {
       final matchesCategoryId = post.categoryId.trim().isNotEmpty && post.categoryId == selectedCategory.id;
-      final matchesHobby = selectedCategory.hobbies.any(
+      final matchesHobby = selectedCategory.hobbyNames.any(
         (hobby) => hobby.toLowerCase() == post.hobby.toLowerCase(),
       );
       return matchesCategoryId || matchesHobby;
@@ -135,7 +142,7 @@ class GuildController extends GetxController {
 
   /// Get all hobbies from all categories
   List<String> get allHobbies {
-    return categories.expand((c) => c.hobbies).toList();
+    return categories.expand((c) => c.hobbyNames).toList();
   }
 
   final ImgBBService _imgbbService = ImgBBService();
@@ -298,28 +305,112 @@ class GuildController extends GetxController {
         name: "Creative Arts",
         description: "Express yourself visually",
         icon: "🎨",
-        hobbies: ["Painting", "Drawing", "Photography", "Calligraphy"],
+        hobbies: [
+          HobbyEntry(name: "Painting", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Creativity', icon: Icons.lightbulb_outline),
+            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.brush),
+            PeerReviewAxisModel.fromIconData(label: 'Color Theory', icon: Icons.palette_outlined),
+          ]),
+          HobbyEntry(name: "Drawing", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Composition', icon: Icons.grid_view),
+            PeerReviewAxisModel.fromIconData(label: 'Line Work', icon: Icons.gesture),
+            PeerReviewAxisModel.fromIconData(label: 'Shading', icon: Icons.gradient),
+          ]),
+          HobbyEntry(name: "Photography", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Composition', icon: Icons.center_focus_strong),
+            PeerReviewAxisModel.fromIconData(label: 'Lighting', icon: Icons.wb_sunny),
+            PeerReviewAxisModel.fromIconData(label: 'Editing', icon: Icons.tune),
+          ]),
+          HobbyEntry(name: "Calligraphy", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Letter Form', icon: Icons.text_fields),
+            PeerReviewAxisModel.fromIconData(label: 'Consistency', icon: Icons.compare_arrows),
+            PeerReviewAxisModel.fromIconData(label: 'Ink Control', icon: Icons.edit),
+          ]),
+        ],
       ),
       CategoryModel(
         id: '',
         name: "Music & Performing",
         description: "Play, sing, and perform",
         icon: "🎭",
-        hobbies: ["Guitar", "Piano", "Singing", "Dance"],
+        hobbies: [
+          HobbyEntry(name: "Guitar", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Rhythm', icon: Icons.music_note),
+            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.touch_app),
+            PeerReviewAxisModel.fromIconData(label: 'Musicality', icon: Icons.hearing),
+          ]),
+          HobbyEntry(name: "Piano", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.piano),
+            PeerReviewAxisModel.fromIconData(label: 'Expression', icon: Icons.sentiment_satisfied_alt),
+            PeerReviewAxisModel.fromIconData(label: 'Sight Reading', icon: Icons.visibility),
+          ]),
+          HobbyEntry(name: "Singing", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Pitch', icon: Icons.graphic_eq),
+            PeerReviewAxisModel.fromIconData(label: 'Tone', icon: Icons.mic),
+            PeerReviewAxisModel.fromIconData(label: 'Breath Control', icon: Icons.air),
+          ]),
+          HobbyEntry(name: "Dance", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Choreography', icon: Icons.directions_run),
+            PeerReviewAxisModel.fromIconData(label: 'Expression', icon: Icons.mood),
+            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.accessibility_new),
+          ]),
+        ],
       ),
       CategoryModel(
         id: '',
         name: "Lifestyle & Wellness",
         description: "Heal your body and mind",
         icon: "🧘",
-        hobbies: ["Yoga", "Fitness/Gym", "Meditation", "Cooking"],
+        hobbies: [
+          HobbyEntry(name: "Yoga", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Alignment', icon: Icons.straighten),
+            PeerReviewAxisModel.fromIconData(label: 'Flexibility', icon: Icons.accessibility),
+            PeerReviewAxisModel.fromIconData(label: 'Mindfulness', icon: Icons.self_improvement),
+          ]),
+          HobbyEntry(name: "Fitness/Gym", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Form', icon: Icons.fitness_center),
+            PeerReviewAxisModel.fromIconData(label: 'Intensity', icon: Icons.trending_up),
+            PeerReviewAxisModel.fromIconData(label: 'Consistency', icon: Icons.loop),
+          ]),
+          HobbyEntry(name: "Meditation", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Focus', icon: Icons.center_focus_strong),
+            PeerReviewAxisModel.fromIconData(label: 'Duration', icon: Icons.timer),
+            PeerReviewAxisModel.fromIconData(label: 'Mindfulness', icon: Icons.spa),
+          ]),
+          HobbyEntry(name: "Cooking", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Taste', icon: Icons.restaurant),
+            PeerReviewAxisModel.fromIconData(label: 'Presentation', icon: Icons.dinner_dining),
+            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.kitchen),
+          ]),
+        ],
       ),
       CategoryModel(
         id: '',
         name: "Skill & Strategy",
         description: "Sharpen your mind",
         icon: "♟️",
-        hobbies: ["Coding", "Chess", "Language", "Public Speaking"],
+        hobbies: [
+          HobbyEntry(name: "Coding", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Code Quality', icon: Icons.code),
+            PeerReviewAxisModel.fromIconData(label: 'Efficiency', icon: Icons.speed),
+            PeerReviewAxisModel.fromIconData(label: 'Readability', icon: Icons.article),
+          ]),
+          HobbyEntry(name: "Chess", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Strategy', icon: Icons.psychology),
+            PeerReviewAxisModel.fromIconData(label: 'Tactics', icon: Icons.bolt),
+            PeerReviewAxisModel.fromIconData(label: 'Endgame', icon: Icons.flag),
+          ]),
+          HobbyEntry(name: "Language", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Vocabulary', icon: Icons.menu_book),
+            PeerReviewAxisModel.fromIconData(label: 'Grammar', icon: Icons.checklist),
+            PeerReviewAxisModel.fromIconData(label: 'Pronunciation', icon: Icons.record_voice_over),
+          ]),
+          HobbyEntry(name: "Public Speaking", axes: [
+            PeerReviewAxisModel.fromIconData(label: 'Clarity', icon: Icons.record_voice_over),
+            PeerReviewAxisModel.fromIconData(label: 'Engagement', icon: Icons.group),
+            PeerReviewAxisModel.fromIconData(label: 'Structure', icon: Icons.account_tree),
+          ]),
+        ],
       ),
     ];
 
@@ -330,11 +421,12 @@ class GuildController extends GetxController {
           .get();
       if (snapshot.docs.isEmpty) {
         final data = Map<String, dynamic>.from(category.toJson());
-        data.remove('id');
         await _firestore.collection('categories').add(data);
         print("✅ Seeded category: ${category.name}");
       } else {
-        print("⚠️ Category '${category.name}' already exists");
+        // Update existing category with latest data (hobbies now include axes)
+        await snapshot.docs.first.reference.update(category.toJson());
+        print("✅ Updated category: ${category.name}");
       }
     }
   }
@@ -452,5 +544,62 @@ class GuildController extends GetxController {
   /// Get posts by category
   List<GuildPostModel> getPostsByCategory(String categoryId) {
     return posts.where((post) => post.categoryId == categoryId).toList();
+  }
+
+  // --- Peer Review ---
+
+  /// Fetch the 3 review axes for a given hobby from the category data.
+  List<PeerReviewAxisModel> fetchReviewAxes(String hobby) {
+    for (final category in categories) {
+      final axes = category.getAxisForHobby(hobby);
+      if (axes.isNotEmpty) return axes;
+    }
+    return _defaultAxesForHobby();
+  }
+
+  /// Submit a peer review rating for a post — stored inline in the post doc.
+  Future<bool> submitPeerReview({
+    required String postId,
+    required String hobby,
+    required Map<String, double> ratings,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
+      await postRef.set({
+        'peerReviews.${user.uid}': ratings,
+      }, SetOptions(merge: true));
+
+      // Update local state
+      final index = posts.indexWhere((p) => p.id == postId);
+      if (index >= 0) {
+        final existingReviews = Map<String, Map<String, double>>.from(
+          posts[index].peerReviews,
+        );
+        existingReviews[user.uid] = ratings;
+        posts[index] = posts[index].copyWith(peerReviews: existingReviews);
+        posts.refresh();
+
+        // Track which posts the current user has reviewed
+        userPeerReviews[postId] = <String>{user.uid};
+      }
+
+      print('--- SUCCESS: Peer review submitted for post $postId ---');
+      return true;
+    } catch (e) {
+      print('--- ERROR: Failed to submit peer review: $e ---');
+      return false;
+    }
+  }
+
+  /// Fallback default axes.
+  List<PeerReviewAxisModel> _defaultAxesForHobby() {
+    return [
+      PeerReviewAxisModel.fromIconData(label: 'Quality', icon: Icons.star_outline),
+      PeerReviewAxisModel.fromIconData(label: 'Effort', icon: Icons.trending_up),
+      PeerReviewAxisModel.fromIconData(label: 'Impact', icon: Icons.rocket_launch_outlined),
+    ];
   }
 }

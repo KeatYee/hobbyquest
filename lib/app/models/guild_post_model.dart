@@ -9,6 +9,7 @@ class GuildPostModel {
   final String body;
   final String imageUrl;
   final Map<String, List<String>> reactions;
+  final Map<String, Map<String, double>> peerReviews;
   final DateTime? createdAt;
 
   const GuildPostModel({
@@ -20,6 +21,7 @@ class GuildPostModel {
     required this.body,
     this.imageUrl = '',
     this.reactions = const {},
+    this.peerReviews = const {},
     this.createdAt,
   });
 
@@ -35,6 +37,14 @@ class GuildPostModel {
       reactions: (json['reactions'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, (value as List<dynamic>).map((e) => e.toString()).toList()),
           ) ?? {},
+      peerReviews: (json['peerReviews'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              (value as Map<String, dynamic>).map(
+                (k, v) => MapEntry(k, (v as num).toDouble()),
+              ),
+            ),
+          ) ?? {},
       createdAt: _readDateTime(json['createdAt'] ?? json['created_at']),
     );
   }
@@ -48,6 +58,7 @@ class GuildPostModel {
       'body': body,
       'imageUrl': imageUrl,
       'reactions': reactions,
+      'peerReviews': peerReviews,
       'createdAt': createdAt,
     };
   }
@@ -61,6 +72,7 @@ class GuildPostModel {
     String? body,
     String? imageUrl,
     Map<String, List<String>>? reactions,
+    Map<String, Map<String, double>>? peerReviews,
     DateTime? createdAt,
   }) {
     return GuildPostModel(
@@ -72,6 +84,7 @@ class GuildPostModel {
       body: body ?? this.body,
       imageUrl: imageUrl ?? this.imageUrl,
       reactions: reactions ?? this.reactions,
+      peerReviews: peerReviews ?? this.peerReviews,
       createdAt: createdAt ?? this.createdAt,
     );
   }

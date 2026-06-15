@@ -338,7 +338,7 @@ class QuestDetailController extends GetxController {
 
       String? categoryId;
       for (final category in guildController.categories) {
-        if (category.hobbies.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+        if (category.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
           categoryId = category.id;
           break;
         }

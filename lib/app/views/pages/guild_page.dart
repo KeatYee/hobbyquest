@@ -61,7 +61,7 @@ class GuildPage extends StatelessWidget {
 
     // Match hobby to a category
     for (final category in controller.categories) {
-      if (category.hobbies.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+      if (category.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
         categoryId = category.id;
         break;
       }
@@ -310,19 +310,23 @@ class GuildPage extends StatelessWidget {
               }),
               const SizedBox(width: 8),
               const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  category.name,
-                  style: TextStyle(
-                    fontSize: AppFonts.badge,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
+              // Peer Review button
+              GestureDetector(
+                onTap: () => _showPeerReviewSheet(context, post),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Peer Review',
+                    style: TextStyle(
+                      fontSize: AppFonts.badge,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -434,5 +438,216 @@ class GuildPage extends StatelessWidget {
     if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
     if (difference.inHours < 24) return '${difference.inHours}h ago';
     return '${difference.inDays}d ago';
+  }
+
+  void _showPeerReviewSheet(BuildContext context, GuildPostModel post) {
+    final controller = Get.find<GuildController>();
+    final axes = controller.fetchReviewAxes(post.hobby);
+    final sliderValues = <String, RxDouble>{};
+    final isSubmitting = false.obs;
+
+    // Initialize slider values from axes
+    for (final axis in axes) {
+      sliderValues[axis.label] = 3.0.obs;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Text(
+                    'Peer Review',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Rate this post',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Dynamic sliders
+                    ...axes.map((axis) => Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: _buildRatingSlider(
+                        label: axis.label,
+                        icon: axis.icon,
+                        value: sliderValues[axis.label] ?? 3.0.obs,
+                      ),
+                    )),
+                    const SizedBox(height: 8),
+                    // Submit button
+                    Center(
+                      child: Obx(() => SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: isSubmitting.value || sliderValues.isEmpty
+                              ? null
+                              : () async {
+                                  isSubmitting.value = true;
+                                  final ratings = sliderValues.map(
+                                    (k, v) => MapEntry(k, v.value),
+                                  );
+                                  final success = await controller.submitPeerReview(
+                                    postId: post.id,
+                                    hobby: post.hobby,
+                                    ratings: ratings,
+                                  );
+                                  if (success && context.mounted) {
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Peer review submitted!'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                  isSubmitting.value = false;
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            isSubmitting.value ? 'Submitting...' : 'Submit Review',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      )),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatingSlider({
+    required String label,
+    required IconData icon,
+    required RxDouble value,
+  }) {
+    return Obx(() => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                value.value.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 8,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: AppColors.border,
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: value.value,
+            min: 1,
+            max: 5,
+            divisions: 4,
+            onChanged: (newValue) {
+              value.value = newValue;
+            },
+          ),
+        ),
+      ],
+    ));
   }
 }
