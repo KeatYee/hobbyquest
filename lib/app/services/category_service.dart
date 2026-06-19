@@ -41,7 +41,7 @@ class CategoryService {
             PeerReviewAxisModel.fromIconData(label: 'Color Theory', icon: Icons.palette_outlined),
           ]),
           HobbyEntry(name: "Drawing", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Composition', icon: Icons.grid_view),
+            PeerReviewAxisModel.fromIconData(label: 'flutter', icon: Icons.grid_view),
             PeerReviewAxisModel.fromIconData(label: 'Line Work', icon: Icons.gesture),
             PeerReviewAxisModel.fromIconData(label: 'Shading', icon: Icons.gradient),
           ]),

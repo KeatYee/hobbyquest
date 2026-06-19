@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../controllers/guild_controller.dart';
 import '../../controllers/home_controller.dart';
 import '../../models/guild_post_model.dart';
@@ -112,7 +115,12 @@ class GuildPage extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final post = filteredPosts[index];
-        return _buildPostCard(context, controller, post, selectedCategory);
+        return _GuildPostFlipCard(
+          key: ValueKey(post.id),
+          controller: controller,
+          post: post,
+          category: selectedCategory,
+        );
       },
     );
   }
@@ -239,7 +247,6 @@ class GuildPage extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz, color: AppColors.textSecondary),
             ],
           ),
           const SizedBox(height: 14),
@@ -649,5 +656,541 @@ class GuildPage extends StatelessWidget {
         ),
       ],
     ));
+  }
+}// ═══════════════════════════════════════════════
+//  Flip Card with Radar Chart
+// ═══════════════════════════════════════════════
+
+class _GuildPostFlipCard extends StatefulWidget {
+  final GuildController controller;
+  final GuildPostModel post;
+  final CategoryModel category;
+
+  const _GuildPostFlipCard({
+    super.key,
+    required this.controller,
+    required this.post,
+    required this.category,
+  });
+
+  @override
+  State<_GuildPostFlipCard> createState() => _GuildPostFlipCardState();
+}
+
+class _GuildPostFlipCardState extends State<_GuildPostFlipCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animCtrl;
+  final GlobalKey _frontKey = GlobalKey();
+  double? _frontHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _captureFrontHeight();
+  }
+
+  @override
+  void didUpdateWidget(covariant _GuildPostFlipCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id) {
+      _frontHeight = null;
+      _captureFrontHeight();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleFlip() {
+    if (_animCtrl.isCompleted) {
+      _animCtrl.reverse();
+    } else {
+      _animCtrl.forward();
+    }
+  }
+
+  void _captureFrontHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final height = _frontKey.currentContext?.size?.height;
+      if (height != null && height != _frontHeight) {
+        setState(() => _frontHeight = height);
+      }
+    });
+  }
+
+  /// Calculate average ratings per axis from all peer reviews.
+  Map<String, double> _averageRatings() {
+    final reviews = widget.post.peerReviews;
+    if (reviews.isEmpty) return {};
+
+    final totals = <String, double>{};
+    final counts = <String, int>{};
+
+    for (final review in reviews.values) {
+      for (final entry in review.entries) {
+        totals[entry.key] = (totals[entry.key] ?? 0) + entry.value;
+        counts[entry.key] = (counts[entry.key] ?? 0) + 1;
+      }
+    }
+    return totals.map((k, v) => MapEntry(k, v / counts[k]!));
+  }
+
+  // ── Front face ──
+  Widget _buildFront(BuildContext context) {
+    final post = widget.post;
+    final category = widget.category;
+    final controller = widget.controller;
+
+    final avatarLabel = post.userId.trim().isNotEmpty
+        ? post.userId.trim()[0].toUpperCase()
+        : '?';
+    final avatarSvg = controller.userAvatars[post.userId];
+    final hasAvatarSvg = avatarSvg != null && avatarSvg.trim().isNotEmpty;
+    final displayName = controller.userNicknames[post.userId] ?? post.userId;
+    final hasImage = post.imageUrl.isNotEmpty;
+
+    return Container(
+      key: _frontKey,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withOpacity(0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Get.toNamed(AppRoutes.USER_PROFILE, arguments: post.userId),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  child: hasAvatarSvg
+                      ? ClipOval(
+                          child: SvgPicture.string(
+                            avatarSvg,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Text(
+                          avatarLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${post.hobby} \u2022 ${_formatTime(post.createdAt) ?? post.hobby}',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: AppFonts.badge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Title
+          Text(
+            post.title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          const SizedBox(height: 6),
+          // Body
+          Text(
+            post.body,
+            style: const TextStyle(
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          // Image
+          if (hasImage) ...[const SizedBox(height: 12), _buildPostImage(post.imageUrl)],
+          const SizedBox(height: 14),
+          // Metrics row
+          Row(
+            children: [
+              ...GuildController.reactionEmojis.map((emoji) {
+                final isReacted = (controller.userReactions[post.id] ?? <String>{}).contains(emoji);
+                final count = post.reactions[emoji]?.length ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => controller.toggleReaction(post.id, emoji),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isReacted ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isReacted ? AppColors.primary.withOpacity(0.5) : AppColors.border.withOpacity(0.6),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(emoji, style: TextStyle(fontSize: AppFonts.button)),
+                          const SizedBox(width: 3),
+                          Text(
+                            count.toString(),
+                            style: TextStyle(
+                              fontSize: AppFonts.caption,
+                              fontWeight: FontWeight.w700,
+                              color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(width: 8),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _showPeerReviewSheet(context, post),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Peer Review',
+                    style: TextStyle(
+                      fontSize: AppFonts.badge,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Back face: Radar Chart ──
+  Widget _buildBack(BuildContext context) {
+    final avg = _averageRatings();
+    final axes = widget.controller.fetchReviewAxes(widget.post.hobby);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withOpacity(0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: _frontHeight ?? 300,
+        child: avg.isEmpty
+          ? const Center(
+              child: Text(
+                'No reviews yet',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(24),
+              child: RadarChart(
+                RadarChartData(
+                  radarShape: RadarShape.polygon,
+                  dataSets: [
+                    RadarDataSet(
+                      fillColor: Colors.transparent,
+                      borderColor: AppColors.primary,
+                      borderWidth: 2.5,
+                      entryRadius: 3,
+                      dataEntries: axes.map((axis) {
+                        return RadarEntry(value: avg[axis.label] ?? 0);
+                      }).toList(),
+                    ),
+                  ],
+                  getTitle: (index, _) => RadarChartTitle(
+                    text: axes[index].label,
+                    angle: 0,
+                  ),
+                  titleTextStyle: TextStyle(
+                    fontSize: AppFonts.badge,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  titlePositionPercentageOffset: 0.15,
+                  borderData: FlBorderData(show: false),
+                  radarBorderData: BorderSide.none,
+                  tickBorderData: BorderSide.none,
+                  ticksTextStyle: TextStyle(color: Colors.transparent, fontSize: 0),
+                  gridBorderData: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _buildPostImage(String imageUrl) {
+    if (imageUrl.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          imageUrl,
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  String? _formatTime(DateTime? createdAt) {
+    if (createdAt == null) return null;
+    final difference = DateTime.now().difference(createdAt);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    return '${difference.inDays}d ago';
+  }
+
+  void _showPeerReviewSheet(BuildContext context, GuildPostModel post) {
+    final axes = widget.controller.fetchReviewAxes(post.hobby);
+    final sliderValues = <String, RxDouble>{};
+    final isSubmitting = false.obs;
+
+    for (final axis in axes) {
+      sliderValues[axis.label] = 3.0.obs;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Text('Peer Review', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    const Text('Rate this post', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    const SizedBox(height: 24),
+                    ...axes.map((axis) => Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: _buildRatingSlider(
+                        label: axis.label, icon: axis.icon,
+                        value: sliderValues[axis.label] ?? 3.0.obs,
+                      ),
+                    )),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Obx(() => SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: isSubmitting.value || sliderValues.isEmpty
+                              ? null
+                              : () async {
+                                  isSubmitting.value = true;
+                                  final ratings = sliderValues.map((k, v) => MapEntry(k, v.value));
+                                  final success = await widget.controller.submitPeerReview(
+                                    postId: post.id, hobby: post.hobby, ratings: ratings,
+                                  );
+                                  if (success && context.mounted) {
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Peer review submitted!'), behavior: SnackBarBehavior.floating),
+                                    );
+                                  }
+                                  isSubmitting.value = false;
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(
+                            isSubmitting.value ? 'Submitting...' : 'Submit Review',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      )),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatingSlider({
+    required String label,
+    required IconData icon,
+    required RxDouble value,
+  }) {
+    return Obx(() => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                value.value.toStringAsFixed(1),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 8,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: AppColors.border,
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: value.value,
+            min: 1, max: 5, divisions: 4,
+            onChanged: (newValue) => value.value = newValue,
+          ),
+        ),
+      ],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _toggleFlip,
+      child: AnimatedBuilder(
+        animation: _animCtrl,
+        builder: (_, __) {
+          final isFront = _animCtrl.value < 0.5;
+          final angle = _animCtrl.value * math.pi;
+          return Transform(
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateY(angle),
+            alignment: Alignment.center,
+            child: isFront
+                ? _buildFront(context)
+                : Transform(
+                    transform: Matrix4.identity()..rotateY(math.pi),
+                    alignment: Alignment.center,
+                    child: _buildBack(context),
+                  ),
+          );
+        },
+      ),
+    );
   }
 }
