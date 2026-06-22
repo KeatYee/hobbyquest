@@ -11,6 +11,7 @@ import '../../models/category_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/utils/dialog_utils.dart';
 import '../../routes/app_routes.dart';
 
 class GuildPage extends StatelessWidget {
@@ -318,25 +319,39 @@ class GuildPage extends StatelessWidget {
               const SizedBox(width: 8),
               const Spacer(),
               // Peer Review button
-              GestureDetector(
-                onTap: () => _showPeerReviewSheet(context, post),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Peer Review',
-                    style: TextStyle(
-                      fontSize: AppFonts.badge,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+              Obx(() {
+                final reviewed = controller.hasUserReviewed(post.id);
+                return GestureDetector(
+                  onTap: reviewed ? null : () => _showPeerReviewSheet(context, post),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: reviewed
+                          ? AppColors.textSecondary.withOpacity(0.15)
+                          : AppColors.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (reviewed) ...[
+                          Icon(Icons.check_circle, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          reviewed ? 'Reviewed' : 'Peer Review',
+                          style: TextStyle(
+                            fontSize: AppFonts.badge,
+                            fontWeight: FontWeight.w700,
+                            color: reviewed ? AppColors.textSecondary : Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
             ],
           ),
         ],
@@ -546,6 +561,16 @@ class GuildPage extends StatelessWidget {
                                   final ratings = sliderValues.map(
                                     (k, v) => MapEntry(k, v.value),
                                   );
+                                  final confirmed = await AppDialogs.confirm(
+                                    title: 'Submit Peer Review?',
+                                    message: 'You can only submit one review per post. This cannot be changed or undone.',
+                                    confirmLabel: 'Submit',
+                                    cancelLabel: 'Cancel',
+                                  );
+                                  if (confirmed != true) {
+                                    isSubmitting.value = false;
+                                    return;
+                                  }
                                   final success = await controller.submitPeerReview(
                                     postId: post.id,
                                     hobby: post.hobby,
@@ -553,12 +578,9 @@ class GuildPage extends StatelessWidget {
                                   );
                                   if (success && context.mounted) {
                                     Navigator.of(context).pop();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Peer review submitted!'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
+                                    AppDialogs.success('Review Submitted', 'Your peer review has been recorded.');
+                                  } else if (!success && context.mounted) {
+                                    AppDialogs.warning('Already Reviewed', 'You have already reviewed this post.');
                                   }
                                   isSubmitting.value = false;
                                 },
@@ -886,24 +908,38 @@ class _GuildPostFlipCardState extends State<_GuildPostFlipCard>
               }),
               const SizedBox(width: 8),
               const Spacer(),
-              GestureDetector(
-                onTap: () => _showPeerReviewSheet(context, post),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Peer Review',
-                    style: TextStyle(
-                      fontSize: AppFonts.badge,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+              Obx(() {
+                final reviewed = widget.controller.hasUserReviewed(post.id);
+                return GestureDetector(
+                  onTap: reviewed ? null : () => _showPeerReviewSheet(context, post),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: reviewed
+                          ? AppColors.textSecondary.withOpacity(0.15)
+                          : AppColors.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (reviewed) ...[
+                          Icon(Icons.check_circle, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          reviewed ? 'Reviewed' : 'Peer Review',
+                          style: TextStyle(
+                            fontSize: AppFonts.badge,
+                            fontWeight: FontWeight.w700,
+                            color: reviewed ? AppColors.textSecondary : Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
             ],
           ),
         ],
@@ -915,6 +951,7 @@ class _GuildPostFlipCardState extends State<_GuildPostFlipCard>
   Widget _buildBack(BuildContext context) {
     final avg = _averageRatings();
     final axes = widget.controller.fetchReviewAxes(widget.post.hobby);
+    final reviewerIds = widget.post.peerReviews.keys.toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -943,39 +980,109 @@ class _GuildPostFlipCardState extends State<_GuildPostFlipCard>
                 ),
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: RadarChart(
-                RadarChartData(
-                  radarShape: RadarShape.polygon,
-                  dataSets: [
-                    RadarDataSet(
-                      fillColor: Colors.transparent,
-                      borderColor: AppColors.primary,
-                      borderWidth: 2.5,
-                      entryRadius: 3,
-                      dataEntries: axes.map((axis) {
-                        return RadarEntry(value: avg[axis.label] ?? 0);
+          : Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: RadarChart(
+                      RadarChartData(
+                        radarShape: RadarShape.polygon,
+                        dataSets: [
+                          RadarDataSet(
+                            fillColor: Colors.transparent,
+                            borderColor: AppColors.primary,
+                            borderWidth: 2.5,
+                            entryRadius: 3,
+                            dataEntries: axes.map((axis) {
+                              return RadarEntry(value: avg[axis.label] ?? 0);
+                            }).toList(),
+                          ),
+                        ],
+                        getTitle: (index, _) => RadarChartTitle(
+                          text: axes[index].label,
+                          angle: 0,
+                        ),
+                        titleTextStyle: TextStyle(
+                          fontSize: AppFonts.badge,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        titlePositionPercentageOffset: 0.15,
+                        borderData: FlBorderData(show: false),
+                        radarBorderData: BorderSide.none,
+                        tickBorderData: BorderSide.none,
+                        ticksTextStyle: TextStyle(color: Colors.transparent, fontSize: 0),
+                        gridBorderData: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                if (reviewerIds.isNotEmpty) ...[
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Reviewed by',
+                      style: TextStyle(
+                        fontSize: AppFonts.caption,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: reviewerIds.map((userId) {
+                        final nickname = widget.controller.userNicknames[userId] ?? 'Anonymous';
+                        final avatarSvg = widget.controller.userAvatars[userId];
+                        final hasAvatar = avatarSvg != null && avatarSvg.trim().isNotEmpty;
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 10,
+                              backgroundColor: AppColors.primary.withOpacity(0.12),
+                              child: hasAvatar
+                                  ? ClipOval(
+                                      child: SvgPicture.string(
+                                        avatarSvg,
+                                        width: 20,
+                                        height: 20,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Text(
+                                      nickname.characters.first.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primaryDark,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              nickname,
+                              style: TextStyle(
+                                fontSize: AppFonts.caption,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        );
                       }).toList(),
                     ),
-                  ],
-                  getTitle: (index, _) => RadarChartTitle(
-                    text: axes[index].label,
-                    angle: 0,
                   ),
-                  titleTextStyle: TextStyle(
-                    fontSize: AppFonts.badge,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  titlePositionPercentageOffset: 0.15,
-                  borderData: FlBorderData(show: false),
-                  radarBorderData: BorderSide.none,
-                  tickBorderData: BorderSide.none,
-                  ticksTextStyle: TextStyle(color: Colors.transparent, fontSize: 0),
-                  gridBorderData: BorderSide.none,
-                ),
-              ),
+                  const SizedBox(height: 8),
+                ],
+              ],
             ),
           ),
     );
@@ -1080,14 +1187,24 @@ class _GuildPostFlipCardState extends State<_GuildPostFlipCard>
                               : () async {
                                   isSubmitting.value = true;
                                   final ratings = sliderValues.map((k, v) => MapEntry(k, v.value));
+                                  final confirmed = await AppDialogs.confirm(
+                                    title: 'Submit Peer Review?',
+                                    message: 'You can only submit one review per post. This cannot be changed or undone.',
+                                    confirmLabel: 'Submit',
+                                    cancelLabel: 'Cancel',
+                                  );
+                                  if (confirmed != true) {
+                                    isSubmitting.value = false;
+                                    return;
+                                  }
                                   final success = await widget.controller.submitPeerReview(
                                     postId: post.id, hobby: post.hobby, ratings: ratings,
                                   );
                                   if (success && context.mounted) {
                                     Navigator.of(context).pop();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Peer review submitted!'), behavior: SnackBarBehavior.floating),
-                                    );
+                                    AppDialogs.success('Review Submitted', 'Your peer review has been recorded.');
+                                  } else if (!success && context.mounted) {
+                                    AppDialogs.warning('Already Reviewed', 'You have already reviewed this post.');
                                   }
                                   isSubmitting.value = false;
                                 },

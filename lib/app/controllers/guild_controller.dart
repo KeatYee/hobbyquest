@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -25,11 +27,72 @@ class GuildController extends GetxController {
   final selectedCategoryId = Rx<String?>(null);
   final userReactions = <String, Set<String>>{}.obs;
   final userPeerReviews = <String, Set<String>>{}.obs;
+  final currentUserId = Rx<String?>(null);
+  StreamSubscription? _authSubscription;
 
   @override
   void onInit() {
     super.onInit();
+
+    // Listen for auth state changes (handles restore from persistence)
+    _authSubscription = _auth.authStateChanges().listen((user) {
+      currentUserId.value = user?.uid;
+      // Load current user's own profile so it shows in reviewer lists
+      if (user != null) {
+        _ensureProfileLoaded(user.uid);
+      }
+      // Re-populate user state whenever auth changes (sign-in, restore, etc.)
+      if (posts.isNotEmpty) {
+        _populateCurrentUserState();
+      }
+    });
+
     seedGuildPosts().then((_) => loadAllData());
+  }
+
+  @override
+  void onClose() {
+    _authSubscription?.cancel();
+    super.onClose();
+  }
+
+  /// Re-populate [userReactions] and [userPeerReviews] from loaded posts
+  /// based on the current authenticated user.
+  void _populateCurrentUserState() {
+    final uid = currentUserId.value;
+    userReactions.clear();
+    userPeerReviews.clear();
+    if (uid == null) return;
+
+    for (final post in posts) {
+      final reactedEmojis = <String>{};
+      for (final entry in post.reactions.entries) {
+        if (entry.value.contains(uid)) {
+          reactedEmojis.add(entry.key);
+        }
+      }
+      if (reactedEmojis.isNotEmpty) {
+        userReactions[post.id] = reactedEmojis;
+      }
+
+      if (post.peerReviews.containsKey(uid)) {
+        userPeerReviews[post.id] = <String>{uid};
+      }
+    }
+  }
+
+  /// Fetch a user's profile from Firestore and cache in [userAvatars]/[userNicknames].
+  /// Does nothing if already cached.
+  void _ensureProfileLoaded(String userId) {
+    if (userNicknames.containsKey(userId) && userAvatars.containsKey(userId)) return;
+    _firestore.collection('users').doc(userId).get().then((doc) {
+      final data = doc.data();
+      if (data == null) return;
+      final avatarSvg = data['avatarSvg'] as String? ?? '';
+      final nickname = data['nickname'] as String? ?? '';
+      if (avatarSvg.trim().isNotEmpty) userAvatars[userId] = avatarSvg;
+      if (nickname.trim().isNotEmpty) userNicknames[userId] = nickname;
+    }).catchError((_) {});
   }
 
   /// Load all data (categories, posts, user profiles) from Firestore
@@ -55,11 +118,20 @@ class GuildController extends GetxController {
           .where((post) => post.title.trim().isNotEmpty)
           .toList();
 
-      // Load user profiles for avatars/nicknames
+      // Load user profiles for avatars/nicknames (post authors + reviewers)
       final userIds = loadedPosts
           .map((post) => post.userId.trim())
           .where((userId) => userId.isNotEmpty)
           .toSet();
+
+      // Also include reviewer user IDs so their profiles are loaded
+      for (final post in loadedPosts) {
+        for (final reviewerId in post.peerReviews.keys) {
+          if (reviewerId.trim().isNotEmpty) {
+            userIds.add(reviewerId.trim());
+          }
+        }
+      }
 
       final loadedUserAvatars = <String, String>{};
       final loadedUserNicknames = <String, String>{};
@@ -77,24 +149,13 @@ class GuildController extends GetxController {
       userAvatars.value = loadedUserAvatars;
       userNicknames.value = loadedUserNicknames;
 
-      // Populate userReactions from current user
-      final currentUser = _auth.currentUser;
-      if (currentUser != null) {
-        for (final post in loadedPosts) {
-          final reactedEmojis = <String>{};
-          for (final entry in post.reactions.entries) {
-            if (entry.value.contains(currentUser.uid)) {
-              reactedEmojis.add(entry.key);
-            }
-          }
-          if (reactedEmojis.isNotEmpty) {
-            userReactions[post.id] = reactedEmojis;
-          }
+      // Populate reactions & peer reviews for the current user
+      _populateCurrentUserState();
 
-          // Check if current user has already peer-reviewed this post
-          if (post.peerReviews.containsKey(currentUser.uid)) {
-            userPeerReviews[post.id] = <String>{currentUser.uid};
-          }
+      // Debug: log loaded peer review state
+      for (final post in loadedPosts) {
+        if (post.peerReviews.isNotEmpty) {
+          print('--- Post ${post.id} has ${post.peerReviews.length} review(s): ${post.peerReviews.keys.toList()} ---');
         }
       }
     } catch (e) {
@@ -156,8 +217,8 @@ class GuildController extends GetxController {
     XFile? imageFile,
   }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
+      final uid = currentUserId.value;
+      if (uid == null) {
         throw Exception('User not authenticated');
       }
 
@@ -171,7 +232,7 @@ class GuildController extends GetxController {
 
       final newPost = GuildPostModel(
         id: '', // Firestore will generate ID
-        userId: user.uid,
+        userId: uid,
         hobby: hobby,
         categoryId: categoryId,
         title: title,
@@ -200,8 +261,8 @@ class GuildController extends GetxController {
 
   /// Toggle a reaction emoji on a post
   Future<void> toggleReaction(String postId, String emoji) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+    final uid = currentUserId.value;
+    if (uid == null) return;
 
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
@@ -215,12 +276,12 @@ class GuildController extends GetxController {
       if (alreadyReacted) {
         // Remove reaction
         await postRef.update({
-          'reactions.$emoji': FieldValue.arrayRemove([user.uid]),
+          'reactions.$emoji': FieldValue.arrayRemove([uid]),
         });
 
         final updatedReactions = Map<String, List<String>>.from(post.reactions);
         final currentList = List<String>.from(updatedReactions[emoji] ?? []);
-        currentList.remove(user.uid);
+        currentList.remove(uid);
         if (currentList.isEmpty) {
           updatedReactions.remove(emoji);
         } else {
@@ -242,12 +303,12 @@ class GuildController extends GetxController {
       } else {
         // Add reaction
         await postRef.update({
-          'reactions.$emoji': FieldValue.arrayUnion([user.uid]),
+          'reactions.$emoji': FieldValue.arrayUnion([uid]),
         });
 
         final updatedReactions = Map<String, List<String>>.from(post.reactions);
         final currentList = List<String>.from(updatedReactions[emoji] ?? []);
-        currentList.add(user.uid);
+        currentList.add(uid);
         updatedReactions[emoji] = currentList;
 
         posts[index] = post.copyWith(
@@ -269,8 +330,8 @@ class GuildController extends GetxController {
   /// Delete a post
   Future<void> deletePost(String postId) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
+      final uid = currentUserId.value;
+      if (uid == null) {
         throw Exception('User not authenticated');
       }
 
@@ -281,7 +342,7 @@ class GuildController extends GetxController {
           .get();
 
       final post = GuildPostModel.fromJson(postDoc.data()!, postDoc.id);
-      if (post.userId != user.uid) {
+      if (post.userId != uid) {
         throw Exception('You can only delete your own posts');
       }
 
@@ -548,6 +609,15 @@ class GuildController extends GetxController {
 
   // --- Peer Review ---
 
+  /// Whether the current user has already reviewed a given post.
+  bool hasUserReviewed(String postId) {
+    final uid = currentUserId.value;
+    if (uid == null) return false;
+    final postIndex = posts.indexWhere((p) => p.id == postId);
+    if (postIndex < 0) return false;
+    return posts[postIndex].peerReviews.containsKey(uid);
+  }
+
   /// Fetch the 3 review axes for a given hobby from the category data.
   List<PeerReviewAxisModel> fetchReviewAxes(String hobby) {
     for (final category in categories) {
@@ -558,33 +628,48 @@ class GuildController extends GetxController {
   }
 
   /// Submit a peer review rating for a post — stored inline in the post doc.
+  /// Returns false if the user has already reviewed this post.
   Future<bool> submitPeerReview({
     required String postId,
     required String hobby,
     required Map<String, double> ratings,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
+    final uid = currentUserId.value;
+    if (uid == null) return false;
+
+    // Guard: one review per user per post
+    final postIndex = posts.indexWhere((p) => p.id == postId);
+    if (postIndex >= 0 && posts[postIndex].peerReviews.containsKey(uid)) {
+      print('--- SKIP: User $uid already reviewed post $postId ---');
+      return false;
+    }
 
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      await postRef.set({
-        'peerReviews.${user.uid}': ratings,
-      }, SetOptions(merge: true));
+
+      // Read current document, update peerReviews explicitly, write back
+      final snapshot = await postRef.get();
+      final currentPeerReviews = Map<String, dynamic>.from(
+        (snapshot.data()?['peerReviews'] as Map?) ?? {},
+      );
+      currentPeerReviews[uid] = ratings;
+      await postRef.update({'peerReviews': currentPeerReviews});
 
       // Update local state
-      final index = posts.indexWhere((p) => p.id == postId);
-      if (index >= 0) {
+      if (postIndex >= 0) {
         final existingReviews = Map<String, Map<String, double>>.from(
-          posts[index].peerReviews,
+          posts[postIndex].peerReviews,
         );
-        existingReviews[user.uid] = ratings;
-        posts[index] = posts[index].copyWith(peerReviews: existingReviews);
+        existingReviews[uid] = ratings;
+        posts[postIndex] = posts[postIndex].copyWith(peerReviews: existingReviews);
         posts.refresh();
 
         // Track which posts the current user has reviewed
-        userPeerReviews[postId] = <String>{user.uid};
+        userPeerReviews[postId] = <String>{uid};
       }
+
+      // Ensure the reviewer's own profile is cached for the reviewer display
+      _ensureProfileLoaded(uid);
 
       print('--- SUCCESS: Peer review submitted for post $postId ---');
       return true;

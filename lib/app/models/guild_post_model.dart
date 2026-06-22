@@ -34,14 +34,19 @@ class GuildPostModel {
       title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? (json['content'] as String? ?? ''),
       imageUrl: json['imageUrl'] as String? ?? '',
-      reactions: (json['reactions'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, (value as List<dynamic>).map((e) => e.toString()).toList()),
-          ) ?? {},
-      peerReviews: (json['peerReviews'] as Map<String, dynamic>?)?.map(
+      reactions: (json['reactions'] as Map?)?.map(
             (key, value) => MapEntry(
-              key,
-              (value as Map<String, dynamic>).map(
-                (k, v) => MapEntry(k, (v as num).toDouble()),
+              key.toString(),
+              (value as List).map((e) => e.toString()).toList(),
+            ),
+          ) ?? {},
+      peerReviews: (json['peerReviews'] as Map?)?.map(
+            (key, value) => MapEntry(
+              key.toString(),
+              Map<String, double>.from(
+                (value as Map).map(
+                  (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+                ),
               ),
             ),
           ) ?? {},
