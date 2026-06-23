@@ -45,18 +45,65 @@ class _MapPageState extends State<MapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _categories.isEmpty
-              ? const Center(child: Text('No categories available'))
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSideNav(),
-                    Expanded(child: _buildContent()),
-                  ],
-                ),
+    return Stack(
+      children: [
+        // Full-screen background image
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.75,
+            child: Image.asset(
+              'assets/images/forestBG.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        // Foreground content
+        SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _categories.isEmpty
+                  ? const Center(child: Text('No categories available'))
+                  : Stack(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutCubic,
+                              width: _navExpanded ? 160 : 0,
+                              child: _navExpanded ? _buildSideNav() : const SizedBox.shrink(),
+                            ),
+                            Expanded(child: _buildContent()),
+                          ],
+                        ),
+                        // Floating expand button (only when collapsed)
+                        if (!_navExpanded)
+                          Positioned(
+                            left: 8,
+                            bottom: 12,
+                            child: Material(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              elevation: 0,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => setState(() => _navExpanded = true),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+        ),
+      ],
     );
   }
 
@@ -66,10 +113,8 @@ class _MapPageState extends State<MapPage> {
   Widget _buildSideNav() {
     return Padding(
       padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        width: _navExpanded ? 160 : 56,
+      child: Container(
+        width: 160,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
@@ -88,14 +133,14 @@ class _MapPageState extends State<MapPage> {
               );
             }),
             const Spacer(),
-            // Expand/collapse arrow
+            // Collapse arrow
             IconButton(
-              icon: Icon(
-                _navExpanded ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+              icon: const Icon(
+                Icons.chevron_left_rounded,
                 size: 20,
                 color: AppColors.textSecondary,
               ),
-              onPressed: () => setState(() => _navExpanded = !_navExpanded),
+              onPressed: () => setState(() => _navExpanded = false),
             ),
             const SizedBox(height: 4),
           ],
@@ -111,7 +156,7 @@ class _MapPageState extends State<MapPage> {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: _navExpanded ? 10 : 0, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -125,23 +170,20 @@ class _MapPageState extends State<MapPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 22, color: isSelected ? AppColors.primary : AppColors.textSecondary),
-                if (_navExpanded) ...[
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: AppFonts.caption,
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: AppFonts.caption,
+                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -196,70 +238,7 @@ class _MapPageState extends State<MapPage> {
             ],
           ),
           const SizedBox(height: 24),
-          // Tree view
-          Expanded(
-            child: ListView.separated(
-              itemCount: category.hobbies.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final hobby = category.hobbies[index];
-                return _buildHobbyTreeCard(hobby);
-              },
-            ),
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHobbyTreeCard(HobbyEntry hobby) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
-      ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-        shape: const Border(),
-        collapsedShape: const Border(),
-        leading: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(Icons.local_fire_department_rounded, size: 18, color: AppColors.primary),
-        ),
-        title: Text(
-          hobby.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: AppFonts.body,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        children: hobby.axes.map((axis) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                const SizedBox(width: 46),
-                Icon(axis.icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 10),
-                Text(
-                  axis.label,
-                  style: const TextStyle(
-                    fontSize: AppFonts.caption,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
       ),
     );
   }
