@@ -205,39 +205,41 @@ class _MapPageState extends State<MapPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 20, 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Header
-          Row(
-            children: [
-              Icon(category.icon, size: 28, color: AppColors.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: AppFonts.titleLg,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      category.description,
-                      style: const TextStyle(
-                        fontSize: AppFonts.caption,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+          // Header with background
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  category.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: AppFonts.titleLg,
+                    color: AppColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 24),
+          // Center image
+          Expanded(
+            child: Center(
+              child: Image.asset(
+                'assets/images/seed.png',
+                width: 200,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
         ],
       ),
     );
