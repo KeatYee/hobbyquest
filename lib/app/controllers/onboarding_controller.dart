@@ -294,7 +294,7 @@ class OnboardingController extends GetxController {
         id: '', // Firestore will generate this
         name: "Creative Arts",
         description: "Express yourself visually",
-        icon: "🎨",
+        iconCodePoint: Icons.palette.codePoint,
         hobbies: [
           HobbyEntry(name: "Painting", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Creativity', icon: Icons.lightbulb_outline),
@@ -322,7 +322,7 @@ class OnboardingController extends GetxController {
         id: '',
         name: "Music & Performing",
         description: "Play, sing, and perform",
-        icon: "🎭",
+        iconCodePoint: Icons.music_note.codePoint,
         hobbies: [
           HobbyEntry(name: "Guitar", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Rhythm', icon: Icons.music_note),
@@ -350,7 +350,7 @@ class OnboardingController extends GetxController {
         id: '',
         name: "Lifestyle & Wellness",
         description: "Heal your body and mind",
-        icon: "🧘",
+        iconCodePoint: Icons.self_improvement.codePoint,
         hobbies: [
           HobbyEntry(name: "Yoga", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Alignment', icon: Icons.straighten),
@@ -378,7 +378,7 @@ class OnboardingController extends GetxController {
         id: '',
         name: "Skill & Strategy",
         description: "Sharpen your mind",
-        icon: "♟️",
+        iconCodePoint: Icons.psychology.codePoint,
         hobbies: [
           HobbyEntry(name: "Coding", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Code Quality', icon: Icons.code),

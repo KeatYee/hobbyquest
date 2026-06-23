@@ -33,7 +33,7 @@ class CategoryService {
         id: "creative_arts",
         name: "Creative Arts",
         description: "Express your artistic side",
-        icon: "🎨",
+        iconCodePoint: Icons.palette.codePoint,
         hobbies: [
           HobbyEntry(name: "Painting", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Creativity', icon: Icons.lightbulb_outline),
@@ -61,7 +61,7 @@ class CategoryService {
         id: "music_performing",
         name: "Music & Performing",
         description: "Create with sound and movement",
-        icon: "🎵",
+        iconCodePoint: Icons.music_note.codePoint,
         hobbies: [
           HobbyEntry(name: "Guitar", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Rhythm', icon: Icons.music_note),
@@ -89,7 +89,7 @@ class CategoryService {
         id: "lifestyle_wellness",
         name: "Lifestyle & Wellness",
         description: "Improve your mind and body",
-        icon: "🧘",
+        iconCodePoint: Icons.self_improvement.codePoint,
         hobbies: [
           HobbyEntry(name: "Yoga", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Alignment', icon: Icons.straighten),
@@ -117,7 +117,7 @@ class CategoryService {
         id: "skill_strategy",
         name: "Skill & Strategy",
         description: "Challenge your mind",
-        icon: "🧠",
+        iconCodePoint: Icons.psychology.codePoint,
         hobbies: [
           HobbyEntry(name: "Coding", axes: [
             PeerReviewAxisModel.fromIconData(label: 'Code Quality', icon: Icons.code),

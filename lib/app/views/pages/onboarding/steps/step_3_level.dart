@@ -151,7 +151,7 @@ class _Step3LevelState extends State<Step3Level> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+              color: isSelected ? AppColors.primary : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: borderColor,
@@ -191,7 +191,7 @@ class _Step3LevelState extends State<Step3Level> {
                         level['label'],
                         style: textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                          color: isSelected ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -205,7 +205,7 @@ class _Step3LevelState extends State<Step3Level> {
                 
                 // Checkmark Indicator
                 if (isSelected)
-                  const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 24),
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
               ],
             ),
           ),

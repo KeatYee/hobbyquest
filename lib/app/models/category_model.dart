@@ -15,7 +15,8 @@ class PeerReviewAxisModel {
     this.iconFontFamily,
   });
 
-  IconData get icon => IconData(iconCodePoint, fontFamily: iconFontFamily);
+  IconData get icon =>
+      IconData(iconCodePoint, fontFamily: iconFontFamily ?? 'MaterialIcons');
 
   /// Creates a [PeerReviewAxisModel] from a Material [IconData],
   /// preserving both the code point and font family for correct rendering.
@@ -90,16 +91,22 @@ class CategoryModel {
   final String id;           // Firestore document ID (canonical identifier)
   final String name;         // e.g., "Creative Arts", "Music & Performing"
   final String description;  // e.g., "Express yourself visually"
-  final String icon;         // Display emoji, e.g. "🎨", "🎭"
+  final int iconCodePoint;   // Material icon codePoint for the category icon
+  final String? iconFontFamily; // Optional font family for the icon
   final List<HobbyEntry> hobbies; // Hobbies with their review axes
 
   const CategoryModel({
     required this.id,
     required this.name,
     required this.description,
-    required this.icon,
+    required this.iconCodePoint,
+    this.iconFontFamily,
     required this.hobbies,
   });
+
+  /// Returns the Material [IconData] for this category's icon.
+  IconData get icon =>
+      IconData(iconCodePoint, fontFamily: iconFontFamily ?? 'MaterialIcons');
 
   /// Convenience getter for hobby name strings.
   List<String> get hobbyNames => hobbies.map((h) => h.name).toList();
@@ -120,14 +127,16 @@ class CategoryModel {
     String? id,
     String? name,
     String? description,
-    String? icon,
+    int? iconCodePoint,
+    String? iconFontFamily,
     List<HobbyEntry>? hobbies,
   }) {
     return CategoryModel(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
-      icon: icon ?? this.icon,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+      iconFontFamily: iconFontFamily ?? this.iconFontFamily,
       hobbies: hobbies ?? this.hobbies,
     );
   }
@@ -143,9 +152,37 @@ class CategoryModel {
       id: docId,
       name: (json['name'] as String? ?? '').trim(),
       description: (json['description'] as String? ?? '').trim(),
-      icon: json['icon'] as String? ?? '',
+      iconCodePoint: _readIconCodePoint(json),
+      iconFontFamily: json['iconFontFamily'] as String?,
       hobbies: parsedHobbies,
     );
+  }
+
+  /// Reads [iconCodePoint] from Firestore data, falling back to a mapping
+  /// from the old emoji [icon] field, and ultimately to [Icons.palette].
+  static int _readIconCodePoint(Map<String, dynamic> json) {
+    // New format: direct int codePoint
+    final codePoint = json['iconCodePoint'];
+    if (codePoint is num) return codePoint.toInt();
+
+    // Old format: emoji string → map to Material icon
+    final oldIcon = json['icon'] as String?;
+    if (oldIcon != null && oldIcon.isNotEmpty) {
+      switch (oldIcon) {
+        case '🎨':
+          return Icons.palette.codePoint;
+        case '🎭':
+        case '🎵':
+          return Icons.music_note.codePoint;
+        case '🧘':
+          return Icons.self_improvement.codePoint;
+        case '♟️':
+        case '🧠':
+          return Icons.psychology.codePoint;
+      }
+    }
+
+    return Icons.palette.codePoint;
   }
 
   /// Converts to JSON for Firestore.
@@ -153,7 +190,8 @@ class CategoryModel {
     return {
       'name': name,
       'description': description,
-      'icon': icon,
+      'iconCodePoint': iconCodePoint,
+      if (iconFontFamily != null) 'iconFontFamily': iconFontFamily,
       'hobbies': hobbies.map((h) => h.toJson()).toList(),
     };
   }

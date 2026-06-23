@@ -15,7 +15,6 @@ class Step2Category extends StatefulWidget {
 
 class _Step2CategoryState extends State<Step2Category> {
   bool showError = false;
-  static const Color _blazeOrange = Color(0xFFFF6B00);
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +105,11 @@ class _Step2CategoryState extends State<Step2Category> {
                           color: isSelected ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
-                      avatar: Text(category.icon),
-                      selectedColor: _blazeOrange,
+                      avatar: Icon(category.icon, size: 20),
+                      selectedColor: AppColors.primary,
                       backgroundColor: Colors.white,
                       side: BorderSide(
-                        color: isSelected ? _blazeOrange : Colors.grey.shade300,
+                        color: isSelected ? AppColors.primary : Colors.grey.shade300,
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -199,12 +198,12 @@ class _Step2CategoryState extends State<Step2Category> {
                               decoration: BoxDecoration(
                                 color: isLocked
                                     ? Colors.grey.withValues(alpha: 0.08)
-                                    : (isSelected ? _blazeOrange.withValues(alpha: 0.12) : Colors.white),
+                                    : (isSelected ? AppColors.primary : Colors.white),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: isLocked
                                       ? Colors.grey.withValues(alpha: 0.15)
-                                      : (isSelected ? _blazeOrange : Colors.grey.withValues(alpha: 0.2)),
+                                      : (isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.2)),
                                   width: 2,
                                 ),
                                 boxShadow: [
@@ -212,7 +211,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                     color: isLocked
                                         ? Colors.black.withValues(alpha: 0.02)
                                         : (isSelected
-                                            ? _blazeOrange.withValues(alpha: 0.25)
+                                            ? AppColors.primary.withValues(alpha: 0.25)
                                             : Colors.black.withValues(alpha: 0.05)),
                                     blurRadius: isSelected ? 14 : 8,
                                     offset: const Offset(0, 4),
@@ -227,7 +226,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                     size: 30,
                                     color: isLocked
                                         ? Colors.grey.withValues(alpha: 0.4)
-                                        : (isSelected ? _blazeOrange : Colors.grey),
+                                        : (isSelected ? Colors.white : Colors.grey),
                                   ),
                                   const SizedBox(height: 8),
                                   Padding(
@@ -242,7 +241,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                         fontWeight: FontWeight.w700,
                                         color: isLocked
                                             ? Colors.grey.withValues(alpha: 0.5)
-                                            : (isSelected ? _blazeOrange : AppColors.textPrimary),
+                                            : (isSelected ? Colors.white : AppColors.textPrimary),
                                       ),
                                     ),
                                   ),

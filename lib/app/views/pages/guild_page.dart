@@ -140,7 +140,7 @@ class GuildPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: ChoiceChip(
               labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-              avatar: Text(category.icon),
+              avatar: Icon(category.icon, size: 20),
               label: Text(category.name),
               selected: isSelected,
               onSelected: (_) {

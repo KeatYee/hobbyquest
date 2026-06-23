@@ -297,7 +297,7 @@ class _Step1ProfileState extends State<Step1Profile> {
             duration: const Duration(milliseconds: 200),
             height: 100,
             decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
+                color: isSelected ? AppColors.primary : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isError ? AppColors.error : (isSelected ? AppColors.primary : Colors.transparent),
@@ -314,7 +314,7 @@ class _Step1ProfileState extends State<Step1Profile> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 32, color: isSelected ? AppColors.primary : Colors.grey),
+                Icon(icon, size: 32, color: isSelected ? Colors.white : Colors.grey),
                 const SizedBox(height: 8),
                 Text(
                   label,
@@ -322,7 +322,7 @@ class _Step1ProfileState extends State<Step1Profile> {
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold, 
                     fontSize: AppFonts.bodyLg,
-                    color: isSelected ? AppColors.primary : Colors.grey,
+                    color: isSelected ? Colors.white : Colors.grey,
                   ),
                 ),
               ],
