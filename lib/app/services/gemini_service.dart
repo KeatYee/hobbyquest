@@ -302,7 +302,15 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             final formattedNodeId = '${milestoneNumber}_node_$rawId';
             
             // THE FIX: Override the integer with the formatted string BEFORE parsing
-            item['node_id'] = formattedNodeId; 
+            item['node_id'] = formattedNodeId;
+
+            // ALSO reformat depends_on entries so they match the formatted node IDs
+            final rawDependsOn = item['depends_on'] ?? item['dependsOn'];
+            if (rawDependsOn is List) {
+              item['depends_on'] = rawDependsOn
+                  .map((dep) => '${milestoneNumber}_node_$dep')
+                  .toList();
+            }
 
             final node = QuestNodeModel.fromJson(item);
             final sanitizedType = _sanitizeType(node.type);
@@ -324,6 +332,14 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             
             // THE FIX: Override the integer with the formatted string BEFORE parsing
             rawMap['node_id'] = formattedNodeId;
+
+            // ALSO reformat depends_on entries so they match the formatted node IDs
+            final rawDependsOn = rawMap['depends_on'] ?? rawMap['dependsOn'];
+            if (rawDependsOn is List) {
+              rawMap['depends_on'] = rawDependsOn
+                  .map((dep) => '${milestoneNumber}_node_$dep')
+                  .toList();
+            }
 
             final node = QuestNodeModel.fromJson(rawMap);
             final sanitizedType = _sanitizeType(node.type);
