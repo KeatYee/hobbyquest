@@ -32,8 +32,42 @@ class HomeController extends GetxController {
     _loadUserProfile();
   }
 
-  /// Public method to get the visible quest window (up to 3 active quests)
-  /// Used by QuestDetailController after quest completion
+  /// Returns ALL quest nodes with recomputed isActive flags based on DAG.
+  /// Completed quests are included but marked as inactive.
+  /// Quest whose dependencies aren't met are marked as inactive (locked).
+  /// Use this to display the full milestone quest tree on the home page.
+  List<QuestNodeModel> getAllQuestNodes(List<QuestNodeModel> quests) {
+    if (quests.isEmpty) return [];
+
+    final completedIds = quests
+        .where((quest) => quest.isCompleted)
+        .map((quest) => quest.nodeId)
+        .toSet();
+
+    final readyIds = _computeAllReadyQuestIds(quests, completedIds);
+
+    final mapped = quests.map((quest) {
+      final isReady = readyIds.contains(quest.nodeId);
+      final shouldBeActive = isReady && !quest.isCompleted;
+      return quest.copyWith(isActive: shouldBeActive);
+    }).toList();
+
+    // Sort: completed first, then active, then locked/inactive
+    mapped.sort((a, b) {
+      final aCompleted = a.isCompleted ? 0 : 1;
+      final bCompleted = b.isCompleted ? 0 : 1;
+      if (aCompleted != bCompleted) return aCompleted.compareTo(bCompleted);
+
+      final aActive = a.isActive ? 0 : 1;
+      final bActive = b.isActive ? 0 : 1;
+      return aActive.compareTo(bActive);
+    });
+
+    return mapped;
+  }
+
+  /// Legacy method: returns only up to 3 ready quests.
+  /// Used by QuestDetailController after quest completion for backward compat.
   List<QuestNodeModel> getVisibleQuestWindow(List<QuestNodeModel> quests) {
     print('--- DEBUG: getVisibleQuestWindow called with ${quests.length} total quests ---');
     
@@ -137,7 +171,7 @@ class HomeController extends GetxController {
         goal.value = currentPlan.goal;
         frequency.value = currentPlan.frequency;
         level.value = currentPlan.level;
-        dailyQuests.value = getVisibleQuestWindow(currentPlan.quests);
+        dailyQuests.value = getAllQuestNodes(currentPlan.quests);
 
         print(
           "--- SUCCESS: Loaded user profile for ${loadedUser.nickname} ---",
@@ -189,10 +223,9 @@ class HomeController extends GetxController {
     frequency.value = updatedPlan.frequency;
     level.value = updatedPlan.level;
     
-    final visibleWindow = getVisibleQuestWindow(updatedPlan.quests);
-    dailyQuests.value = visibleWindow;
+    dailyQuests.value = getAllQuestNodes(updatedPlan.quests);
     
-    print('--- INFO: Quest $questId completed via HomeController. New visible quests: ${visibleWindow.length} ---');
+    print('--- INFO: Quest $questId completed via HomeController ---');
 
     return true;
   }
@@ -223,7 +256,7 @@ class HomeController extends GetxController {
       goal.value = loadedUser.currentPlan.goal;
       frequency.value = loadedUser.currentPlan.frequency;
       level.value = loadedUser.currentPlan.level;
-      dailyQuests.value = getVisibleQuestWindow(loadedUser.currentPlan.quests);
+      dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
     } catch (e) {
       print("--- ERROR: Failed to reload current plan quests: $e ---");
     }
@@ -380,7 +413,7 @@ class HomeController extends GetxController {
       goal.value = updatedUser!.currentPlan.goal;
       frequency.value = updatedUser!.currentPlan.frequency;
       level.value = updatedUser!.currentPlan.level;
-      dailyQuests.value = getVisibleQuestWindow(updatedUser!.currentPlan.quests);
+      dailyQuests.value = getAllQuestNodes(updatedUser!.currentPlan.quests);
 
       print('--- INFO: Quest $questId rerolled successfully ---');
       return true;
@@ -406,6 +439,24 @@ class HomeController extends GetxController {
     }).toList();
   }
 
+  /// Finds ALL ready (dependencies satisfied) quest IDs — no cap.
+  Set<String> _computeAllReadyQuestIds(
+    List<QuestNodeModel> quests,
+    Set<String> completedIds,
+  ) {
+    final ready = <String>{};
+
+    for (final quest in quests) {
+      if (quest.isCompleted) continue;
+      if (_isQuestReady(quest, quests, completedIds: completedIds)) {
+        ready.add(quest.nodeId);
+      }
+    }
+
+    return ready;
+  }
+
+  /// Legacy: returns only up to 3 ready quest IDs.
   Set<String> _computeVisibleQuestIds(
     List<QuestNodeModel> quests,
     Set<String> completedIds,

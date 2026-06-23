@@ -210,16 +210,16 @@ class QuestDetailController extends GetxController {
       homeController.user.value = updatedUser;
       print('--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---');
       
-      // Rebuild the visible quest window using HomeController's method for consistency
-      print('--- DEBUG: Calling getVisibleQuestWindow ---');
-      final visibleWindow = homeController.getVisibleQuestWindow(updatedUser.currentPlan.quests);
-      print('--- DEBUG: getVisibleQuestWindow returned ${visibleWindow.length} visible quests ---');
+      // Rebuild all quest nodes with current state
+      print('--- DEBUG: Calling getAllQuestNodes ---');
+      final allNodes = homeController.getAllQuestNodes(updatedUser.currentPlan.quests);
+      print('--- DEBUG: getAllQuestNodes returned ${allNodes.length} quests ---');
       
-      homeController.dailyQuests.value = visibleWindow;
+      homeController.dailyQuests.value = allNodes;
       print('--- DEBUG: homeController.dailyQuests updated ---');
 
-      print('--- INFO: Quest $questId completed. New visible quests: ${visibleWindow.length} ---');
-      for (final q in visibleWindow) {
+      print('--- INFO: Quest $questId completed. Total quest nodes: ${allNodes.length} ---');
+      for (final q in allNodes) {
         print('  - ${q.nodeId}: ${q.title}');
       }
 

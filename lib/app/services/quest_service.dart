@@ -2,8 +2,73 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import '../models/quest_node_model.dart';
+import '../models/quest_plan_model.dart';
 
 class QuestService {
+  /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
+  /// ready quests remain).
+  bool needsReplenishment(QuestPlanModel plan, {int minVisible = 3}) {
+    final completedIds =
+        plan.quests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
+    final readyCount = plan.quests.where((q) =>
+        !q.isCompleted &&
+        (q.dependsOn.isEmpty || q.dependsOn.every(completedIds.contains))).length;
+    return readyCount < minVisible;
+  }
+
+  /// Adds [newQuests] to the user's plan and persists to Firestore.
+  /// Returns the updated [UserModel] on success, or `null` on failure.
+  /// New quests are set as root quests (no dependencies) so they appear immediately.
+  Future<UserModel?> addQuestsToPlan({
+    required String uid,
+    required List<QuestNodeModel> newQuests,
+  }) async {
+    if (newQuests.isEmpty) return null;
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    UserModel? updatedUser;
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(userRef);
+        final data = snapshot.data();
+        if (data == null) return;
+
+        final loadedUser = UserModel.fromJson(data, uid);
+        final existingIds =
+            loadedUser.currentPlan.quests.map((q) => q.nodeId).toSet();
+
+        // Only add quests whose IDs don't already exist
+        final unique = newQuests
+            .where((q) => !existingIds.contains(q.nodeId))
+            .map((q) => q.copyWith(
+                  dependsOn: const [],
+                  isActive: true,
+                  isCompleted: false,
+                ))
+            .toList();
+
+        if (unique.isEmpty) return;
+
+        final mergedQuests = [...loadedUser.currentPlan.quests, ...unique];
+        final updatedPlan =
+            loadedUser.currentPlan.copyWith(quests: mergedQuests);
+        final normalizedUser = loadedUser.copyWith(
+          currentPlan: updatedPlan,
+          updatedAt: DateTime.now(),
+        );
+
+        transaction.set(userRef,
+            normalizedUser.toJson(), SetOptions(merge: true));
+        updatedUser = normalizedUser;
+      });
+    } catch (e) {
+      return null;
+    }
+
+    return updatedUser;
+  }
+
   /// Completes the quest with [questId] for the user document [uid].
   /// Returns the updated `UserModel` on success, or `null` on failure.
   Future<UserModel?> completeQuestTransaction({
@@ -54,18 +119,17 @@ class QuestService {
           tip: tip,
         );
 
-        // Normalize: recompute active flags (simple pass)
+        // Normalize: recompute active flags for ALL ready quests (no cap)
         final completedAfter = updatedQuests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
-        final visible = <String>{};
+        final ready = <String>{};
         for (final q in updatedQuests) {
           if (q.isCompleted) continue;
-          final ready = q.dependsOn.isEmpty || q.dependsOn.every((d) => completedAfter.contains(d));
-          if (ready) visible.add(q.nodeId);
-          if (visible.length == 3) break;
+          final isReady = q.dependsOn.isEmpty || q.dependsOn.every((d) => completedAfter.contains(d));
+          if (isReady) ready.add(q.nodeId);
         }
 
         final normalized = updatedQuests.map((q) {
-          final shouldBeActive = visible.contains(q.nodeId) && !q.isCompleted;
+          final shouldBeActive = ready.contains(q.nodeId) && !q.isCompleted;
           return q.copyWith(isActive: shouldBeActive);
         }).toList();
 

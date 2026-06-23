@@ -54,10 +54,12 @@ class HomePage extends StatelessWidget {
                   _buildSectionHeader("MISSION LOG"),
                   const SizedBox(height: 14),
 
-                  // DYNAMIC QUEST LIST
+                  // DYNAMIC QUEST LIST — show ALL quests with locked/completed states
                   Obx(
                     () => Column(
                       children: controller.dailyQuests.map((quest) {
+                        final isLocked = !quest.isActive && !quest.isCompleted;
+                        final isCompleted = quest.isCompleted;
                         return _buildQuestCard(
                           context,
                           controller: controller,
@@ -67,12 +69,16 @@ class HomePage extends StatelessWidget {
                           durationMinutes: quest.durationMinutes,
                           type: quest.type,
                           questId: quest.nodeId,
-                          onTap: () {
-                            Get.toNamed(
-                              AppRoutes.QUEST_DETAIL,
-                              arguments: quest,
-                            );
-                          },
+                          isActive: quest.isActive,
+                          isCompleted: quest.isCompleted,
+                          onTap: isLocked || isCompleted
+                              ? null
+                              : () {
+                                  Get.toNamed(
+                                    AppRoutes.QUEST_DETAIL,
+                                    arguments: quest,
+                                  );
+                                },
                         );
                       }).toList(),
                     ),
@@ -528,20 +534,15 @@ class HomePage extends StatelessWidget {
     required int durationMinutes,
     required String type,
     required String questId,
-    required VoidCallback onTap,
+    required bool isActive,
+    required bool isCompleted,
+    required VoidCallback? onTap,
   }) {
-    // Helper to get color based on type string — UNCHANGED logic
+    final isLocked = !isActive && !isCompleted;
+
+    // Consistent card accent color regardless of quest type
     Color getTypeColor() {
-      switch (type) {
-        case 'knowledge':
-          return AppColors.accent;
-        case 'practice':
-          return AppColors.success;
-        case 'challenge':
-          return AppColors.info; // original Colors.purple, no AppColors purple
-        default:
-          return AppColors.textSecondary;
-      }
+      return AppColors.primary;
     }
 
     // Helper to get icon based on type string — UNCHANGED
@@ -572,49 +573,137 @@ class HomePage extends StatelessWidget {
     }
 
     final color = getTypeColor();
+    final cardOpacity = isLocked
+        ? 0.45
+        : (isCompleted ? 0.7 : 1.0);
+    final completedColor = AppColors.success;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.textShadow,
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            // ClipRRect so the left accent bar respects rounded corners
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Coloured left accent bar ───────────
-                    Container(width: 4, color: color),
+    return Opacity(
+      opacity: cardOpacity,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isCompleted
+                          ? completedColor.withOpacity(0.3)
+                          : (isLocked
+                              ? AppColors.textSecondary.withOpacity(0.2)
+                              : AppColors.border),
+                      width: 1,
+                    ),
+                    boxShadow: isLocked || isCompleted
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: AppColors.textShadow,
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  // ClipRRect so the left accent bar respects rounded corners
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // ── Coloured left accent bar ───────────
+                          Container(
+                            width: 4,
+                            color: isCompleted
+                                ? completedColor
+                                : (isLocked
+                                    ? AppColors.textSecondary.withOpacity(0.3)
+                                    : color),
+                          ),
 
-                    // ── Card body ─────────────────────────
-                    Expanded(
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                        child: Column(
+                          // ── Card body ─────────────────────────
+                          Expanded(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                              child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // TOP ROW: type chip + XP pill
+                            // TOP ROW: type chip + XP pill (or completed badge)
                             Row(
-                              children: [
-                                // Type chip
+                              children: isCompleted
+                                  ? [
+                                      // Completed badge
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: completedColor.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              color: completedColor,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'COMPLETED',
+                                              style: TextStyle(
+                                                color: completedColor,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: AppFonts.label,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      // XP earned pill
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: completedColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.flash_on_rounded,
+                                              size: 13,
+                                              color: AppColors.primaryDark,
+                                            ),
+                                            Text(
+                                              '+$xp XP',
+                                              style: TextStyle(
+                                                color: AppColors.primaryDark,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: AppFonts.badge,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ]
+                                  : [
+                                      // Type chip (normal or locked)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -702,41 +791,74 @@ class HomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
 
-                            // BOTTOM ROW: duration chip + reroll
+                            // BOTTOM ROW: duration chip + reroll (or done badge)
                             Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.background,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.access_time_rounded,
-                                        size: 13,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '$durationMinutes min',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: AppFonts.badge,
+                              children: isCompleted
+                                  ? [
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: completedColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              size: 14,
+                                              color: completedColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Done',
+                                              style: TextStyle(
+                                                color: completedColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: AppFonts.badge,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                const Spacer(),
-                                // REROLL BUTTON — UNCHANGED logic
-                                TextButton.icon(
+                                    ]
+                                  : [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.background,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.access_time_rounded,
+                                              size: 13,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '$durationMinutes min',
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: AppFonts.badge,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      // REROLL BUTTON — unchanged except hidden when locked
+                                      TextButton.icon(
                                   onPressed: () async {
                                     final confirmed = await AppDialogs.confirm(
                                       title: 'Reroll this quest?',
@@ -791,9 +913,12 @@ class HomePage extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        ],
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }
 
