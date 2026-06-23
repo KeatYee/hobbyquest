@@ -294,7 +294,7 @@ class GuildPage extends StatelessWidget {
                   const Text(
                     'Peer Review',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: AppFonts.titleLg,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                     ),
@@ -320,7 +320,7 @@ class GuildPage extends StatelessWidget {
                     const Text(
                       'Rate this post',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppFonts.body,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
@@ -382,7 +382,7 @@ class GuildPage extends StatelessWidget {
                           child: Text(
                             isSubmitting.value ? 'Submitting...' : 'Submit Review',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: AppFonts.button,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -418,7 +418,7 @@ class GuildPage extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: AppFonts.bodyLg,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -434,7 +434,7 @@ class GuildPage extends StatelessWidget {
               child: Text(
                 value.value.toStringAsFixed(1),
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: AppFonts.body,
                   fontWeight: FontWeight.w800,
                   color: AppColors.primary,
                 ),
@@ -518,7 +518,7 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
               children: [
                 const Text(
                   'Peer Review Stats',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: AppFonts.title),
                 ),
                 const Spacer(),
                 IconButton(
@@ -537,7 +537,7 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                     'No reviews yet',
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 15,
+                      fontSize: AppFonts.caption,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -615,7 +615,7 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                               : Text(
                                   nickname.characters.first.toUpperCase(),
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: AppFonts.label,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.primaryDark,
                                   ),

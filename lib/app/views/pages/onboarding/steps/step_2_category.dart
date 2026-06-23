@@ -19,6 +19,7 @@ class _Step2CategoryState extends State<Step2Category> {
   @override
   Widget build(BuildContext context) {
     final OnboardingController controller = Get.find();
+    final textTheme = Theme.of(context).textTheme;
 
     return Obx(() {
       final categoryList = controller.categories.value;
@@ -45,10 +46,9 @@ class _Step2CategoryState extends State<Step2Category> {
             const SizedBox(height: 30),
             Text(
               "CHOOSE YOUR PATH",
-              style: GoogleFonts.openSans(
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
                 fontSize: AppFonts.title,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
                 letterSpacing: 1.0,
               ),
             ),
@@ -127,53 +127,19 @@ class _Step2CategoryState extends State<Step2Category> {
                 ),
               ),
               const SizedBox(height: 22),
-              Text(
-                "PICK A HOBBY",
-                style: GoogleFonts.openSans(
-                  fontSize: AppFonts.body,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: 0.8,
-                ),
-              ),
               const SizedBox(height: 12),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 350),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                layoutBuilder: (currentChild, previousChildren) {
-                  return Stack(
-                    alignment: Alignment.topCenter,
-                    children: <Widget>[
-                      ...previousChildren.map((child) => IgnorePointer(child: child)),
-                      if (currentChild != null) currentChild,
-                    ],
-                  );
-                },
-                transitionBuilder: (child, animation) {
-                  final offsetAnimation = Tween<Offset>(
-                    begin: const Offset(0.18, 0),
-                    end: Offset.zero,
-                  ).animate(animation);
-                  return ClipRect(
-                    child: SlideTransition(
-                      position: offsetAnimation,
-                      child: FadeTransition(opacity: animation, child: child),
-                    ),
-                  );
-                },
-                child: GridView.builder(
-                  key: ValueKey("$activeCategoryName-${controller.hobby.value}"),
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: currentHobbies.length,
-                  itemBuilder: (context, index) {
+              GridView.builder(
+                key: ValueKey("$activeCategoryName-${controller.hobby.value}"),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 1.0,
+                ),
+                itemCount: currentHobbies.length,
+                itemBuilder: (context, index) {
                     final hobby = currentHobbies[index];
                     final isSelected = controller.hobby.value == hobby;
                     final isLocked = hobby != "Drawing";
@@ -271,7 +237,6 @@ class _Step2CategoryState extends State<Step2Category> {
                     );
                   },
                 ),
-              ),
             ],
             const SizedBox(height: 30),
             SizedBox(
