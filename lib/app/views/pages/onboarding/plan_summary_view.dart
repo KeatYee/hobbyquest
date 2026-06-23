@@ -72,48 +72,6 @@ class PlanSummaryView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // XP Badge: 0 / 8,000 XP
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.2),
-                    AppColors.accent.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.5),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.flash_on_rounded, color: AppColors.accent, size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "0 / 8,000 XP",
-                    style: TextStyle(
-                      fontSize: AppFonts.body,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 40),
 
             // ------------------------------------
@@ -148,22 +106,6 @@ class PlanSummaryView extends StatelessWidget {
                     icon: Icons.flag_rounded,
                     label: "Main Quest",
                     value: controller.generatedPlan.value.goal,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Time Budget
-                  _buildMissionRow(
-                    icon: Icons.timer_rounded,
-                    label: "Daily Commitment",
-                    value: controller.frequency.value,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Daily Routine
-                  _buildMissionRow(
-                    icon: Icons.checklist_rounded,
-                    label: "Daily Routine",
-                    value: "You will receive 3 Quests per day",
                   ),
                 ],
               ),
@@ -203,7 +145,6 @@ class PlanSummaryView extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.success,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 4,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

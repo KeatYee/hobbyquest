@@ -61,7 +61,6 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textOnPrimary,
-        elevation: 4,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

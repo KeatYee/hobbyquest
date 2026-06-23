@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
-import '../../../widgets/mascot_widget.dart';
 
 class Step2Category extends StatefulWidget {
   const Step2Category({super.key});
@@ -39,10 +38,6 @@ class _Step2CategoryState extends State<Step2Category> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const MascotWidget(
-              emotion: 'happy',
-              message: "Pick your path, then lock in your hobby. Tap around and find your vibe!",
-            ),
             const SizedBox(height: 30),
             Text(
               "CHOOSE YOUR PATH",
@@ -255,7 +250,6 @@ class _Step2CategoryState extends State<Step2Category> {
                 },
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 2,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

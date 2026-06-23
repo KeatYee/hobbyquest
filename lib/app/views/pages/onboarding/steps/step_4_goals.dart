@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
-import '../../../widgets/mascot_widget.dart';
 
 class Step4Goals extends StatefulWidget {
   const Step4Goals({super.key});
@@ -73,12 +72,7 @@ class _Step4GoalsState extends State<Step4Goals> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mascot Greeting
-            const MascotWidget(
-              emotion: 'happy',
-              message: "Last step! What is your main Quest, and how often will you play?",
-            ),
-            const SizedBox(height: 30),
+          const SizedBox(height: 30),
 
             // Section 1: The Main Goal
             Text("YOUR MAIN QUEST", style: textTheme.headlineSmall?.copyWith(
@@ -205,9 +199,8 @@ class _Step4GoalsState extends State<Step4Goals> {
                     controller.nextPage(); 
                   }
                 },
-                // Custom style to make this button stand out as the "Finish" button
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent, // Use Accent color for the final call to action
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
                 child: Row(

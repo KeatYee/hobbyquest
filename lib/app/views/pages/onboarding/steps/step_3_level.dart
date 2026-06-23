@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
-import '../../../widgets/mascot_widget.dart';
 
 class Step3Level extends StatefulWidget {
   const Step3Level({super.key});
@@ -49,11 +48,6 @@ class _Step3LevelState extends State<Step3Level> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mascot Greeting
-          const MascotWidget(
-            emotion: 'happy',
-            message: "Got it! And how much experience do you have with this?",
-          ),
           const SizedBox(height: 30),
 
           // Section Title using Theme

@@ -38,17 +38,9 @@ class HomePage extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
 
-                  // MENTOR BUBBLE
-                  Obx(() {
-                    final message =
-                        "Keep it up ${controller.nickname.value}! You're at Level ${progressionController.currentLevel}. ${progressionController.xpToNextLevel} XP to the next level.";
-                    return _buildMascotContextBubble(message);
-                  }),
-                  const SizedBox(height: 20),
-
-                  // NEXT SKILL TARGET
-                  _buildNextSkillTarget(controller),
-                  const SizedBox(height: 28),
+                  // MILESTONE PROGRESS
+                  _buildMilestoneProgress(controller),
+                  const SizedBox(height: 24),
 
                   // MISSION LOG HEADER
                   _buildSectionHeader("MISSION LOG"),
@@ -320,139 +312,44 @@ class HomePage extends StatelessWidget {
   }
 
   // ─────────────────────────────────────────────────────────────
-  //  MASCOT BUBBLE
+  //  MILESTONE PROGRESS
   // ─────────────────────────────────────────────────────────────
-  Widget _buildMascotContextBubble(String message) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.25),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 22,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "MENTOR",
-                  style: TextStyle(
-                    fontSize: AppFonts.label,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  message,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: AppFonts.caption,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildMilestoneProgress(HomeController controller) {
+    return Obx(() {
+      final plan = controller.user.value?.currentPlan;
+      if (plan == null || plan.milestones.isEmpty) return const SizedBox.shrink();
 
-  // ─────────────────────────────────────────────────────────────
-  //  NEXT SKILL TARGET — UNCHANGED logic, refined UI
-  // ─────────────────────────────────────────────────────────────
-  Widget _buildNextSkillTarget(HomeController controller) {
-    final skillNames = {
-      'Guitar': [
-        'Open Chords',
-        'Barre Chords',
-        'Fingerpicking',
-        'Sweep Picking',
-      ],
-      'Piano': [
-        'C Major Scale',
-        'Chord Progressions',
-        'Two-Hand Coordination',
-        'Improvisation',
-      ],
-      'Painting': [
-        'Color Mixing',
-        'Perspective',
-        'Shadows & Highlights',
-        'Composition',
-      ],
-      'Coding': [
-        'Variables & Types',
-        'Functions',
-        'Objects & Classes',
-        'Algorithms',
-      ],
-    };
+      final index = plan.currentMilestoneIndex;
+      final total = plan.milestones.length;
+      final milestone = plan.milestones[index];
+      final progress = ((index + 1) / total);
 
-    String getNextSkill() {
-      final hobby = controller.hobby.value;
-      final level = Get.find<ProgressionController>().currentLevel;
-      final skills = skillNames[hobby] ?? ['Master $hobby'];
-      return skills[(level - 1) % skills.length];
-    }
+      // Calculate quest completion ratio for this milestone
+      final quests = plan.quests;
+      final completedQuests = quests.where((q) => q.isCompleted).length;
+      final totalQuests = quests.length;
 
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.gold],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      return Container(
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 1),
         ),
         child: Row(
           children: [
+            // Milestone icon
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
-                Icons.lock_open_rounded,
+                Icons.flag_rounded,
+                size: 20,
                 color: AppColors.primary,
-                size: 22,
               ),
             ),
             const SizedBox(width: 14),
@@ -460,38 +357,58 @@ class HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "NEXT SKILL UNLOCK",
-                    style: TextStyle(
-                      fontSize: AppFonts.label,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 1.2,
+                  // Title row: milestone name + fraction
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Phase ${index + 1}: ${milestone.title}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: AppFonts.caption,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${index + 1}/$total',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: AppFonts.micro,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: AppColors.border,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primary),
+                      minHeight: 5,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Obx(
-                    () => Text(
-                      getNextSkill(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: AppFonts.body,
-                        color: AppColors.textPrimary,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$completedQuests/$totalQuests quests completed',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: AppFonts.micro,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 15,
-              color: AppColors.textSecondary,
-            ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
   // ─────────────────────────────────────────────────────────────

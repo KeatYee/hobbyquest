@@ -3,9 +3,8 @@ import 'package:get/get.dart';
 import 'package:avatar_maker/avatar_maker.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
-import '../../../../../../core/utils/validators.dart'; 
+import '../../../../../../core/utils/validators.dart';
 import '../../../../controllers/onboarding_controller.dart';
-import '../../../widgets/mascot_widget.dart';
 
 class Step1Profile extends StatefulWidget {
   const Step1Profile({super.key});
@@ -58,10 +57,6 @@ class _Step1ProfileState extends State<Step1Profile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const MascotWidget(
-              emotion: 'happy',
-              message: "Hi! I'm Hobie. Before we start your adventure, I need to know who you are!",
-            ),
             const SizedBox(height: 30),
 
             Text(
