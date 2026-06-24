@@ -85,20 +85,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Full-screen background image
-        Positioned.fill(
-          child: Opacity(
-            opacity: 0.75,
-            child: Image.asset(
-              'assets/images/forestBG.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        // Foreground content
-        SafeArea(
+    return SafeArea(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _categories.isEmpty
@@ -141,10 +128,8 @@ class _MapPageState extends State<MapPage> {
                           ),
                       ],
                     ),
-        ),
-      ],
-    );
-  }
+  );
+}
 
   // ────────────────────────────────────────────────────────
   //  SIDE NAVIGATION — icons only, expandable with arrow
