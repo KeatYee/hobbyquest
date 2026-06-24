@@ -13,6 +13,12 @@ class UserModel {
   final int currentStreak; // Consecutive days with at least one completed quest
   final int dailyQuestCompletionCount;
 
+  // Per-category XP (tree progression)
+  final Map<String, int> categoryXp;
+
+  // Tutorial flags
+  final bool mapTutorialDone;
+
   // Timestamps
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -33,6 +39,8 @@ class UserModel {
     required this.currentPlan,
     this.currentStreak = 0,
     this.dailyQuestCompletionCount = 0,
+    this.categoryXp = const {},
+    this.mapTutorialDone = false,
     this.createdAt,
     this.updatedAt,
     this.lastRerollDate,
@@ -59,6 +67,8 @@ class UserModel {
       currentPlan: currentPlan,
       currentStreak: json['currentStreak'] as int? ?? 0,
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
+      categoryXp: _readCategoryXp(json),
+      mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
           ? _readDateTime(json['updatedAt'])
@@ -100,6 +110,8 @@ class UserModel {
     int? totalXP,
     int? currentStreak,
     int? dailyQuestCompletionCount,
+    Map<String, int>? categoryXp,
+    bool? mapTutorialDone,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -118,6 +130,8 @@ class UserModel {
       currentPlan: currentPlan ?? this.currentPlan,
       currentStreak: currentStreak ?? this.currentStreak,
       dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
+      categoryXp: categoryXp ?? this.categoryXp,
+      mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastRerollDate: lastRerollDate ?? this.lastRerollDate,
@@ -129,6 +143,15 @@ class UserModel {
   int get level => (totalXP ~/ 1000) + 1;
 
   int get currentXp => totalXP % 1000;
+
+  /// Parses per-category XP from Firestore data.
+  static Map<String, int> _readCategoryXp(Map<String, dynamic> json) {
+    final raw = json['categoryXp'];
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+    }
+    return const {};
+  }
 
   static int _legacyTotalXp(Map<String, dynamic> json) {
     final legacyLevel = json['level'] as int? ?? 1;

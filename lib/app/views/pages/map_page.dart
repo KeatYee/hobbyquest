@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../controllers/home_controller.dart';
+import '../../controllers/progression_controller.dart';
 import '../../services/category_service.dart';
 import '../../models/category_model.dart';
 
@@ -29,6 +30,15 @@ class _MapPageState extends State<MapPage> {
     "Head over to your Quest Page to log your first session. I'll wait right here!",
   ];
 
+  /// Returns the tree image path based on XP value.
+  String _treeImageForXp(int xp) {
+    if (xp >= 7000) return 'assets/images/mature_tree.png';
+    if (xp >= 5000) return 'assets/images/young_tree.png';
+    if (xp >= 2500) return 'assets/images/seedling.png';
+    if (xp >= 800) return 'assets/images/sprout.png';
+    return 'assets/images/seed.png';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -37,31 +47,44 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _checkTutorialStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(uid)
           .get();
-      final done = doc.data()?['mapTutorialDone'] as bool? ?? false;
+      final done = (doc.data()?['mapTutorialDone'] as bool?) ?? false;
       if (!mounted) return;
       setState(() => _speechIndex = done ? -1 : 0);
-    } catch (_) {
+      print('--- Map tutorial status: $done ---');
+    } catch (e) {
+      print('--- ERROR checking tutorial status: $e ---');
       if (!mounted) return;
       setState(() => _speechIndex = 0);
     }
   }
 
   Future<void> _finishTutorial() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
     try {
+      final homeCtrl = Get.find<HomeController>();
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      // Mark tutorial done and verify it was written
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
-          .set({'mapTutorialDone': true}, SetOptions(merge: true));
-    } catch (_) {}
+          .doc(uid)
+          .update({'mapTutorialDone': true});
+
+      // Update local model
+      if (homeCtrl.user.value != null) {
+        homeCtrl.user.value = homeCtrl.user.value!.copyWith(mapTutorialDone: true);
+      }
+      print('--- SUCCESS: Map tutorial completed and saved to Firestore ---');
+    } catch (e) {
+      print('--- ERROR: Failed to save map tutorial status: $e ---');
+    }
     if (!mounted) return;
     setState(() => _speechIndex = -1);
   }
@@ -261,11 +284,107 @@ class _MapPageState extends State<MapPage> {
               alignment: Alignment.topCenter,
               children: [
                 Center(
-                  child: Image.asset(
-                    'assets/images/seed.png',
-                    width: 200,
-                    fit: BoxFit.contain,
-                  ),
+                  child: Obx(() {
+                    final progressionController = Get.find<ProgressionController>();
+                    final category = _categories[_selectedIndex!];
+                    final xp = progressionController.categoryXp[category.name] ?? 0;
+                    final thresholds = [0, 800, 2500, 5000, 7000];
+                    final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
+
+                    int stage = 0;
+                    for (int i = thresholds.length - 1; i >= 0; i--) {
+                      if (xp >= thresholds[i]) { stage = i; break; }
+                    }
+
+                    final currentMin = thresholds[stage];
+                    final nextMax = stage < thresholds.length - 1 ? thresholds[stage + 1] : thresholds[stage] + 1000;
+                    final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(0.0, 1.0);
+                    final xpToNext = stage < thresholds.length - 1 ? nextMax - xp : 0;
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          _treeImageForXp(xp),
+                          width: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 16),
+                        // XP progress bar
+                        SizedBox(
+                          width: 220,
+                          child: Column(
+                            children: [
+                              // Stage label and XP count
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    labels[stage],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: AppFonts.badge,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (stage < thresholds.length - 1)
+                                    Text(
+                                      '$xp / $nextMax XP',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: AppFonts.micro,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    )
+                                  else
+                                    Text(
+                                      '$xp XP',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: AppFonts.micro,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              // Progress bar
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  backgroundColor: AppColors.border,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                      AppColors.primary),
+                                  minHeight: 6,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              // XP to next stage
+                              if (stage < thresholds.length - 1)
+                                Text(
+                                  '$xpToNext XP to ${labels[stage + 1]}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: AppFonts.micro,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              else
+                                const Text(
+                                  'Fully grown!',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: AppFonts.micro,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ),
                 // Speech bubble
                 if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
