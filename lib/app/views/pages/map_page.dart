@@ -105,17 +105,16 @@ class _MapPageState extends State<MapPage> {
                   ? const Center(child: Text('No categories available'))
                   : Stack(
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeOutCubic,
-                              width: _navExpanded ? 160 : 0,
-                              child: _navExpanded ? _buildSideNav() : const SizedBox.shrink(),
-                            ),
-                            Expanded(child: _buildContent()),
-                          ],
+                        // Full-width content (always)
+                        _buildContent(),
+                        // Overlay nav bar
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                          left: _navExpanded ? 8 : -168,
+                          top: 0,
+                          bottom: 0,
+                          child: _buildSideNav(),
                         ),
                         // Floating expand button (only when collapsed)
                         if (!_navExpanded)
@@ -152,9 +151,10 @@ class _MapPageState extends State<MapPage> {
   // ────────────────────────────────────────────────────────
   Widget _buildSideNav() {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: Container(
         width: 160,
+        margin: const EdgeInsets.only(left: 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
