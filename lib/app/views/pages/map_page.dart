@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../controllers/home_controller.dart';
@@ -19,11 +21,49 @@ class _MapPageState extends State<MapPage> {
   int? _selectedIndex;
   bool _navExpanded = false;
   bool _isLoading = true;
+  int _speechIndex = -1;
+
+  final List<String> _speechMessages = [
+    "Oh, hello! Who's that? Are you my new gardener?",
+    "I'm your new Creative Arts seed! Every time you practice your hobby, I earn XP to grow big and strong!",
+    "Head over to your Quest Page to log your first session. I'll wait right here!",
+  ];
 
   @override
   void initState() {
     super.initState();
+    _checkTutorialStatus();
     _loadCategories();
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final done = doc.data()?['mapTutorialDone'] as bool? ?? false;
+      if (!mounted) return;
+      setState(() => _speechIndex = done ? -1 : 0);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _speechIndex = 0);
+    }
+  }
+
+  Future<void> _finishTutorial() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({'mapTutorialDone': true}, SetOptions(merge: true));
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _speechIndex = -1);
   }
 
   Future<void> _loadCategories() async {
@@ -230,18 +270,101 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
           const SizedBox(height: 24),
-          // Center image
+          // Center image with speech bubble
           Expanded(
-            child: Center(
-              child: Image.asset(
-                'assets/images/seed.png',
-                width: 200,
-                fit: BoxFit.contain,
-              ),
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Center(
+                  child: Image.asset(
+                    'assets/images/seed.png',
+                    width: 200,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                // Speech bubble
+                if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_speechIndex < _speechMessages.length - 1) {
+                          setState(() => _speechIndex++);
+                        } else {
+                          _finishTutorial();
+                        }
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            constraints: const BoxConstraints(maxWidth: 260),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              _speechMessages[_speechIndex],
+                              style: const TextStyle(
+                                fontSize: AppFonts.bodyLg,
+                                color: AppColors.textPrimary,
+                                height: 1.4,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Speech bubble tail
+                          CustomPaint(
+                            size: const Size(16, 10),
+                            painter: _TrianglePainter(),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Tap anywhere to continue',
+                            style: TextStyle(
+                              fontSize: AppFonts.micro,
+                              color: AppColors.textSecondary
+                                  .withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Paints a downward-pointing triangle for the speech bubble tail.
+class _TrianglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
