@@ -22,8 +22,7 @@ class HomePage extends StatelessWidget {
       ProgressionController(),
     );
 
-    return SafeArea(
-      child: Column(
+    return Column(
         children: [
           // ZONE 1: HERO HUD (fixed at top)
           _buildHeroHud(context, controller),
@@ -82,8 +81,7 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -93,7 +91,7 @@ class HomePage extends StatelessWidget {
     final progressionController = Get.find<ProgressionController>();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
