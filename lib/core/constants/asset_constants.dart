@@ -10,8 +10,5 @@ class AppAssets {
 
   // Rive Animations
   static const String hobieRive = '$rivePath/hobie_welcome.riv';
-
-  // UI Icons
-  static const String logo = '$imagePath/app_logo.png';
   // Add more as you download them!
 }

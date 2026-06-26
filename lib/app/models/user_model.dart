@@ -1,4 +1,5 @@
 import 'quest_plan_model.dart';
+import 'forest_tree_model.dart';
 
 class UserModel {
   final String id; // Firestore document ID
@@ -15,6 +16,9 @@ class UserModel {
 
   // Per-category XP (tree progression)
   final Map<String, int> categoryXp;
+
+  // Forest — saved trees per category
+  final Map<String, ForestTreeModel> forestTrees;
 
   // Tutorial flags
   final bool mapTutorialDone;
@@ -40,6 +44,7 @@ class UserModel {
     this.currentStreak = 0,
     this.dailyQuestCompletionCount = 0,
     this.categoryXp = const {},
+    this.forestTrees = const {},
     this.mapTutorialDone = false,
     this.createdAt,
     this.updatedAt,
@@ -68,6 +73,7 @@ class UserModel {
       currentStreak: json['currentStreak'] as int? ?? 0,
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       categoryXp: _readCategoryXp(json),
+      forestTrees: _readForestTrees(json),
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
@@ -99,6 +105,28 @@ class UserModel {
     };
   }
 
+  Map<String, dynamic> toFirestore() {
+    return {
+      'nickname': nickname,
+      'birthDate': birthDate,
+      'gender': gender,
+      'avatarSvg': avatarSvg,
+      'isOnboardingComplete': isOnboardingComplete,
+      'totalXP': totalXP,
+      'currentStreak': currentStreak,
+      'dailyQuestCompletionCount': dailyQuestCompletionCount,
+      'categoryXp': categoryXp,
+      'forestTrees': forestTrees.map((k, v) => MapEntry(k, v.toJson())),
+      'mapTutorialDone': mapTutorialDone,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'lastRerollDate': lastRerollDate,
+      'lastStreakDate': lastStreakDate,
+      'lastQuestCompletionDate': lastQuestCompletionDate,
+      'currentPlan': currentPlan.toJson(),
+    };
+  }
+
   /// Create a copy with modified fields
   UserModel copyWith({
     String? id,
@@ -111,6 +139,7 @@ class UserModel {
     int? currentStreak,
     int? dailyQuestCompletionCount,
     Map<String, int>? categoryXp,
+    Map<String, ForestTreeModel>? forestTrees,
     bool? mapTutorialDone,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
@@ -131,6 +160,7 @@ class UserModel {
       currentStreak: currentStreak ?? this.currentStreak,
       dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       categoryXp: categoryXp ?? this.categoryXp,
+      forestTrees: forestTrees ?? this.forestTrees,
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -146,9 +176,34 @@ class UserModel {
 
   /// Parses per-category XP from Firestore data.
   static Map<String, int> _readCategoryXp(Map<String, dynamic> json) {
+    // New format: nested map categoryXp: {"Creative Arts": 100}
     final raw = json['categoryXp'];
     if (raw is Map) {
       return raw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+    }
+
+    // Legacy format: flattened fields like "categoryXp.Creative Arts" at top level
+    final legacy = <String, int>{};
+    for (final entry in json.entries) {
+      if (entry.key.startsWith('categoryXp.') && entry.value is num) {
+        final categoryName = entry.key.substring('categoryXp.'.length);
+        legacy[categoryName] = (entry.value as num).toInt();
+      }
+    }
+    if (legacy.isNotEmpty) return legacy;
+
+    return const {};
+  }
+
+  static Map<String, ForestTreeModel> _readForestTrees(Map<String, dynamic> json) {
+    final raw = json['forestTrees'];
+    if (raw is Map) {
+      return raw.map(
+        (k, v) => MapEntry(
+          k.toString(),
+          ForestTreeModel.fromJson(Map<String, dynamic>.from(v as Map)),
+        ),
+      );
     }
     return const {};
   }

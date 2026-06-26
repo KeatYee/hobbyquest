@@ -8,6 +8,7 @@ import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../services/category_service.dart';
 import '../../models/category_model.dart';
+import '../../routes/app_routes.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -16,12 +17,19 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   final CategoryService _categoryService = CategoryService();
   List<CategoryModel> _categories = [];
   int? _selectedIndex;
   bool _isLoading = true;
   int _speechIndex = -1;
+  AnimationController? _floatController;
+  Animation<double>? _floatAnimation;
+  AnimationController? _shakeController;
+  Animation<double>? _shakeAnimation;
+  int _previousStage = -1;
+  String? _lastCategoryName;
+  Set<String> _savedCategoryIds = {};
 
   final List<String> _speechMessages = [
     "Oh, hello! Who's that? Are you my new gardener?",
@@ -31,7 +39,7 @@ class _MapPageState extends State<MapPage> {
 
   /// Returns the tree image path based on XP value.
   String _treeImageForXp(int xp) {
-    if (xp >= 7000) return 'assets/images/mature_tree.png';
+    if (xp >= 8000) return 'assets/images/mature_tree.png';
     if (xp >= 5000) return 'assets/images/young_tree.png';
     if (xp >= 2500) return 'assets/images/seedling.png';
     if (xp >= 800) return 'assets/images/sprout.png';
@@ -41,8 +49,40 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -6, end: 6).animate(
+      CurvedAnimation(
+        parent: _floatController!,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 10.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 10.0, end: -10.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10.0, end: 8.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 5.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 5.0, end: -5.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -5.0, end: 2.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 2.0, end: 0.0), weight: 1),
+    ]).animate(_shakeController!);
     _checkTutorialStatus();
     _loadCategories();
+    _loadSavedTrees();
+  }
+
+  @override
+  void dispose() {
+    _floatController?.dispose();
+    _shakeController?.dispose();
+    super.dispose();
   }
 
   Future<void> _checkTutorialStatus() async {
@@ -84,6 +124,48 @@ class _MapPageState extends State<MapPage> {
     setState(() => _speechIndex = -1);
   }
 
+  void _triggerShake() {
+    _shakeController?.forward(from: 0.0);
+  }
+
+  Future<void> _loadSavedTrees() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final forestData = doc.data()?['forestTrees'] as Map<String, dynamic>? ?? {};
+      _savedCategoryIds = forestData.entries
+          .where((e) => e.value != null)
+          .map((e) => e.key)
+          .toSet();
+    } catch (e) {
+      print('--- Error loading saved trees: $e ---');
+    }
+  }
+
+  Future<void> _saveTreeToForest(String categoryId) async {
+    if (_savedCategoryIds.contains(categoryId)) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'forestTrees.$categoryId': {
+        'categoryId': categoryId,
+        'savedAt': FieldValue.serverTimestamp(),
+        'xpAtSave': 8000,
+      }});
+      _savedCategoryIds.add(categoryId);
+      print('--- Tree saved to forest: $categoryId ---');
+    } catch (e) {
+      print('--- Error saving tree to forest: $e ---');
+    }
+  }
+
   Future<void> _loadCategories() async {
     try {
       final cats = await _categoryService.getCategories();
@@ -121,10 +203,29 @@ class _MapPageState extends State<MapPage> {
           ? const Center(child: CircularProgressIndicator())
           : _categories.isEmpty
               ? const Center(child: Text('No categories available'))
-              : Column(
+              : Stack(
                   children: [
-                    _buildCategoryTopBar(),
-                    Expanded(child: _buildContent()),
+                    Column(
+                      children: [
+                        _buildCategoryTopBar(),
+                        Expanded(child: _buildContent()),
+                      ],
+                    ),
+                    // Floating forest button (always visible)
+                    Positioned(
+                      right: 16,
+                      bottom: 16,
+                      child: FloatingActionButton(
+                        onPressed: () => Get.toNamed(AppRoutes.FOREST),
+                        child: const Icon(Icons.forest_rounded),
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        elevation: 0,
+                        focusElevation: 0,
+                        hoverElevation: 0,
+                        highlightElevation: 0,
+                      ),
+                    ),
                   ],
                 ),
     );
@@ -199,34 +300,114 @@ class _MapPageState extends State<MapPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 20, 20),
       child: Center(
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            // Tree image + XP bar
-            Obx(() {
-              final progressionController = Get.find<ProgressionController>();
-              final xp = progressionController.categoryXp[category.name] ?? 0;
-              final thresholds = [0, 800, 2500, 5000, 7000];
-              final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
+        child: Obx(() {
+          final progressionController = Get.find<ProgressionController>();
+          final xp = progressionController.categoryXp[category.name] ?? 0;
+          final thresholds = [0, 800, 2500, 5000, 8000];
+          final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
 
-              int stage = 0;
-              for (int i = thresholds.length - 1; i >= 0; i--) {
-                if (xp >= thresholds[i]) { stage = i; break; }
-              }
+          int stage = 0;
+          for (int i = thresholds.length - 1; i >= 0; i--) {
+            if (xp >= thresholds[i]) { stage = i; break; }
+          }
 
-              final currentMin = thresholds[stage];
-              final nextMax = stage < thresholds.length - 1 ? thresholds[stage + 1] : thresholds[stage] + 1000;
-              final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(0.0, 1.0);
-              final xpToNext = stage < thresholds.length - 1 ? nextMax - xp : 0;
+          // Detect stage change for shake effect
+          if (category.name != _lastCategoryName) {
+            _lastCategoryName = category.name;
+            _previousStage = stage;
+          } else if (stage != _previousStage && _previousStage >= 0) {
+            _triggerShake();
+            _previousStage = stage;
+          } else {
+            _previousStage = stage;
+          }
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    _treeImageForXp(xp),
-                    width: 200,
-                    fit: BoxFit.contain,
+          // Auto-save mature tree to forest
+          if (stage == 4) {
+            _saveTreeToForest(category.id);
+          }
+
+          final currentMin = thresholds[stage];
+          final nextMax = stage < thresholds.length - 1 ? thresholds[stage + 1] : thresholds[stage] + 1000;
+          final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(0.0, 1.0);
+          final xpToNext = stage < thresholds.length - 1 ? nextMax - xp : 0;
+
+          return GestureDetector(
+            onTap: _speechIndex >= 0 && _speechIndex < _speechMessages.length
+                ? () {
+                    if (_speechIndex < _speechMessages.length - 1) {
+                      setState(() => _speechIndex++);
+                    } else {
+                      _finishTutorial();
+                    }
+                  }
+                : null,
+            child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Speech bubble (above the tree)
+              if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          constraints: const BoxConstraints(maxWidth: 260),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            _speechMessages[_speechIndex],
+                            style: const TextStyle(
+                              fontSize: AppFonts.bodyLg,
+                              color: AppColors.textPrimary,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        CustomPaint(
+                          size: const Size(16, 10),
+                          painter: _TrianglePainter(),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tap anywhere to continue',
+                          style: TextStyle(
+                            fontSize: AppFonts.micro,
+                            color: AppColors.textSecondary.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+              // Tree image with floating + shake animation
+              AnimatedBuilder(
+                animation: Listenable.merge([_floatAnimation!, _shakeAnimation!]),
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_shakeAnimation!.value, _floatAnimation!.value),
+                    child: child,
+                  );
+                },
+                child: Image.asset(
+                  _treeImageForXp(xp),
+                  width: 200,
+                  fit: BoxFit.contain,
+                ),
+              ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: 220,
@@ -297,69 +478,11 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
                 ],
-              );
-            }),
-            // Speech bubble
-            if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_speechIndex < _speechMessages.length - 1) {
-                      setState(() => _speechIndex++);
-                    } else {
-                      _finishTutorial();
-                    }
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 260),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          _speechMessages[_speechIndex],
-                          style: const TextStyle(
-                            fontSize: AppFonts.bodyLg,
-                            color: AppColors.textPrimary,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      CustomPaint(
-                        size: const Size(16, 10),
-                        painter: _TrianglePainter(),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Tap anywhere to continue',
-                        style: TextStyle(
-                          fontSize: AppFonts.micro,
-                          color: AppColors.textSecondary.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-          ],
-        ),
-      ),
-    );
+          );
+            }),
+          ),
+        );
   }
 }
 

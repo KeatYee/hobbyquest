@@ -233,6 +233,11 @@ class OnboardingController extends GetxController {
         totalXP: 0,
         currentPlan: await _buildInitialPlanWithMilestoneQuests(),
         currentStreak: 0,
+        categoryXp: {
+          for (final cat in categories.value)
+            cat.name: 0,
+        },
+        mapTutorialDone: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

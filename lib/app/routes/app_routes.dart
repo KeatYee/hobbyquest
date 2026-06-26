@@ -6,4 +6,5 @@ abstract class AppRoutes {
   static const HOME = '/home';
   static const QUEST_DETAIL = '/quest-detail';
   static const USER_PROFILE = '/user-profile';
+  static const FOREST = '/forest';
 }

@@ -50,6 +50,8 @@ dependencies:
   http: ^1.6.0
   url_launcher: ^6.3.1
   fl_chart: ^1.2.0
+  video_player: ^2.9.2
+  video_player_win: ^1.1.6
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +78,7 @@ flutter:
     - .env
     - assets/images/
     - assets/rive/
+    - assets/videos/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -3,8 +3,6 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
-import '../../controllers/home_controller.dart';
-import '../../controllers/progression_controller.dart';
 import '../../controllers/quest_detail_controller.dart';
 import '../../models/quest_node_model.dart';
 import '../../../core/constants/color_constants.dart';
@@ -903,22 +901,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  _formatDate
-  // ──────────────────────────────────────────────
-  String _formatDate(DateTime date) {
-    final now       = DateTime.now();
-    final today     = DateTime(now.year, now.month, now.day);
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final questDate = DateTime(date.year, date.month, date.day);
-    if (questDate == today) {
-      return 'Today at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (questDate == yesterday) {
-      return 'Yesterday';
-    } else {
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    }
-  }
 }
 
 // ═══════════════════════════════════════════════════════

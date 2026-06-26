@@ -109,14 +109,6 @@ class _Step1ProfileState extends State<Step1Profile> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    "Customize your hero look",
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   SizedBox(
                     height: 260,
                     child: AvatarMakerCustomizer(

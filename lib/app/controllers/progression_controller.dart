@@ -183,6 +183,19 @@ class ProgressionController extends GetxController {
     );
   }
 
+  /// Directly sets category XP (used by map page tap-to-level-up).
+  Future<void> setCategoryXp(String categoryName, int xp) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .update({'categoryXp.$categoryName': xp});
+
+    categoryXp[categoryName] = xp;
+  }
+
   /// Resolves the current hobby's category name from Firestore categories.
   Future<String?> _resolveCurrentCategory() async {
     try {

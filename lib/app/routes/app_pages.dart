@@ -9,6 +9,7 @@ import '../views/pages/home_page.dart';
 import '../views/pages/dashboard_page.dart';
 import '../views/pages/quest_detail_page.dart';
 import '../views/pages/user_profile_page.dart';
+import '../views/pages/forest_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -53,6 +54,10 @@ class AppPages {
         final userId = Get.arguments as String;
         return UserProfilePage(userId: userId);
       },
+    ),
+    GetPage(
+      name: AppRoutes.FOREST,
+      page: () => const ForestPage(),
     ),
   ];
 }

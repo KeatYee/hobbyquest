@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../../core/constants/font_constants.dart';
+import '../../../../core/widgets/loading_screen.dart';
 import '../../../controllers/onboarding_controller.dart';
 
 class PlanSummaryView extends StatelessWidget {
@@ -24,7 +25,9 @@ class PlanSummaryView extends StatelessWidget {
           onPressed: () => Get.back(), // Allows them to go back to Step 5
         ),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -166,6 +169,13 @@ class PlanSummaryView extends StatelessWidget {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+          // Loading overlay during AI generation
+          Obx(() => controller.isGenerating.value
+              ? const LoadingScreen()
+              : const SizedBox.shrink()
+          ),
+        ],
       ),
     );
   }
