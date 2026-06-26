@@ -51,12 +51,12 @@ class DashboardPage extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined), 
               activeIcon: Icon(Icons.dashboard_rounded),
-              label: "HQ"
+              label: "Home"
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined), 
-              activeIcon: Icon(Icons.map_rounded),
-              label: "Map"
+              icon: Icon(Icons.forest_outlined), 
+              activeIcon: Icon(Icons.forest_rounded),
+              label: "Forest"
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.shield_outlined), 
