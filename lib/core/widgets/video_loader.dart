@@ -6,8 +6,13 @@ import 'package:video_player/video_player.dart';
 /// Falls back to [CircularProgressIndicator] if the video fails.
 class VideoLoader extends StatefulWidget {
   final double size;
+  final String videoAsset;
 
-  const VideoLoader({super.key, this.size = 150});
+  const VideoLoader({
+    super.key,
+    this.size = 150,
+    this.videoAsset = 'assets/videos/fox_run.mp4',
+  });
 
   @override
   State<VideoLoader> createState() => _VideoLoaderState();
@@ -25,7 +30,7 @@ class _VideoLoaderState extends State<VideoLoader> {
 
   void _initVideo() {
     try {
-      _controller = VideoPlayerController.asset('assets/videos/fox_run.mp4');
+      _controller = VideoPlayerController.asset(widget.videoAsset);
       _controller!.initialize().then((_) {
         if (!mounted) return;
         _controller!.setLooping(true);

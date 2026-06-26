@@ -19,6 +19,13 @@ class ValidationResult {
   const ValidationResult.invalid(this.error) : isValid = false;
 }
 
+class GoalValidationResult {
+  final bool isValid;
+  final String reason;
+
+  const GoalValidationResult({required this.isValid, required this.reason});
+}
+
 class GeminiService {
   String get _apiKey {
     final key = dotenv.env['GEMINI_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
@@ -204,6 +211,60 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
           goal: normalizedGoal,
         ),
         quests: const [],
+      );
+    }
+  }
+
+  Future<GoalValidationResult> validateGoal({
+    required String hobby,
+    required String level,
+    required String goal,
+  }) async {
+    if (!hasApiKey) {
+      return const GoalValidationResult(
+        isValid: true,
+        reason: '',
+      );
+    }
+
+    try {
+      final prompt = '''
+You are a goal validator for a gamified hobby learning app.
+
+User Context:
+- Hobby: $hobby
+- Skill Level: $level
+- Goal: $goal
+
+Instructions:
+Evaluate whether this goal is valid for the hobby and skill level.
+Check:
+1. Is the goal RELEVANT to the hobby?
+2. Is it APPROPRIATELY SCOPED for a $level learner? (not too easy, not impossibly hard)
+3. Is it SPECIFIC ENOUGH to generate a step-by-step learning plan?
+
+Output formatting rules:
+You MUST return ONLY a valid JSON object. Do not include markdown tags.
+Use this exact schema:
+{
+  "is_valid": true or false,
+  "reason": "If not valid, explain why in a helpful way. If valid, keep empty."
+}
+''';
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final rawText = response.text?.trim() ?? '';
+      final jsonMap = _extractJsonObject(rawText);
+
+      final isValid = jsonMap['is_valid'] == true;
+      final reason = jsonMap['reason']?.toString().trim() ?? '';
+
+      return GoalValidationResult(isValid: isValid, reason: reason);
+    } catch (e) {
+      print('[GeminiService] Goal validation API call failed: $e');
+      return const GoalValidationResult(
+        isValid: false,
+        reason: 'Unable to validate goal. Please try again.',
       );
     }
   }

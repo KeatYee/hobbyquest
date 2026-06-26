@@ -106,6 +106,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                 onChanged: (value) {
                   setState(() {
                     selectedPredefinedGoal = value;
+                    controller.isPredefinedGoal.value = value != null;
                     if (value != null) {
                       controller.goalController.text = value;
                     }
@@ -125,6 +126,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                 hintText: "e.g. Play a full song on guitar",
                 prefixIcon: Icon(Icons.flag_rounded),
               ),
+              onChanged: (_) => controller.isPredefinedGoal.value = false,
               // Simple validation: Goal cannot be empty
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -133,6 +135,31 @@ class _Step4GoalsState extends State<Step4Goals> {
                 return null;
               },
             ),
+
+            // Goal validation error
+            Obx(() {
+              final error = controller.goalValidationError.value;
+              if (error.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        error,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: AppFonts.micro,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
             
             const SizedBox(height: 30),
 
@@ -174,44 +201,65 @@ class _Step4GoalsState extends State<Step4Goals> {
             // Final Action Button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  print("--- ACTION: Final Button Clicked (Step 5) ---");
+              child: Obx(() {
+                final isValidating = controller.isGoalValidating.value;
+                return ElevatedButton(
+                  onPressed: isValidating
+                      ? null
+                      : () {
+                          print("--- ACTION: Final Button Clicked (Step 5) ---");
 
-                  // 1. Validate Text Input
-                  bool isTextValid = _formKey.currentState!.validate();
-                  
-                  // 2. Validate Frequency Selection
-                  bool isFrequencyValid = controller.frequency.value.isNotEmpty;
+                          // 1. Validate Text Input
+                          bool isTextValid = _formKey.currentState!.validate();
+                          
+                          // 2. Validate Frequency Selection
+                          bool isFrequencyValid = controller.frequency.value.isNotEmpty;
 
-                  if (!isFrequencyValid) {
-                    print("--- ERROR: Frequency not selected ---");
-                    setState(() => showFrequencyError = true);
-                  }
+                          if (!isFrequencyValid) {
+                            print("--- ERROR: Frequency not selected ---");
+                            setState(() => showFrequencyError = true);
+                          }
 
-                  // 3. Execute
-                  if (isTextValid && isFrequencyValid) {
-                    print("--- SUCCESS: All Steps Complete. Generating Plan... ---");
-                    // Dismiss keyboard
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    
-                    // Trigger the Final Logic in Controller
-                    controller.nextPage(); 
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text("START ADVENTURE"),
-                    SizedBox(width: 8),
-                    Icon(Icons.rocket_launch_rounded, size: 20),
-                  ],
-                ),
-              ),
+                          // 3. Execute
+                          if (isTextValid && isFrequencyValid) {
+                            print("--- SUCCESS: All Steps Complete. Generating Plan... ---");
+                            // Dismiss keyboard
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            
+                            // Trigger the Final Logic in Controller
+                            controller.nextPage(); 
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isValidating
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Text("Checking your goal..."),
+                          ],
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text("START ADVENTURE"),
+                            SizedBox(width: 8),
+                            Icon(Icons.rocket_launch_rounded, size: 20),
+                          ],
+                        ),
+                );
+              }),
             ),
           ],
         ),

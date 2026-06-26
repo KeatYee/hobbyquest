@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/quest_detail_controller.dart';
+import '../../controllers/progression_controller.dart';
 import '../../models/quest_node_model.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
@@ -94,6 +95,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       reflectionController.text.trim(),
       imageFile: selectedImage,
     );
+    // Navigate back, then show level-up if triggered
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) Navigator.of(context).pop();
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) Get.find<ProgressionController>().showPendingLevelUp();
   }
 
   Future<void> _pickImage() async {

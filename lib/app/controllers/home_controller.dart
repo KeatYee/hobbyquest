@@ -25,6 +25,7 @@ class HomeController extends GetxController {
 
   // Quest List (Backed by the user's saved current plan)
   var dailyQuests = <QuestNodeModel>[].obs;
+  var isCompletedExpanded = false.obs;
 
   @override
   void onInit() {

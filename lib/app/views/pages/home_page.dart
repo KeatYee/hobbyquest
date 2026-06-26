@@ -7,6 +7,7 @@ import '../../routes/app_routes.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../../core/widgets/level_up_screen.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -39,16 +40,35 @@ class HomePage extends StatelessWidget {
 
                   // MILESTONE PROGRESS
                   _buildMilestoneProgress(controller),
+
+                  // TEMP: Preview Level Up button
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Get.dialog(
+                          const LevelUpScreen(newLevel: 5),
+                          barrierDismissible: false,
+                        ),
+                        icon: const Icon(Icons.play_circle_outline, size: 18),
+                        label: const Text('Preview Level Up'),
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
 
                   // MISSION LOG HEADER
                   _buildSectionHeader("MISSION LOG"),
                   const SizedBox(height: 14),
 
-                  // DYNAMIC QUEST LIST — show ALL quests with locked/completed states
+                  // ACTIVE / LOCKED QUESTS (non-completed)
                   Obx(
                     () => Column(
-                      children: controller.dailyQuests.map((quest) {
+                      children: controller.dailyQuests
+                          .where((q) => !q.isCompleted)
+                          .map((quest) {
                         final isLocked = !quest.isActive && !quest.isCompleted;
                         final isCompleted = quest.isCompleted;
                         return _buildQuestCard(
@@ -74,6 +94,9 @@ class HomePage extends StatelessWidget {
                       }).toList(),
                     ),
                   ),
+
+                  // COMPLETED QUESTS (collapsible)
+                  _buildCompletedSection(context, controller),
 
                   const SizedBox(height: 20),
                 ],
@@ -407,6 +430,85 @@ class HomePage extends StatelessWidget {
         ),
       );
     });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  COMPLETED QUESTS SECTION (collapsible)
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildCompletedSection(BuildContext context, HomeController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tappable header
+        InkWell(
+          onTap: () => controller.isCompletedExpanded.toggle(),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Obx(() {
+                  final count = controller.dailyQuests
+                      .where((q) => q.isCompleted)
+                      .length;
+                  return Text(
+                    "COMPLETED ($count)",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: AppFonts.bodyLg,
+                      letterSpacing: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  );
+                }),
+                const Spacer(),
+                Obx(() => AnimatedRotation(
+                  turns: controller.isCompletedExpanded.value ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Obx(() {
+          if (!controller.isCompletedExpanded.value) {
+            return const SizedBox.shrink();
+          }
+          return Column(
+            children: controller.dailyQuests
+                .where((q) => q.isCompleted)
+                .map((quest) => _buildQuestCard(
+                  context,
+                  controller: controller,
+                  title: quest.title,
+                  desc: quest.desc,
+                  xp: quest.xpReward,
+                  durationMinutes: quest.durationMinutes,
+                  type: quest.type,
+                  questId: quest.nodeId,
+                  isActive: quest.isActive,
+                  isCompleted: quest.isCompleted,
+                  onTap: null,
+                )).toList(),
+          );
+        }),
+      ],
+    );
   }
 
   // ─────────────────────────────────────────────────────────────

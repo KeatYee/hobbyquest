@@ -5,6 +5,7 @@ import '../../core/utils/dialog_utils.dart';
 import '../services/category_service.dart';
 import '../models/user_model.dart';
 import 'home_controller.dart';
+import '../../core/widgets/level_up_screen.dart';
 
 class ProgressionController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,6 +16,8 @@ class ProgressionController extends GetxController {
   final streak = 0.obs;
   final categoryXp = <String, int>{}.obs;
   final isLoading = false.obs;
+
+  int? _pendingLevelUpLevel;
 
   static const List<int> _milestoneThresholds = [2000, 4000, 6000, 8000];
 
@@ -158,7 +161,7 @@ class ProgressionController extends GetxController {
     final newLevel = (updatedXP ~/ 1000) + 1;
 
     if (newLevel > previousLevel) {
-      showLevelUpModal(newLevel);
+      _pendingLevelUpLevel = newLevel;
     }
 
     for (var i = 0; i < _milestoneThresholds.length; i++) {
@@ -169,10 +172,21 @@ class ProgressionController extends GetxController {
     }
   }
 
+  /// Shows the pending level-up screen if one was triggered.
+  void showPendingLevelUp() {
+    final level = _pendingLevelUpLevel;
+    if (level != null) {
+      _pendingLevelUpLevel = null;
+      showLevelUpModal(level);
+    }
+  }
+
   void showLevelUpModal(int newLevel) {
-    AppDialogs.success(
-      'Level Up!',
-      'You reached Level $newLevel',
+    Get.generalDialog(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          LevelUpScreen(newLevel: newLevel),
+      barrierDismissible: false,
+      barrierLabel: 'Level Up',
     );
   }
 

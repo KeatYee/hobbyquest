@@ -44,6 +44,9 @@ class OnboardingController extends GetxController {
   // --- STEP 4: GOALS ---
   var frequency = "".obs;
   final goalController = TextEditingController();
+  var isGoalValidating = false.obs;
+  var goalValidationError = ''.obs;
+  var isPredefinedGoal = false.obs;
 
   // --- THE GENERATED PLAN (For Summary View) ---
   var generatedPlan = Rx<QuestPlanModel>(
@@ -141,6 +144,34 @@ class OnboardingController extends GetxController {
 
   // --- 🧠 LOGIC: Generate Plan (Step 5 Action) ---
   Future<void> _generateAndShowPlan() async {
+    // 1. Validate the goal with AI first (skip for predefined goals)
+    if (!isPredefinedGoal.value) {
+      isGoalValidating.value = true;
+      goalValidationError.value = '';
+
+      try {
+        final validation = await _geminiService.validateGoal(
+          hobby: hobby.value,
+          level: level.value,
+          goal: goalController.text,
+        );
+
+        if (!validation.isValid) {
+          goalValidationError.value = validation.reason;
+          isGoalValidating.value = false;
+          return;
+        }
+      } catch (e) {
+        print("--- ERROR: Goal validation failed: $e ---");
+        goalValidationError.value = 'Unable to validate goal. Please try again.';
+        isGoalValidating.value = false;
+        return;
+      }
+
+      isGoalValidating.value = false;
+    }
+
+    // 2. Generate the plan
     isGenerating.value = true; // Start loading spinner
 
     try {

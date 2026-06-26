@@ -238,9 +238,6 @@ class QuestDetailController extends GetxController {
         imageFile: imageFile,
       );
 
-      await Future.delayed(const Duration(milliseconds: 300));
-      Get.back();
-
       return true;
     } catch (e) {
       print('--- ERROR: Exception in completeQuest: $e ---');
