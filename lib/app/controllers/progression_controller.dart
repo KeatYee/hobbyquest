@@ -173,16 +173,17 @@ class ProgressionController extends GetxController {
   }
 
   /// Shows the pending level-up screen if one was triggered.
-  void showPendingLevelUp() {
+  /// Returns when the modal is dismissed.
+  Future<void> showPendingLevelUp() async {
     final level = _pendingLevelUpLevel;
     if (level != null) {
       _pendingLevelUpLevel = null;
-      showLevelUpModal(level);
+      await showLevelUpModal(level);
     }
   }
 
-  void showLevelUpModal(int newLevel) {
-    Get.generalDialog(
+  Future<void> showLevelUpModal(int newLevel) async {
+    await Get.generalDialog(
       pageBuilder: (context, animation, secondaryAnimation) =>
           LevelUpScreen(newLevel: newLevel),
       barrierDismissible: false,

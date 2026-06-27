@@ -72,10 +72,9 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      removeBottom: true,
+    return SafeArea(
+      top: false,
+      bottom: false,
       child: Stack(
       children: [
         Container(

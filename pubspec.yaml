@@ -43,7 +43,6 @@ dependencies:
   rive: ^0.14.6
   flutter_launcher_icons: ^0.14.4
   flutter_svg: ^2.0.17
-  avatar_maker: ^1.5.0
   flutter_dotenv: ^6.0.1
   google_generative_ai: ^0.4.7
   image_picker: ^1.2.2

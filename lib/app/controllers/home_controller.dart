@@ -516,4 +516,52 @@ class HomeController extends GetxController {
 
     return currentPlan.milestones.first.title;
   }
+
+  /// Returns `true` if all current quests are completed and a next milestone exists.
+  /// The caller (e.g. quest detail page) should show a milestone-complete screen,
+  /// then call [advanceToNextMilestone] when the user confirms.
+  bool hasCompletedMilestone() {
+    final plan = user.value?.currentPlan;
+    if (plan == null) return false;
+    if (!plan.quests.every((q) => q.isCompleted)) return false;
+    final nextIndex = plan.currentMilestoneIndex + 1;
+    return nextIndex < plan.milestones.length;
+  }
+
+  /// Generates the next milestone's quests, replaces the old quests in Firestore,
+  /// and refreshes the local state. Should be called after the user confirms on
+  /// the milestone-complete screen.
+  Future<void> advanceToNextMilestone() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    final plan = user.value?.currentPlan;
+    if (plan == null) return;
+
+    final nextIndex = plan.currentMilestoneIndex + 1;
+    if (nextIndex >= plan.milestones.length) return;
+
+    final nextMilestone = plan.milestones[nextIndex];
+    final milestoneNumber = (nextIndex + 1).toString();
+
+    final newQuests = await _geminiService.generatePhaseDAG(
+      hobby: hobby.value,
+      level: level.value,
+      goal: goal.value,
+      frequency: frequency.value,
+      milestoneTitle: nextMilestone.title,
+      milestoneNumber: milestoneNumber,
+    );
+
+    final updatedUser = await _questService.addQuestsToPlan(
+      uid: currentUser.uid,
+      newQuests: newQuests,
+      currentMilestoneIndex: nextIndex,
+      clearExisting: true,  // replace old quests entirely
+    );
+
+    if (updatedUser == null) return;
+
+    user.value = updatedUser;
+    dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
+  }
 }

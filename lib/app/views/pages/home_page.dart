@@ -7,7 +7,6 @@ import '../../routes/app_routes.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
-import '../../../core/widgets/level_up_screen.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -40,22 +39,6 @@ class HomePage extends StatelessWidget {
 
                   // MILESTONE PROGRESS
                   _buildMilestoneProgress(controller),
-
-                  // TEMP: Preview Level Up button
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Get.dialog(
-                          const LevelUpScreen(newLevel: 5),
-                          barrierDismissible: false,
-                        ),
-                        icon: const Icon(Icons.play_circle_outline, size: 18),
-                        label: const Text('Preview Level Up'),
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 24),
 

@@ -19,9 +19,12 @@ class QuestService {
   /// Adds [newQuests] to the user's plan and persists to Firestore.
   /// Returns the updated [UserModel] on success, or `null` on failure.
   /// New quests are set as root quests (no dependencies) so they appear immediately.
+  /// When [clearExisting] is true, replaces all current quests instead of merging.
   Future<UserModel?> addQuestsToPlan({
     required String uid,
     required List<QuestNodeModel> newQuests,
+    int? currentMilestoneIndex,
+    bool clearExisting = false,  // NEW: replace all quests instead of merging
   }) async {
     if (newQuests.isEmpty) return null;
 
@@ -35,24 +38,40 @@ class QuestService {
         if (data == null) return;
 
         final loadedUser = UserModel.fromJson(data, uid);
-        final existingIds =
-            loadedUser.currentPlan.quests.map((q) => q.nodeId).toSet();
 
-        // Only add quests whose IDs don't already exist
-        final unique = newQuests
-            .where((q) => !existingIds.contains(q.nodeId))
-            .map((q) => q.copyWith(
-                  dependsOn: const [],
-                  isActive: true,
-                  isCompleted: false,
-                ))
-            .toList();
+        List<QuestNodeModel> questsToAdd;
+        if (clearExisting) {
+          // Replace all quests — clear existing, use new quests directly
+          questsToAdd = newQuests
+              .map((q) => q.copyWith(
+                    dependsOn: const [],
+                    isActive: true,
+                    isCompleted: false,
+                  ))
+              .toList();
+        } else {
+          // Only add quests whose IDs don't already exist
+          final existingIds =
+              loadedUser.currentPlan.quests.map((q) => q.nodeId).toSet();
+          questsToAdd = newQuests
+              .where((q) => !existingIds.contains(q.nodeId))
+              .map((q) => q.copyWith(
+                    dependsOn: const [],
+                    isActive: true,
+                    isCompleted: false,
+                  ))
+              .toList();
+          if (questsToAdd.isEmpty) return;
+        }
 
-        if (unique.isEmpty) return;
-
-        final mergedQuests = [...loadedUser.currentPlan.quests, ...unique];
+        final mergedQuests = clearExisting
+            ? questsToAdd
+            : [...loadedUser.currentPlan.quests, ...questsToAdd];
         final updatedPlan =
-            loadedUser.currentPlan.copyWith(quests: mergedQuests);
+            loadedUser.currentPlan.copyWith(
+              quests: mergedQuests,
+              currentMilestoneIndex: currentMilestoneIndex,  // null = no change
+            );
         final normalizedUser = loadedUser.copyWith(
           currentPlan: updatedPlan,
           updatedAt: DateTime.now(),
