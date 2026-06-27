@@ -15,6 +15,15 @@ class Step1Profile extends StatefulWidget {
 class _Step1ProfileState extends State<Step1Profile> {
   final _formKey = GlobalKey<FormState>();
   bool showGenderError = false;
+  bool showAvatarError = false;
+  final PageController _avatarCarouselController = PageController(viewportFraction: 0.45);
+  int _prevAvatarCount = -1;
+
+  @override
+  void dispose() {
+    _avatarCarouselController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +37,12 @@ class _Step1ProfileState extends State<Step1Profile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-            Text("Your Identity", style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              fontSize: AppFonts.title,
-              letterSpacing: 1.0
-            )),
+            // --- AVATAR SECTION (TOP) ---
+            _buildAvatarSection(controller, textTheme),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 20),
 
             // Nickname Input
             TextFormField(
@@ -49,13 +55,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               ),
               validator: Validators.validateName,
             ),
-            const SizedBox(height: 20),
-
-            Text("Character Type", style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              fontSize: AppFonts.title,
-              letterSpacing: 1.0
-            )),
+            const SizedBox(height: 10),
 
             if (showGenderError && controller.gender.value.isEmpty)
               Padding(
@@ -83,7 +83,7 @@ class _Step1ProfileState extends State<Step1Profile> {
               ],
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             // Birth Date Input
             TextFormField(
@@ -116,10 +116,12 @@ class _Step1ProfileState extends State<Step1Profile> {
                 onPressed: () {
                   bool isFormValid = _formKey.currentState!.validate();
                   bool isGenderValid = controller.gender.value.isNotEmpty;
+                  bool isAvatarValid = controller.avatarSvg.value.isNotEmpty;
 
                   if (!isGenderValid) setState(() => showGenderError = true);
+                  if (!isAvatarValid) setState(() => showAvatarError = true);
 
-                  if (isFormValid && isGenderValid) {
+                  if (isFormValid && isGenderValid && isAvatarValid) {
                     controller.nextPage();
                   }
                 },
@@ -150,6 +152,8 @@ class _Step1ProfileState extends State<Step1Profile> {
         child: InkWell(
           onTap: () {
             controller.gender.value = label;
+            controller.clearAvatarIfGenderMismatch(label);
+            if (showAvatarError) setState(() => showAvatarError = false);
             if (showGenderError) setState(() => showGenderError = false);
           },
           borderRadius: BorderRadius.circular(16),
@@ -189,6 +193,192 @@ class _Step1ProfileState extends State<Step1Profile> {
           ),
         ),
       ),
+      );
+    });
+  }
+
+  Widget _buildAvatarSection(OnboardingController controller, TextTheme textTheme) {
+    return Obx(() {
+      final avatars = controller.getFilteredAvatars(controller.gender.value);
+      final selectedPath = controller.avatarSvg.value;
+
+      // Reset carousel when avatar list changes (gender switch)
+      if (_prevAvatarCount != -1 && _prevAvatarCount != avatars.length) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_avatarCarouselController.hasClients) {
+            _avatarCarouselController.jumpToPage(0);
+          }
+        });
+      }
+      _prevAvatarCount = avatars.length;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("CHOOSE YOUR CHARACTER", style: textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            fontSize: AppFonts.title,
+            letterSpacing: 1.0,
+          )),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 210,
+            child: PageView.builder(
+              controller: _avatarCarouselController,
+              itemCount: avatars.length,
+              onPageChanged: (index) {
+                if (index >= 0 && index < avatars.length) {
+                  final path = avatars[index]['assetPath']!;
+                  if (controller.avatarSvg.value != path) {
+                    if (showAvatarError) setState(() => showAvatarError = false);
+                    controller.updateAvatar(path);
+                  }
+                }
+              },
+              itemBuilder: (context, index) {
+                final avatar = avatars[index];
+                final path = avatar['assetPath']!;
+                final name = avatar['name']!;
+                final description = avatar['description']!;
+                final isSelected = selectedPath == path;
+
+                return AnimatedBuilder(
+                  animation: _avatarCarouselController,
+                  builder: (context, child) {
+                    double scale = 1.0;
+                    if (_avatarCarouselController.hasClients) {
+                      final page = _avatarCarouselController.page ?? index.toDouble();
+                      final offset = (page - index).abs();
+                      scale = (1 - offset * 0.3).clamp(0.65, 1.0);
+                    }
+                    return Transform.scale(
+                      scale: scale,
+                      child: Opacity(
+                        opacity: scale,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (showAvatarError) setState(() => showAvatarError = false);
+                        controller.updateAvatar(path);
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final size = constraints.maxWidth - 16;
+                                return Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      width: size,
+                                      height: size,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.transparent,
+                                        border: isSelected
+                                            ? Border.all(color: AppColors.primary, width: 3)
+                                            : Border.all(color: Colors.transparent, width: 3),
+                                      ),
+                                      child: ClipOval(
+                                        child: Image.asset(
+                                          path,
+                                          width: size,
+                                          height: size,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      Positioned(
+                                        bottom: 2,
+                                        right: 2,
+                                        child: Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check_rounded,
+                                            size: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: AppFonts.badge,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text(name),
+                                    content: Text(description),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text("OK"),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 14,
+                                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (showAvatarError && controller.avatarSvg.value.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                  const SizedBox(width: 5),
+                  Text("Please select a character",
+                    style: textTheme.bodyMedium?.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)
+                  ),
+                ],
+              ),
+            ),
+        ],
       );
     });
   }

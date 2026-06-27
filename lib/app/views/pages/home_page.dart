@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../routes/app_routes.dart';
@@ -148,15 +147,15 @@ class HomePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Obx(() {
-                      final avatarSvg = controller.avatarSvg.value;
+                      child: Obx(() {
+                      final avatarPath = controller.avatarSvg.value;
                       return CircleAvatar(
                         radius: 30,
                         backgroundColor: AppColors.primaryLight,
-                        child: avatarSvg.isNotEmpty
+                        child: avatarPath.isNotEmpty
                             ? ClipOval(
-                                child: SvgPicture.string(
-                                  avatarSvg,
+                                child: Image.asset(
+                                  avatarPath,
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,

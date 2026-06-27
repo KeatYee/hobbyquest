@@ -191,7 +191,9 @@ class _Step3LevelState extends State<Step3Level> {
                       const SizedBox(height: 4),
                       Text(
                         level['desc'],
-                        style: textTheme.bodyMedium, // Uses Theme color automatically
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: isSelected ? Colors.white : null,
+                        ),
                       ),
                     ],
                   ),

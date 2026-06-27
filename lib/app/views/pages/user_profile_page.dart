@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../models/user_model.dart';
@@ -90,7 +89,7 @@ class UserProfilePage extends StatelessWidget {
                         backgroundColor: AppColors.primaryLight,
                         child: userModel.avatarSvg.isNotEmpty
                             ? ClipOval(
-                                child: SvgPicture.string(
+                                child: Image.asset(
                                   userModel.avatarSvg,
                                   width: 108,
                                   height: 108,

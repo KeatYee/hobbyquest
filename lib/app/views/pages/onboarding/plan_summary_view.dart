@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/constants/color_constants.dart';
 import '../../../../core/constants/font_constants.dart';
 import '../../../../core/widgets/loading_screen.dart';
@@ -46,7 +45,7 @@ class PlanSummaryView extends StatelessWidget {
                 backgroundColor: AppColors.primaryLight,
                 child: controller.avatarSvg.value.isNotEmpty
                     ? ClipOval(
-                        child: SvgPicture.string(
+                        child: Image.asset(
                           controller.avatarSvg.value,
                           width: 100,
                           height: 100,
@@ -93,15 +92,6 @@ class PlanSummaryView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "YOUR MISSION",
-                    style: TextStyle(
-                      fontSize: AppFonts.badge,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   
                   // Main Goal
@@ -109,6 +99,12 @@ class PlanSummaryView extends StatelessWidget {
                     icon: Icons.flag_rounded,
                     label: "Main Quest",
                     value: controller.generatedPlan.value.goal,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildMissionRow(
+                    icon: Icons.person_rounded,
+                    label: "Character Type",
+                    value: controller.avatarClassName,
                   ),
                 ],
               ),

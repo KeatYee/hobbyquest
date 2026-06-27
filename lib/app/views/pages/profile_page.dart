@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../models/user_model.dart';
@@ -505,7 +504,7 @@ class _HeroHeader extends StatelessWidget {
         backgroundColor: AppColors.textOnPrimary.withOpacity(0.2),
         child: avatarSvg.isNotEmpty
             ? ClipOval(
-                child: SvgPicture.string(
+                child: Image.asset(
                   avatarSvg,
                   width: 92,
                   height: 92,

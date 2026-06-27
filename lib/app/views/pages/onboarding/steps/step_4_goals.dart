@@ -123,7 +123,7 @@ class _Step4GoalsState extends State<Step4Goals> {
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: "Or write your own goal...",
-                hintText: "e.g. Play a full song on guitar",
+                hintText: "e.g. Learn to draw Doraemon",
                 prefixIcon: Icon(Icons.flag_rounded),
               ),
               onChanged: (_) => controller.isPredefinedGoal.value = false,

@@ -93,6 +93,7 @@ class _Step2CategoryState extends State<Step2Category> {
 
                     return ChoiceChip(
                       selected: isSelected,
+                      showCheckmark: false,
                       label: Text(
                         categoryName,
                         style: GoogleFonts.openSans(
@@ -100,7 +101,9 @@ class _Step2CategoryState extends State<Step2Category> {
                           color: isSelected ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
-                      avatar: Icon(category.icon, size: 20),
+                      avatar: Icon(category.icon, size: 20,
+                        color: isSelected ? Colors.white : Colors.grey,
+                      ),
                       selectedColor: AppColors.primary,
                       backgroundColor: Colors.white,
                       side: BorderSide(
@@ -153,9 +156,7 @@ class _Step2CategoryState extends State<Step2Category> {
                                 setState(() => showError = false);
                               }
                             },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOut,
+                            child: Container(
                               decoration: BoxDecoration(
                                 color: isLocked
                                     ? Colors.grey.withValues(alpha: 0.08)

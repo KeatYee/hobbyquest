@@ -30,8 +30,102 @@ class OnboardingController extends GetxController {
   var gender = "".obs;
   var avatarSvg = "".obs;
 
+  // --- AVATAR SELECTION ---
+  static const List<Map<String, String>> _avatarClasses = [
+    {
+      'name': 'Cultivator',
+      'asset': 'cultivator',
+      'description': 'I love mastering skills step-by-step and watching my knowledge grow.',
+    },
+    {
+      'name': 'Earthbreaker',
+      'asset': 'earthbreaker',
+      'description': 'I thrive by innovating, challenging the system, and trying unconventional approaches.',
+    },
+    {
+      'name': 'Grovekeeper',
+      'asset': 'grovekeeper',
+      'description': 'I learn best by connecting with others and sharing our forest of progress.',
+    },
+    {
+      'name': 'Harvester',
+      'asset': 'harvester',
+      'description': 'I am driven by collecting rewards, badges, and tangible proof of my hard work.',
+    },
+    {
+      'name': 'Nurturer',
+      'asset': 'nurturer',
+      'description': 'I gain motivation by helping fellow learners and contributing to our community.',
+    },
+    {
+      'name': 'Wildseed',
+      'asset': 'wildseed',
+      'description': 'I enjoy exploring new hobbies and forging my own unique learning path.',
+    },
+  ];
+
+  List<Map<String, String>> getFilteredAvatars(String gender) {
+    final result = <Map<String, String>>[];
+
+    if (gender == "Male") {
+      for (final avatar in _avatarClasses) {
+        result.add({
+          'name': avatar['name']!,
+          'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'description': avatar['description']!,
+        });
+      }
+    } else if (gender == "Female") {
+      for (final avatar in _avatarClasses) {
+        result.add({
+          'name': avatar['name']!,
+          'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'description': avatar['description']!,
+        });
+      }
+    } else {
+      // No gender or "Other": show all 12 avatars
+      for (final avatar in _avatarClasses) {
+        result.add({
+          'name': avatar['name']!,
+          'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'description': avatar['description']!,
+        });
+        result.add({
+          'name': avatar['name']!,
+          'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'description': avatar['description']!,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  void clearAvatarIfGenderMismatch(String newGender) {
+    if (avatarSvg.value.isEmpty) return;
+    if (newGender == "Male" && !avatarSvg.value.contains('_m.')) {
+      avatarSvg.value = "";
+    } else if (newGender == "Female" && !avatarSvg.value.contains('_f.')) {
+      avatarSvg.value = "";
+    }
+    // For "Other", keep any avatar
+  }
+
   void updateAvatar(String svg) {
     avatarSvg.value = svg;
+  }
+
+  /// Extract the avatar class name from the asset path (e.g., "Cultivator", "Wildseed").
+  String get avatarClassName {
+    if (avatarSvg.value.isEmpty) return "";
+    final filename = avatarSvg.value.split('/').last; // e.g. "avatar_cultivator_m.png"
+    final parts = filename.split('_');
+    if (parts.length >= 3) {
+      final name = parts[1]; // "cultivator"
+      return name[0].toUpperCase() + name.substring(1);
+    }
+    return "";
   }
 
   // --- STEP 2: CATEGORY + HOBBY ---

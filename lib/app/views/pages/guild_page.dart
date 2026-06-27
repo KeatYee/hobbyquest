@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../controllers/guild_controller.dart';
 import '../../controllers/home_controller.dart';
@@ -605,7 +604,7 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                           backgroundColor: AppColors.primary.withOpacity(0.12),
                           child: hasAvatar
                               ? ClipOval(
-                                  child: SvgPicture.string(
+                                  child: Image.asset(
                                     avatarSvg,
                                     width: 20,
                                     height: 20,
@@ -715,7 +714,7 @@ class _GuildPostCard extends StatelessWidget {
                   backgroundColor: AppColors.primary.withOpacity(0.12),
                   child: hasAvatarSvg
                       ? ClipOval(
-                          child: SvgPicture.string(
+                          child: Image.asset(
                             avatarSvg,
                             width: 44,
                             height: 44,
