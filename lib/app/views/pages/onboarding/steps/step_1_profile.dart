@@ -48,6 +48,7 @@ class _Step1ProfileState extends State<Step1Profile> {
             TextFormField(
               controller: controller.nickname,
               textCapitalization: TextCapitalization.words,
+              maxLength: 12,
               decoration: const InputDecoration(
                 labelText: "Hero Name (Nickname)",
                 hintText: "e.g. DragonSlayer",
