@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../controllers/guild_controller.dart';
 import '../../controllers/home_controller.dart';
 import '../../models/guild_post_model.dart';
-import '../../models/category_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
@@ -17,13 +16,6 @@ class GuildPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GuildController controller = Get.find<GuildController>();
-
-    // Set default category once data loads
-    ever(controller.categories, (_) {
-      if (controller.selectedCategoryId.value == null && controller.categories.isNotEmpty) {
-        controller.selectedCategoryId.value = controller.resolveDefaultCategoryId();
-      }
-    });
 
     return SafeArea(
       child: Stack(
@@ -38,7 +30,6 @@ class GuildPage extends StatelessWidget {
 
             return Column(
               children: [
-                _buildCategoryChips(context, controller),
                 Expanded(child: _buildFilteredFeed(context, controller)),
               ],
             );
@@ -88,81 +79,24 @@ class GuildPage extends StatelessWidget {
   }
 
   Widget _buildFilteredFeed(BuildContext context, GuildController controller) {
-    final filteredPosts = controller.filteredPosts;
-    final selectedCategoryId = controller.selectedCategoryId.value;
-    final selectedCategory = controller.categories
-        .where((c) => c.id == selectedCategoryId)
-        .firstOrNull;
-
-    if (selectedCategory == null) {
-      return _buildEmptyState(context, controller, 'Select a category to view the guild feed.');
-    }
-
-    if (filteredPosts.isEmpty) {
-      return _buildEmptyState(
-        context,
-        controller,
-        'No posts yet in ${selectedCategory.name.toLowerCase()}.',
-      );
+    if (controller.posts.isEmpty) {
+      return _buildEmptyState(context, controller, 'No posts yet in the guild.');
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
       physics: const BouncingScrollPhysics(),
-      itemCount: filteredPosts.length,
+      itemCount: controller.posts.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final post = filteredPosts[index];
+        final post = controller.posts[index];
         return _GuildPostCard(
           key: ValueKey(post.id),
           controller: controller,
           post: post,
-          category: selectedCategory,
           onPeerReviewTap: () => _showPeerReviewSheet(context, post),
         );
       },
-    );
-  }
-
-  Widget _buildCategoryChips(BuildContext context, GuildController controller) {
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.only(top: 8),
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemBuilder: (context, index) {
-          final category = controller.categories[index];
-          final isSelected = category.id == controller.selectedCategoryId.value;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ChoiceChip(
-              labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-              avatar: Icon(category.icon, size: 20),
-              label: Text(category.name),
-              selected: isSelected,
-              onSelected: (_) {
-                controller.selectedCategoryId.value = category.id;
-              },
-              selectedColor: AppColors.primary.withOpacity(0.22),
-              backgroundColor: AppColors.surface,
-              labelStyle: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: isSelected ? AppColors.primaryDark : AppColors.textSecondary,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-                side: BorderSide(
-                  color: isSelected ? AppColors.primary : AppColors.border,
-                ),
-              ),
-            ),
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemCount: controller.categories.length,
-      ),
     );
   }
 
@@ -666,14 +600,12 @@ Map<String, double> _averageRatingsFrom(GuildPostModel post) {
 class _GuildPostCard extends StatelessWidget {
   final GuildController controller;
   final GuildPostModel post;
-  final CategoryModel category;
   final VoidCallback onPeerReviewTap;
 
   const _GuildPostCard({
     super.key,
     required this.controller,
     required this.post,
-    required this.category,
     required this.onPeerReviewTap,
   });
 
