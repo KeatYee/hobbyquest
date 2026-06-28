@@ -201,6 +201,103 @@ class GuildController extends GetxController {
     }).toList();
   }
 
+  /// Extract character class name from an avatar asset path.
+  /// e.g. "assets/images/avatar_cultivator_m.png" → "Cultivator"
+  static String extractCharacterClass(String avatarPath) {
+    if (avatarPath.isEmpty) return '';
+    final filename = avatarPath.split('/').last;
+    final parts = filename.split('_');
+    if (parts.length >= 3) {
+      final name = parts[1];
+      return name[0].toUpperCase() + name.substring(1);
+    }
+    return '';
+  }
+
+  /// Posts sorted by relevance to the current user:
+  ///   3 pts — same hobby
+  ///   2 pts — same category (when hobby differs)
+  ///   1 pt  — same character class (from avatar)
+  ///   tiebreaker: createdAt descending
+  List<GuildPostModel> get sortedByRelevance {
+    // Gather current user context from HomeController
+    String? currentHobby;
+    String? currentCategoryId;
+    String? currentCharacterClass;
+
+    if (Get.isRegistered<HomeController>()) {
+      try {
+        final hc = Get.find<HomeController>();
+        final hobbyTrimmed = hc.hobby.value.trim();
+        if (hobbyTrimmed.isNotEmpty) {
+          currentHobby = hobbyTrimmed.toLowerCase();
+          currentCharacterClass = extractCharacterClass(hc.avatarSvg.value);
+          // Resolve the category that contains the user's hobby
+          for (final cat in categories) {
+            if (cat.hobbyNames.any((h) => h.toLowerCase() == currentHobby)) {
+              currentCategoryId = cat.id;
+              break;
+            }
+          }
+        }
+      } catch (_) {
+        // HomeController not ready — fall through to default sort
+      }
+    }
+
+    // If no context available, fall back to chronological sort
+    if (currentHobby == null) {
+      return List<GuildPostModel>.from(posts)
+        ..sort((a, b) => _compareDesc(a.createdAt, b.createdAt));
+    }
+
+    // Score each post
+    final Map<GuildPostModel, int> scored = {};
+    for (final post in posts) {
+      int score = 0;
+
+      // Hobby match (strongest signal)
+      if (post.hobby.toLowerCase() == currentHobby) {
+        score += 5;
+      }
+
+      // Category match when hobby differs (medium signal)
+      if (currentCategoryId != null &&
+          post.categoryId.isNotEmpty &&
+          post.categoryId == currentCategoryId &&
+          post.hobby.toLowerCase() != currentHobby) {
+        score += 2;
+      }
+
+      // Character class match (weakest signal)
+      if (currentCharacterClass != null && currentCharacterClass.isNotEmpty) {
+        final authorClass = extractCharacterClass(userAvatars[post.userId] ?? '');
+        if (authorClass == currentCharacterClass) {
+          score += 1;
+        }
+      }
+
+      scored[post] = score;
+    }
+
+    // Sort by score desc, then by createdAt desc
+    final sorted = scored.entries.toList()
+      ..sort((a, b) {
+        final cmp = b.value.compareTo(a.value);
+        if (cmp != 0) return cmp;
+        return _compareDesc(a.key.createdAt, b.key.createdAt);
+      });
+
+    return sorted.map((e) => e.key).toList();
+  }
+
+  /// Compare two nullable DateTimes descending (most recent first).
+  static int _compareDesc(DateTime? a, DateTime? b) {
+    final aTime = a ?? DateTime(2000);
+    final bTime = b ?? DateTime(2000);
+    return bTime.compareTo(aTime);
+  }
+
   /// Get all hobbies from all categories
   List<String> get allHobbies {
     return categories.expand((c) => c.hobbyNames).toList();

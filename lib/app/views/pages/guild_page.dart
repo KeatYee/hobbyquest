@@ -79,17 +79,18 @@ class GuildPage extends StatelessWidget {
   }
 
   Widget _buildFilteredFeed(BuildContext context, GuildController controller) {
-    if (controller.posts.isEmpty) {
+    final sortedPosts = controller.sortedByRelevance;
+    if (sortedPosts.isEmpty) {
       return _buildEmptyState(context, controller, 'No posts yet in the guild.');
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
       physics: const BouncingScrollPhysics(),
-      itemCount: controller.posts.length,
+      itemCount: sortedPosts.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final post = controller.posts[index];
+        final post = sortedPosts[index];
         return _GuildPostCard(
           key: ValueKey(post.id),
           controller: controller,
