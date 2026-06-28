@@ -359,9 +359,99 @@ class GuildController extends GetxController {
 
   // --- FIRESTORE SEEDING (For Dev Only) ---
 
+  /// Demo user IDs used across seeded posts and peer reviews.
+  /// Documents for these users are also created in Firestore
+  /// via [seedDemoUsers] so avatars and nicknames resolve correctly.
+  static const _demoUsers = [
+    'demo_mia',
+    'demo_jay',
+    'demo_lee',
+    'demo_sam',
+    'demo_ray',
+    'demo_tess',
+  ];
+
+  /// Profile data for each demo user.
+  /// Order matches [_demoUsers].
+  static const _demoUserProfiles = [
+    {
+      'nickname': 'Mia',
+      'avatarSvg': 'assets/images/avatar_cultivator_f.png',
+      'hobby': 'Painting',
+    },
+    {
+      'nickname': 'Jay',
+      'avatarSvg': 'assets/images/avatar_earthbreaker_m.png',
+      'hobby': 'Photography',
+    },
+    {
+      'nickname': 'Lee',
+      'avatarSvg': 'assets/images/avatar_wildseed_m.png',
+      'hobby': 'Drawing',
+    },
+    {
+      'nickname': 'Sam',
+      'avatarSvg': 'assets/images/avatar_grovekeeper_m.png',
+      'hobby': 'Guitar',
+    },
+    {
+      'nickname': 'Ray',
+      'avatarSvg': 'assets/images/avatar_harvester_m.png',
+      'hobby': 'Coding',
+    },
+    {
+      'nickname': 'Tess',
+      'avatarSvg': 'assets/images/avatar_nurturer_f.png',
+      'hobby': 'Yoga',
+    },
+  ];
+
+  /// Seed user documents for all demo users so that
+  /// avatar and nickname lookups resolve correctly in the guild feed.
+  Future<void> seedDemoUsers() async {
+    print("--- SEEDING DEMO USERS ---");
+    final usersRef = _firestore.collection('users');
+
+    for (var i = 0; i < _demoUsers.length; i++) {
+      final userId = _demoUsers[i];
+      final profile = _demoUserProfiles[i];
+
+      final doc = await usersRef.doc(userId).get();
+      if (!doc.exists) {
+        await usersRef.doc(userId).set({
+          'nickname': profile['nickname'],
+          'avatarSvg': profile['avatarSvg'],
+          'isOnboardingComplete': true,
+          'totalXP': 0,
+          'currentStreak': 0,
+          'dailyQuestCompletionCount': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'currentPlan': {
+            'hobby': profile['hobby'],
+            'level': 'Novice',
+            'goal': '',
+            'frequency': '15 mins/day',
+            'progress': 0,
+            'currentMilestoneIndex': 0,
+            'milestones': <dynamic>[],
+            'quests': <dynamic>[],
+          },
+        });
+        print("✅ Created user: ${profile['nickname']} ($userId)");
+      } else {
+        print("⚠️ Skipped user $userId (Already exists)");
+      }
+    }
+    print("--- SEEDING DEMO USERS COMPLETE ---");
+  }
+
   Future<void> seedGuildPosts() async {
     print("--- SEEDING GUILD POSTS ---");
     final collection = _firestore.collection(_guildPostsCollection);
+
+    // Seed demo user documents first so avatars/nicknames resolve
+    await seedDemoUsers();
 
     // Fetch categories so we can map by name to real category IDs
     final refreshedCategories = await _firestore.collection('categories').get();
@@ -373,73 +463,160 @@ class GuildController extends GetxController {
       }
     }
 
-    // Use a system user ID for seeded posts
-    const systemUserId = 'seed_system_user';
-
     // 1. Define the Data
+    // ──────────────────────────────────────────────
+    // Each post: userId, hobby, categoryId, title, body,
+    //            imageUrl (empty), reactions, peerReviews, createdAt
+    //
+    // peerReviews structure:
+    //   { reviewerUserId: { axisLabel1: rating1, axisLabel2: rating2, ... } }
+    // Axis labels MUST match the hobby's axes defined in CategoryModel.
+    // ──────────────────────────────────────────────
+    final creativeArtsId = categoryMap['Creative Arts'] ?? '';
+    final musicId = categoryMap['Music & Performing'] ?? '';
+    final wellnessId = categoryMap['Lifestyle & Wellness'] ?? '';
+    final strategyId = categoryMap['Skill & Strategy'] ?? '';
+
     List<Map<String, dynamic>> initialData = [
+      // ----- Creative Arts -----
       {
-        'userId': systemUserId,
+        'userId': _demoUsers[0],
         'hobby': 'Painting',
-        'categoryId': categoryMap['Creative Arts'] ?? '',
+        'categoryId': creativeArtsId,
         'title': 'Best watercolor techniques for beginners',
         'body': 'I have been experimenting with wet-on-wet and wet-on-dry techniques. Would love to hear what everyone else recommends for someone just starting out!',
-        'reactions': {'🔥': ['seed_u1', 'seed_u2'], '👏': ['seed_u3']},
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[1], _demoUsers[2]], '👏': [_demoUsers[3]]},
+        'peerReviews': {
+          _demoUsers[1]: {'Creativity': 4.0, 'Technique': 3.5, 'Color Theory': 5.0},
+          _demoUsers[3]: {'Creativity': 5.0, 'Technique': 4.0, 'Color Theory': 4.5},
+        },
         'createdAt': DateTime.now().subtract(const Duration(days: 2)),
       },
       {
-        'userId': systemUserId,
+        'userId': _demoUsers[1],
         'hobby': 'Photography',
-        'categoryId': categoryMap['Creative Arts'] ?? '',
+        'categoryId': creativeArtsId,
         'title': 'Golden hour photography spots in town',
-        'body': 'Compiling a list of the best locations for sunset and sunrise shots. Drop your favorite spots below!',
-        'reactions': {'🔥': ['seed_u1', 'seed_u4'], '👏': ['seed_u2', 'seed_u3'], '💡': ['seed_u5']},
+        'body': 'I compiled a list of the best locations for sunset and sunrise shots around the city. Drop your favorite spots below and I will add them to the map!',
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[0], _demoUsers[4]], '👏': [_demoUsers[2], _demoUsers[3]], '💡': [_demoUsers[5]]},
+        'peerReviews': {
+          _demoUsers[2]: {'Composition': 5.0, 'Lighting': 4.5, 'Editing': 3.0},
+        },
         'createdAt': DateTime.now().subtract(const Duration(days: 3)),
       },
       {
-        'userId': systemUserId,
+        'userId': _demoUsers[2],
+        'hobby': 'Drawing',
+        'categoryId': creativeArtsId,
+        'title': 'Daily sketch challenge — day 30 reflection',
+        'body': 'Just finished my 30-day daily sketch challenge! I focused on gesture drawing and saw huge improvement in my line work. Highly recommend this to anyone looking to level up.',
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[0], _demoUsers[1], _demoUsers[4]], '👏': [_demoUsers[3]]},
+        'peerReviews': {
+          _demoUsers[4]: {'Composition': 4.5, 'Line Work': 4.0, 'Shading': 3.5},
+          _demoUsers[5]: {'Composition': 5.0, 'Line Work': 5.0, 'Shading': 4.0},
+        },
+        'createdAt': DateTime.now().subtract(const Duration(days: 6)),
+      },
+
+      // ----- Music & Performing -----
+      {
+        'userId': _demoUsers[3],
         'hobby': 'Guitar',
-        'categoryId': categoryMap['Music & Performing'] ?? '',
+        'categoryId': musicId,
         'title': 'Learning my first chord progression',
-        'body': 'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice?',
-        'reactions': {'👏': ['seed_u1', 'seed_u2']},
+        'body': 'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice transitioning between them?',
+        'imageUrl': '',
+        'reactions': {'👏': [_demoUsers[0], _demoUsers[1]]},
+        'peerReviews': {
+          _demoUsers[0]: {'Rhythm': 3.0, 'Technique': 2.5, 'Musicality': 3.5},
+        },
         'createdAt': DateTime.now().subtract(const Duration(days: 5)),
       },
       {
-        'userId': systemUserId,
+        'userId': _demoUsers[4],
+        'hobby': 'Singing',
+        'categoryId': musicId,
+        'title': 'Overcoming stage fright — my journey so far',
+        'body': 'I used to freeze up before every open mic. After 6 months of practice and small performances, I can finally sing in front of a crowd without my voice shaking. Here is what helped me.',
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[5]], '👏': [_demoUsers[1], _demoUsers[2]]},
+        'peerReviews': {
+          _demoUsers[2]: {'Pitch': 4.0, 'Tone': 4.5, 'Breath Control': 3.5},
+          _demoUsers[3]: {'Pitch': 3.5, 'Tone': 5.0, 'Breath Control': 4.0},
+        },
+        'createdAt': DateTime.now().subtract(const Duration(days: 4)),
+      },
+
+      // ----- Lifestyle & Wellness -----
+      {
+        'userId': _demoUsers[5],
         'hobby': 'Yoga',
-        'categoryId': categoryMap['Lifestyle & Wellness'] ?? '',
-        'title': '30-day yoga challenge - who is in?',
-        'body': 'Starting a 30-day yoga challenge starting next Monday. We will do 15 minutes minimum each day. Comment if you want to join!',
-        'reactions': {'🔥': ['seed_u1', 'seed_u3', 'seed_u4', 'seed_u5'], '👏': ['seed_u2']},
+        'categoryId': wellnessId,
+        'title': '30-day yoga challenge — who is in?',
+        'body': 'Starting a 30-day yoga challenge next Monday. Minimum 15 minutes each day. I will post daily prompts. Comment if you want to join!',
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[4], _demoUsers[1]], '👏': [_demoUsers[2]]},
+        'peerReviews': {},
         'createdAt': DateTime.now().subtract(const Duration(days: 1)),
       },
       {
-        'userId': systemUserId,
+        'userId': _demoUsers[0],
+        'hobby': 'Cooking',
+        'categoryId': wellnessId,
+        'title': 'Share your favorite quick weeknight dinner',
+        'body': 'Busy schedule means I need dinners under 30 minutes. Please share your go-to recipes — bonus points if they use 5 ingredients or fewer!',
+        'imageUrl': '',
+        'reactions': {'🔥': [_demoUsers[1], _demoUsers[2], _demoUsers[3], _demoUsers[4], _demoUsers[5]], '👏': []},
+        'peerReviews': {
+          _demoUsers[3]: {'Taste': 4.0, 'Presentation': 3.5, 'Technique': 4.0},
+          _demoUsers[4]: {'Taste': 5.0, 'Presentation': 4.5, 'Technique': 4.5},
+        },
+        'createdAt': DateTime.now().subtract(const Duration(days: 4)),
+      },
+
+      // ----- Skill & Strategy -----
+      {
+        'userId': _demoUsers[1],
         'hobby': 'Coding',
-        'categoryId': categoryMap['Skill & Strategy'] ?? '',
+        'categoryId': strategyId,
         'title': 'Best resources for learning Flutter',
         'body': 'I am diving into Flutter development and looking for the best courses, YouTube channels, and books. What has worked for you?',
-        'reactions': {'💡': ['seed_u1', 'seed_u2', 'seed_u3'], '🔥': ['seed_u4']},
+        'imageUrl': '',
+        'reactions': {'💡': [_demoUsers[0], _demoUsers[2], _demoUsers[3]], '🔥': [_demoUsers[4]]},
+        'peerReviews': {
+          _demoUsers[5]: {'Code Quality': 4.0, 'Efficiency': 3.0, 'Readability': 4.5},
+        },
         'createdAt': DateTime.now().subtract(const Duration(hours: 12)),
       },
       {
-        'userId': systemUserId,
-        'hobby': 'Cooking',
-        'categoryId': categoryMap['Lifestyle & Wellness'] ?? '',
-        'title': 'Share your favorite quick weeknight dinner',
-        'body': 'Need some inspiration for quick dinners under 30 minutes. Please share your go-to recipes!',
-        'reactions': {'🔥': ['seed_u1', 'seed_u2', 'seed_u3', 'seed_u4', 'seed_u5'], '👏': ['seed_u6']},
-        'createdAt': DateTime.now().subtract(const Duration(days: 4)),
+        'userId': _demoUsers[2],
+        'hobby': 'Chess',
+        'categoryId': strategyId,
+        'title': 'Chess tactics puzzle of the day',
+        'body': 'White to move and win material in 3 moves. I will post the solution tomorrow! Hint: look for a forcing sequence.',
+        'imageUrl': '',
+        'reactions': {'💡': [_demoUsers[0]], '🔥': [_demoUsers[1], _demoUsers[3]]},
+        'peerReviews': {
+          _demoUsers[0]: {'Strategy': 5.0, 'Tactics': 4.5, 'Endgame': 3.0},
+          _demoUsers[4]: {'Strategy': 4.0, 'Tactics': 5.0, 'Endgame': 3.5},
+        },
+        'createdAt': DateTime.now().subtract(const Duration(hours: 6)),
       },
       {
-        'userId': systemUserId,
-        'hobby': 'Chess',
-        'categoryId': categoryMap['Skill & Strategy'] ?? '',
-        'title': 'Chess tactics puzzle of the day',
-        'body': 'White to move and win material in 3 moves. I will post the solution tomorrow!',
-        'reactions': {'💡': ['seed_u1'], '🔥': ['seed_u2', 'seed_u3']},
-        'createdAt': DateTime.now().subtract(const Duration(hours: 6)),
+        'userId': _demoUsers[4],
+        'hobby': 'Language',
+        'categoryId': strategyId,
+        'title': 'How I learned 50 new words in a week',
+        'body': 'I used the spaced repetition method with physical flashcards. Writing each word in a sentence helped way more than just memorizing definitions. Try it!',
+        'imageUrl': '',
+        'reactions': {'👏': [_demoUsers[0], _demoUsers[1], _demoUsers[5]], '💡': [_demoUsers[2]]},
+        'peerReviews': {
+          _demoUsers[3]: {'Vocabulary': 4.5, 'Grammar': 4.0, 'Pronunciation': 3.5},
+        },
+        'createdAt': DateTime.now().subtract(const Duration(days: 7)),
       },
     ];
 
