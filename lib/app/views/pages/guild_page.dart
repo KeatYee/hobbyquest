@@ -609,6 +609,7 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                                     width: 20,
                                     height: 20,
                                     fit: BoxFit.cover,
+                                    alignment: Alignment.topCenter,
                                   ),
                                 )
                               : Text(
@@ -719,6 +720,7 @@ class _GuildPostCard extends StatelessWidget {
                             width: 44,
                             height: 44,
                             fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
                           ),
                         )
                       : Text(

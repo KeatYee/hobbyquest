@@ -159,6 +159,7 @@ class HomePage extends StatelessWidget {
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,
+                                  alignment: Alignment.topCenter,
                                 ),
                               )
                             : const Icon(

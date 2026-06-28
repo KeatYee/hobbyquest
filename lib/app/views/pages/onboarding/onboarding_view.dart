@@ -86,11 +86,11 @@ class OnboardingView extends StatelessWidget {
                   controller: controller.pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (index) => controller.currentPage.value = index,
-                  children: const [
-                    Step1Profile(),
-                    Step2Category(),
-                    Step3Level(),
-                    Step4Goals(),
+                  children: [
+                    const Step1Profile(),
+                    const Step2Category(),
+                    const Step3Level(),
+                    const Step4Goals(),
                   ],
                 ),
               ),

@@ -34,26 +34,17 @@ class PlanSummaryView extends StatelessWidget {
             // ------------------------------------
             // TOP: USER AVATAR & TITLE
             // ------------------------------------
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2),
-              ),
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.primaryLight,
-                child: controller.avatarSvg.value.isNotEmpty
-                    ? ClipOval(
-                        child: Image.asset(
-                          controller.avatarSvg.value,
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : const Icon(Icons.person_rounded, size: 40, color: AppColors.primary),
-              ),
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: controller.avatarSvg.value.isNotEmpty
+                  ? Image.asset(
+                      controller.avatarSvg.value,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.contain,
+                    )
+                  : const Icon(Icons.person_rounded, size: 60, color: AppColors.primary),
             ),
             const SizedBox(height: 20),
             
@@ -67,7 +58,7 @@ class PlanSummaryView extends StatelessWidget {
                   const TextSpan(text: ", "),
                   TextSpan(
                     text: "Level 1 ${controller.level.value} ${controller.hobby.value}",
-                    style: const TextStyle(color: AppColors.primary),
+                    style: TextStyle(color: AppColors.primary, fontSize: AppFonts.body),
                   ),
                 ],
               ),
@@ -80,33 +71,32 @@ class PlanSummaryView extends StatelessWidget {
             // MIDDLE: MISSION PARAMETERS
             // ------------------------------------
             Container(
-              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  
-                  // Main Goal
-                  _buildMissionRow(
-                    icon: Icons.flag_rounded,
-                    label: "Main Quest",
-                    value: controller.generatedPlan.value.goal,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildMissionRow(
-                    icon: Icons.person_rounded,
-                    label: "Character Type",
-                    value: controller.avatarClassName,
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildMissionRow(
+                      icon: Icons.flag_rounded,
+                      label: "Main Quest",
+                      value: controller.generatedPlan.value.goal,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMissionRow(
+                      icon: Icons.person_rounded,
+                      label: "Character Type",
+                      value: controller.avatarClassName,
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -219,89 +209,128 @@ class PlanSummaryView extends StatelessWidget {
     final milestones = controller.generatedPlan.value.milestones;
     final xpThresholds = [2000, 4000, 6000, 8000];
     final labels = ["Milestone 1", "Milestone 2", "Milestone 3", "Final Boss"];
+    final icons = [Icons.flag_circle_rounded, Icons.star_rounded, Icons.emoji_events_rounded, Icons.military_tech_rounded];
 
     return List.generate(milestones.length, (index) {
       final isFinal = index == milestones.length - 1;
-      
+      final xpText = isFinal ? "Reach ${xpThresholds[index]} XP to conquer" : "Unlocks at ${xpThresholds[index]} XP";
+
       return Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isFinal ? AppColors.accent.withOpacity(0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              gradient: isFinal
+                  ? LinearGradient(
+                      colors: [AppColors.accent.withValues(alpha: 0.08), AppColors.accent.withValues(alpha: 0.02)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: isFinal ? null : Colors.white,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isFinal ? AppColors.accent.withOpacity(0.3) : Colors.grey.shade200,
-                width: 1.5,
+                color: isFinal ? AppColors.accent.withValues(alpha: 0.4) : Colors.grey.shade200,
+                width: isFinal ? 2 : 1.5,
               ),
-              boxShadow: isFinal
-                  ? [
-                      BoxShadow(
-                        color: AppColors.accent.withOpacity(0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+              boxShadow: [
+                BoxShadow(
+                  color: isFinal
+                      ? AppColors.accent.withValues(alpha: 0.15)
+                      : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: isFinal ? 14 : 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: isFinal ? AppColors.accent : AppColors.primary,
                     shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      "${index + 1}",
-                      style: TextStyle(
-                        fontSize: AppFonts.body,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isFinal ? AppColors.accent : AppColors.primary).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
+                    ],
+                  ),
+                  child: Icon(
+                    icons[index],
+                    size: 22,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        labels[index],
-                        style: TextStyle(
-                          fontSize: AppFonts.micro,
-                          fontWeight: FontWeight.bold,
-                          color: isFinal ? AppColors.accent : AppColors.primary,
-                          letterSpacing: 0.5,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            labels[index],
+                            style: TextStyle(
+                              fontSize: AppFonts.micro,
+                              fontWeight: FontWeight.w900,
+                              color: isFinal ? AppColors.accent : AppColors.primary,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          if (isFinal) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "BOSS",
+                                style: TextStyle(
+                                  fontSize: AppFonts.micro - 2,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         milestones[index].title,
                         style: TextStyle(
                           fontSize: AppFonts.caption,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
+                          height: 1.3,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        "Unlocks at ${xpThresholds[index].toString()} XP",
-                        style: TextStyle(
-                          fontSize: AppFonts.micro,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.bolt_rounded,
+                            size: 14,
+                            color: isFinal ? AppColors.accent : AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            xpText,
+                            style: TextStyle(
+                              fontSize: AppFonts.micro,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -311,14 +340,23 @@ class PlanSummaryView extends StatelessWidget {
           ),
           if (!isFinal)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Container(
                 width: 2,
-                height: 20,
-                color: AppColors.primary.withOpacity(0.3),
+                height: 24,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.5),
+                      AppColors.primary.withValues(alpha: 0.15),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
               ),
             ),
-          if (!isFinal) const SizedBox(height: 8),
+          if (!isFinal) const SizedBox(height: 4),
         ],
       );
     });

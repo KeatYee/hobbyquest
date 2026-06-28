@@ -509,6 +509,7 @@ class _HeroHeader extends StatelessWidget {
                   width: 92,
                   height: 92,
                   fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
                 ),
               )
             : const Icon(

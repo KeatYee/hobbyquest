@@ -94,6 +94,7 @@ class UserProfilePage extends StatelessWidget {
                                   width: 108,
                                   height: 108,
                                   fit: BoxFit.cover,
+                                  alignment: Alignment.topCenter,
                                 ),
                               )
                             : const Icon(Icons.person_rounded,
