@@ -28,9 +28,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Animation<double>? _floatAnimation;
   AnimationController? _shakeController;
   Animation<double>? _shakeAnimation;
-  int _previousStage = -1;
-  String? _lastCategoryName;
-  final Set<String> _hasTriggeredSaveForCategory = {};
+  int _displayedStage = 0;
+  String _displayedStageCategory = '';
 
   final List<String> _speechMessages = [
     "Oh, hello! Who's that? Are you my new gardener?",
@@ -38,13 +37,15 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     "Head over to your Quest Page to log your first session. I'll wait right here!",
   ];
 
-  /// Returns the tree image path based on XP value.
-  String _treeImageForXp(int xp) {
-    if (xp >= 8000) return 'assets/images/mature_tree.png';
-    if (xp >= 5000) return 'assets/images/young_tree.png';
-    if (xp >= 2500) return 'assets/images/seedling.png';
-    if (xp >= 800) return 'assets/images/sprout.png';
-    return 'assets/images/seed.png';
+  String _treeImageForStage(int stage) {
+    const images = [
+      'assets/images/seed.png',
+      'assets/images/sprout.png',
+      'assets/images/seedling.png',
+      'assets/images/young_tree.png',
+      'assets/images/mature_tree.png',
+    ];
+    return images[stage.clamp(0, 4)];
   }
 
   @override
@@ -407,28 +408,27 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           final thresholds = [0, 800, 2500, 5000, 8000];
           final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
 
-          int stage = 0;
+          // Compute actual stage from XP
+          int actualStage = 0;
           for (int i = thresholds.length - 1; i >= 0; i--) {
-            if (xp >= thresholds[i]) { stage = i; break; }
+            if (xp >= thresholds[i]) { actualStage = i; break; }
           }
 
-          // Detect stage change for shake effect
-          if (category.name != _lastCategoryName) {
-            _lastCategoryName = category.name;
-            _previousStage = stage;
-          } else if (stage != _previousStage && _previousStage >= 0) {
-            _triggerShake();
-            _previousStage = stage;
-          } else {
-            _previousStage = stage;
+          // Reset displayed stage when switching categories
+          if (category.name != _displayedStageCategory) {
+            _displayedStageCategory = category.name;
+            _displayedStage = actualStage;
           }
 
-          // Show naming dialog for mature tree
-          if (stage == 4 && !_hasTriggeredSaveForCategory.contains(category.id)) {
-            _hasTriggeredSaveForCategory.add(category.id);
-            _showTreeNamingDialog(category);
+          // If XP regressed (tree saved), sync displayed stage down
+          if (actualStage < _displayedStage) {
+            _displayedStage = actualStage;
           }
 
+          // Check if there's a pending stage to advance to
+          final hasPending = actualStage > _displayedStage;
+
+          final stage = _displayedStage;
           final currentMin = thresholds[stage];
           final nextMax = stage < thresholds.length - 1 ? thresholds[stage + 1] : thresholds[stage] + 1000;
           final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(0.0, 1.0);
@@ -443,7 +443,17 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                       _finishTutorial();
                     }
                   }
-                : null,
+                : hasPending
+                    ? () {
+                        setState(() {
+                          _displayedStage++;
+                          _triggerShake();
+                        });
+                        if (_displayedStage == 4) {
+                          _showTreeNamingDialog(category);
+                        }
+                      }
+                    : null,
             child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -482,7 +492,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                         const SizedBox(height: 8),
                         CustomPaint(
                           size: const Size(16, 10),
-                          painter: _TrianglePainter(),
+                          painter: _TriangleDownPainter(),
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -496,19 +506,85 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                     ),
                   ),
               // Tree image with floating + shake animation
-              AnimatedBuilder(
-                animation: Listenable.merge([_floatAnimation!, _shakeAnimation!]),
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(_shakeAnimation!.value, _floatAnimation!.value),
-                    child: child,
-                  );
-                },
-                child: Image.asset(
-                  _treeImageForXp(xp),
-                  width: 200,
-                  fit: BoxFit.contain,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedBuilder(
+                    animation: Listenable.merge([_floatAnimation!, _shakeAnimation!]),
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_shakeAnimation!.value, _floatAnimation!.value),
+                        child: child,
+                      );
+                    },
+                    child: Image.asset(
+                      _treeImageForStage(stage),
+                      width: 200,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  // "Level Up!" speech bubble when next stage is pending
+                  if (hasPending)
+                    Positioned(
+                      top: -56,
+                      right: -12,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _displayedStage++;
+                            _triggerShake();
+                          });
+                          if (_displayedStage == 4) {
+                            _showTreeNamingDialog(category);
+                          }
+                        },
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              constraints: const BoxConstraints(maxWidth: 200),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Text(
+                                'Tap me to grow!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: AppFonts.badge,
+                                  color: AppColors.textPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            // Triangle pointing down toward the tree
+                            CustomPaint(
+                              size: const Size(14, 8),
+                              painter: _TriangleDownPainter(),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap to level up',
+                              style: TextStyle(
+                                fontSize: AppFonts.micro,
+                                color: AppColors.textSecondary.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -588,12 +664,16 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 }
 
-/// Paints a downward-pointing triangle for the speech bubble tail.
-class _TrianglePainter extends CustomPainter {
+/// Paints a downward-pointing triangle for a speech bubble tail.
+class _TriangleDownPainter extends CustomPainter {
+  const _TriangleDownPainter({this.color = Colors.white});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = color
       ..style = PaintingStyle.fill;
     final path = Path()
       ..moveTo(0, 0)
@@ -604,5 +684,6 @@ class _TrianglePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TriangleDownPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
