@@ -1,5 +1,4 @@
 import 'quest_plan_model.dart';
-import 'forest_tree_model.dart';
 
 class UserModel {
   final String id; // Firestore document ID
@@ -17,9 +16,6 @@ class UserModel {
   // Per-category XP (tree progression)
   final Map<String, int> categoryXp;
 
-  // Forest — saved trees per category
-  final Map<String, ForestTreeModel> forestTrees;
-
   // Tutorial flags
   final bool mapTutorialDone;
 
@@ -30,6 +26,7 @@ class UserModel {
   final DateTime? lastStreakDate; // Track when the last streak completion was recorded
   final DateTime? lastQuestCompletionDate;
 
+  final String activePlanId;
   final QuestPlanModel currentPlan;
 
   UserModel({
@@ -40,11 +37,11 @@ class UserModel {
     required this.avatarSvg,
     required this.isOnboardingComplete,
     required this.totalXP,
+    this.activePlanId = '',
     required this.currentPlan,
     this.currentStreak = 0,
     this.dailyQuestCompletionCount = 0,
     this.categoryXp = const {},
-    this.forestTrees = const {},
     this.mapTutorialDone = false,
     this.createdAt,
     this.updatedAt,
@@ -69,11 +66,11 @@ class UserModel {
       avatarSvg: json['avatarSvg'] as String? ?? '',
       isOnboardingComplete: json['isOnboardingComplete'] as bool? ?? false,
       totalXP: totalXp,
+      activePlanId: json['activePlanId'] as String? ?? '',
       currentPlan: currentPlan,
       currentStreak: json['currentStreak'] as int? ?? 0,
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       categoryXp: _readCategoryXp(json),
-      forestTrees: _readForestTrees(json),
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
@@ -85,7 +82,7 @@ class UserModel {
     );
   }
 
-  /// Convert UserModel to Firestore document
+  /// Convert UserModel to Firestore document (without currentPlan — stored in subcollection).
   Map<String, dynamic> toJson() {
     return {
       'nickname': nickname,
@@ -94,6 +91,7 @@ class UserModel {
       'avatarSvg': avatarSvg,
       'isOnboardingComplete': isOnboardingComplete,
       'totalXP': totalXP,
+      'activePlanId': activePlanId,
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'createdAt': createdAt,
@@ -101,7 +99,6 @@ class UserModel {
       'lastRerollDate': lastRerollDate,
       'lastStreakDate': lastStreakDate,
       'lastQuestCompletionDate': lastQuestCompletionDate,
-      'currentPlan': currentPlan.toJson(),
     };
   }
 
@@ -113,17 +110,16 @@ class UserModel {
       'avatarSvg': avatarSvg,
       'isOnboardingComplete': isOnboardingComplete,
       'totalXP': totalXP,
+      'activePlanId': activePlanId,
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'categoryXp': categoryXp,
-      'forestTrees': forestTrees.map((k, v) => MapEntry(k, v.toJson())),
       'mapTutorialDone': mapTutorialDone,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
       'lastStreakDate': lastStreakDate,
       'lastQuestCompletionDate': lastQuestCompletionDate,
-      'currentPlan': currentPlan.toJson(),
     };
   }
 
@@ -136,10 +132,10 @@ class UserModel {
     String? avatarSvg,
     bool? isOnboardingComplete,
     int? totalXP,
+    String? activePlanId,
     int? currentStreak,
     int? dailyQuestCompletionCount,
     Map<String, int>? categoryXp,
-    Map<String, ForestTreeModel>? forestTrees,
     bool? mapTutorialDone,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
@@ -156,11 +152,11 @@ class UserModel {
       avatarSvg: avatarSvg ?? this.avatarSvg,
       isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
       totalXP: totalXP ?? this.totalXP,
+      activePlanId: activePlanId ?? this.activePlanId,
       currentPlan: currentPlan ?? this.currentPlan,
       currentStreak: currentStreak ?? this.currentStreak,
       dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       categoryXp: categoryXp ?? this.categoryXp,
-      forestTrees: forestTrees ?? this.forestTrees,
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -192,19 +188,6 @@ class UserModel {
     }
     if (legacy.isNotEmpty) return legacy;
 
-    return const {};
-  }
-
-  static Map<String, ForestTreeModel> _readForestTrees(Map<String, dynamic> json) {
-    final raw = json['forestTrees'];
-    if (raw is Map) {
-      return raw.map(
-        (k, v) => MapEntry(
-          k.toString(),
-          ForestTreeModel.fromJson(Map<String, dynamic>.from(v as Map)),
-        ),
-      );
-    }
     return const {};
   }
 

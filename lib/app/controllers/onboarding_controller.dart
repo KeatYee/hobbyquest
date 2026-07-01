@@ -9,6 +9,7 @@ import '../models/category_model.dart';
 import '../models/user_model.dart';
 import '../services/category_service.dart';
 import '../services/gemini_service.dart';
+import '../services/quest_service.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
 
 class OnboardingController extends GetxController {
@@ -347,16 +348,42 @@ class OnboardingController extends GetxController {
     }
 
     try {
-      // Create a typed UserModel with onboarding data
+      final uid = user.uid;
+
+      // Build the initial plan with milestones and quests
+      final planWithData = await _buildInitialPlanWithMilestoneQuests();
+      final planId = 'plan_001';
+
+      // Build milestones with IDs
+      final milestones = planWithData.milestones.asMap().entries.map((e) {
+        return e.value.copyWith(
+          id: e.value.id.isNotEmpty ? e.value.id : 'ms_${e.key}',
+          order: e.key,
+        );
+      }).toList();
+
+      // Prepare quests (set all as active root quests)
+      final quests = planWithData.quests.map((q) => q.copyWith(
+        dependsOn: const [],
+        isActive: true,
+        isCompleted: false,
+      )).toList();
+
+      // Create UserModel WITHOUT milestones/quests in currentPlan
       final userModel = UserModel(
-        id: user.uid,
+        id: uid,
         nickname: nickname.text.trim(),
         birthDate: age.text.trim(),
         gender: gender.value,
         avatarSvg: avatarSvg.value,
         isOnboardingComplete: true,
         totalXP: 0,
-        currentPlan: await _buildInitialPlanWithMilestoneQuests(),
+        activePlanId: planId,
+        currentPlan: planWithData.copyWith(
+          id: planId,
+          milestones: milestones,
+          quests: quests,
+        ),
         currentStreak: 0,
         categoryXp: {
           for (final cat in categories.value)
@@ -367,17 +394,48 @@ class OnboardingController extends GetxController {
         updatedAt: DateTime.now(),
       );
 
-      // Save to Firestore with timestamp
+      // Save user profile to user doc (currentPlan not serialized)
       final userData = userModel.toJson();
       userData['createdAt'] = FieldValue.serverTimestamp();
       userData['updatedAt'] = FieldValue.serverTimestamp();
 
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(uid)
           .set(userData, SetOptions(merge: true));
-      
-      print("--- SUCCESS: User profile saved ---");
+
+      // Write plan metadata to subcollection
+      await QuestService.savePlan(uid, planId, planWithData.copyWith(
+        id: planId,
+        currentMilestoneIndex: 0,
+        isActive: true,
+      ));
+
+      // Write milestones to subcollection
+      for (final ms in milestones) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('plans')
+            .doc(planId)
+            .collection('milestones')
+            .doc(ms.id)
+            .set(ms.toJson());
+      }
+
+      // Write quests to subcollection
+      for (final quest in quests) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('plans')
+            .doc(planId)
+            .collection('quests')
+            .doc(quest.nodeId)
+            .set(quest.toJson());
+      }
+
+      print("--- SUCCESS: User profile and plan saved to subcollections ---");
     } catch (e) {
       print("--- ERROR: Failed to save user data: $e ---");
       rethrow;

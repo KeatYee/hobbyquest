@@ -142,6 +142,7 @@ class HomeController extends GetxController {
   }
 
   /// Load user profile data from Firestore
+  /// Now loads plan, milestones, and quests from subcollections.
   Future<void> _loadUserProfile() async {
     try {
       isLoadingProfile.value = true;
@@ -152,16 +153,42 @@ class HomeController extends GetxController {
         return;
       }
 
+      final uid = currentUser.uid;
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser.uid)
+          .doc(uid)
           .get();
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
 
-        // Parse user data into typed model
-        final loadedUser = UserModel.fromJson(data, currentUser.uid);
+        // Parse user model (currentPlan will have empty milestones/quests)
+        var loadedUser = UserModel.fromJson(data, uid);
+
+        // activePlanId is already set (migration was run previously)
+        final planId = loadedUser.activePlanId;
+
+        // --- Load plan, milestones, quests from subcollections ---
+        if (planId.isNotEmpty) {
+          try {
+            final plan = await QuestService.loadPlan(uid, planId);
+            final milestones = await QuestService.loadMilestones(uid, planId);
+            final quests = await QuestService.loadQuests(uid, planId);
+
+            final fullPlan = plan.copyWith(
+              milestones: milestones,
+              quests: quests,
+            );
+
+            loadedUser = loadedUser.copyWith(
+              activePlanId: planId,
+              currentPlan: fullPlan,
+            );
+          } catch (e) {
+            print('--- WARNING: Failed to load plan data from subcollections: $e ---');
+          }
+        }
+
         user.value = loadedUser;
         final currentPlan = loadedUser.currentPlan;
 
@@ -208,8 +235,15 @@ class HomeController extends GetxController {
       return false;
     }
 
+    final planId = user.value?.activePlanId ?? '';
+    if (planId.isEmpty) {
+      print("--- ERROR: No active plan ---");
+      return false;
+    }
+
     final updatedUser = await _questService.completeQuestTransaction(
       uid: currentUser.uid,
+      planId: planId,
       questId: questId,
       reflectionNote: reflectionNote,
     );
@@ -238,17 +272,52 @@ class HomeController extends GetxController {
         return;
       }
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+      final uid = currentUser.uid;
+      final planId = user.value?.activePlanId ?? '';
+      if (planId.isEmpty) {
+        // Fall back to loading from user doc
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
 
-      final data = userDoc.data();
-      if (data == null) {
+        final data = userDoc.data();
+        if (data == null) return;
+
+        final loadedUser = UserModel.fromJson(data, uid);
+        user.value = loadedUser;
+
+        nickname.value = loadedUser.nickname;
+        avatarSvg.value = loadedUser.avatarSvg;
+        hobby.value = loadedUser.currentPlan.hobby;
+        goal.value = loadedUser.currentPlan.goal;
+        frequency.value = loadedUser.currentPlan.frequency;
+        level.value = loadedUser.currentPlan.level;
+        dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
         return;
       }
 
-      final loadedUser = UserModel.fromJson(data, currentUser.uid);
+      // Load from subcollections
+      final plan = await QuestService.loadPlan(uid, planId);
+      final milestones = await QuestService.loadMilestones(uid, planId);
+      final quests = await QuestService.loadQuests(uid, planId);
+
+      final fullPlan = plan.copyWith(
+        milestones: milestones,
+        quests: quests,
+      );
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final data = userDoc.data();
+      if (data == null) return;
+
+      final loadedUser = UserModel.fromJson(data, uid).copyWith(
+        activePlanId: planId,
+        currentPlan: fullPlan,
+      );
       user.value = loadedUser;
 
       nickname.value = loadedUser.nickname;
@@ -344,77 +413,72 @@ class HomeController extends GetxController {
         return false;
       }
 
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid);
-
-      UserModel? updatedUser;
-      bool didReroll = false;
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(userRef);
-        final data = snapshot.data();
-        if (data == null) {
-          print('--- ERROR: User profile not found ---');
-          return;
-        }
-
-        final loadedUser = UserModel.fromJson(data, currentUser.uid);
-        final quests = loadedUser.currentPlan.quests;
-        final questIndex = quests.indexWhere((quest) => quest.nodeId == questId);
-
-        if (questIndex == -1) {
-          print('--- ERROR: Quest $questId not found in current plan ---');
-          return;
-        }
-
-        final targetQuest = quests[questIndex];
-        final updatedQuests = List<QuestNodeModel>.from(quests);
-
-        final altSteps = (alternative['steps'] is List)
-            ? (alternative['steps'] as List).map((e) => e.toString()).toList()
-            : null;
-        final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
-            ? alternative['youtube_search_query'].toString().trim()
-            : (alternative['youtubeSearchQuery']?.toString().trim() ?? targetQuest.youtubeSearchQuery ?? '');
-
-        updatedQuests[questIndex] = targetQuest.copyWith(
-          title: alternative['title'] ?? targetQuest.title,
-          desc: alternative['desc'] ?? targetQuest.desc,
-          steps: altSteps ?? targetQuest.steps,
-          youtubeSearchQuery: altYoutube,
-        );
-
-        final normalizedQuests = _buildNormalizedQuestGraph(updatedQuests);
-        final updatedPlan = loadedUser.currentPlan.copyWith(quests: normalizedQuests);
-        final normalizedUser = loadedUser.copyWith(
-          currentPlan: updatedPlan,
-          lastRerollDate: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        transaction.set(
-          userRef,
-          normalizedUser.toJson(),
-          SetOptions(merge: true),
-        );
-
-        updatedUser = normalizedUser;
-        didReroll = true;
-      });
-
-      if (!didReroll || updatedUser == null) {
+      final uid = currentUser.uid;
+      final planId = user.value?.activePlanId ?? '';
+      if (planId.isEmpty) {
+        print('--- ERROR: No active plan for reroll ---');
         return false;
       }
 
+      final altSteps = (alternative['steps'] is List)
+          ? (alternative['steps'] as List).map((e) => e.toString()).toList()
+          : null;
+      final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+          ? alternative['youtube_search_query'].toString().trim()
+          : (alternative['youtubeSearchQuery']?.toString().trim() ?? '');
+
+      // Update the quest document directly in the subcollection
+      final questRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('plans')
+          .doc(planId)
+          .collection('quests')
+          .doc(questId);
+
+      await questRef.update({
+        'title': alternative['title'] ?? '',
+        'desc': alternative['desc'] ?? '',
+        'steps': altSteps ?? [],
+        'youtube_search_query': altYoutube,
+      });
+
+      // Reload quests from subcollection
+      final quests = await QuestService.loadQuests(uid, planId);
+      final plan = await QuestService.loadPlan(uid, planId);
+      final milestones = await QuestService.loadMilestones(uid, planId);
+
+      final fullPlan = plan.copyWith(
+        milestones: milestones,
+        quests: quests,
+      );
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final data = userDoc.data();
+      if (data == null) return false;
+
+      final updatedUser = UserModel.fromJson(data, uid).copyWith(
+        activePlanId: planId,
+        currentPlan: fullPlan,
+      );
+
       user.value = updatedUser;
-      nickname.value = updatedUser!.nickname;
-      avatarSvg.value = updatedUser!.avatarSvg;
-      hobby.value = updatedUser!.currentPlan.hobby;
-      goal.value = updatedUser!.currentPlan.goal;
-      frequency.value = updatedUser!.currentPlan.frequency;
-      level.value = updatedUser!.currentPlan.level;
-      dailyQuests.value = getAllQuestNodes(updatedUser!.currentPlan.quests);
+      nickname.value = updatedUser.nickname;
+      avatarSvg.value = updatedUser.avatarSvg;
+      hobby.value = updatedUser.currentPlan.hobby;
+      goal.value = updatedUser.currentPlan.goal;
+      frequency.value = updatedUser.currentPlan.frequency;
+      level.value = updatedUser.currentPlan.level;
+      dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
+
+      // Update lastRerollDate in user doc
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'lastRerollDate': DateTime.now()});
 
       print('--- INFO: Quest $questId rerolled successfully ---');
       return true;
@@ -535,7 +599,9 @@ class HomeController extends GetxController {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
     final plan = user.value?.currentPlan;
-    if (plan == null) return;
+    final uid = currentUser.uid;
+    final planId = user.value?.activePlanId ?? '';
+    if (plan == null || planId.isEmpty) return;
 
     final nextIndex = plan.currentMilestoneIndex + 1;
     if (nextIndex >= plan.milestones.length) return;
@@ -561,10 +627,10 @@ class HomeController extends GetxController {
     );
 
     final updatedUser = await _questService.addQuestsToPlan(
-      uid: currentUser.uid,
+      uid: uid,
+      planId: planId,
       newQuests: newQuests,
       currentMilestoneIndex: nextIndex,
-      clearExisting: true,
       milestones: updatedMilestones,
     );
 

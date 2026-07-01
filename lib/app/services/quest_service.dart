@@ -6,27 +6,106 @@ import '../models/quest_plan_model.dart';
 import '../models/milestone_model.dart';
 
 class QuestService {
-  /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
-  /// ready quests remain).
-  bool needsReplenishment(QuestPlanModel plan, {int minVisible = 3}) {
-    final completedIds =
-        plan.quests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
-    final readyCount = plan.quests.where((q) =>
-        !q.isCompleted &&
-        (q.dependsOn.isEmpty || q.dependsOn.every(completedIds.contains))).length;
-    return readyCount < minVisible;
+  // ──────────────────────────────────────────────
+  //  Subcollection reference helpers
+  // ──────────────────────────────────────────────
+
+  static String _planDocPath(String uid, String planId) =>
+      'users/$uid/plans/$planId';
+
+  static String _milestoneDocPath(String uid, String planId, String mid) =>
+      'users/$uid/plans/$planId/milestones/$mid';
+
+  static String _questDocPath(String uid, String planId, String qid) =>
+      'users/$uid/plans/$planId/quests/$qid';
+
+  static DocumentReference<Map<String, dynamic>> _planRef(
+          String uid, String planId) =>
+      FirebaseFirestore.instance.doc(_planDocPath(uid, planId));
+
+  static DocumentReference<Map<String, dynamic>> _milestoneRef(
+          String uid, String planId, String mid) =>
+      FirebaseFirestore.instance.doc(_milestoneDocPath(uid, planId, mid));
+
+  static DocumentReference<Map<String, dynamic>> _questRef(
+          String uid, String planId, String qid) =>
+      FirebaseFirestore.instance.doc(_questDocPath(uid, planId, qid));
+
+  static CollectionReference<Map<String, dynamic>> _milestonesCol(
+          String uid, String planId) =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('plans')
+          .doc(planId)
+          .collection('milestones');
+
+  static CollectionReference<Map<String, dynamic>> _questsCol(
+          String uid, String planId) =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('plans')
+          .doc(planId)
+          .collection('quests');
+
+  // ──────────────────────────────────────────────
+  //  Read helpers
+  // ──────────────────────────────────────────────
+
+  /// Loads plan metadata document from `users/{uid}/plans/{planId}`.
+  static Future<QuestPlanModel> loadPlan(
+      String uid, String planId) async {
+    final snapshot = await _planRef(uid, planId).get();
+    if (!snapshot.exists) {
+      throw Exception('Plan $planId not found for user $uid');
+    }
+    return QuestPlanModel.fromJson(
+        snapshot.data()!, docId: planId);
   }
 
-  /// Adds [newQuests] to the user's plan and persists to Firestore.
-  /// Returns the updated [UserModel] on success, or `null` on failure.
-  /// New quests are set as root quests (no dependencies) so they appear immediately.
-  /// When [clearExisting] is true, replaces all current quests instead of merging.
+  /// Loads all milestones from `plans/{planId}/milestones/`, sorted by [order].
+  static Future<List<MilestoneModel>> loadMilestones(
+      String uid, String planId) async {
+    final snapshot = await _milestonesCol(uid, planId)
+        .orderBy('order')
+        .get();
+    return snapshot.docs.map((doc) {
+      return MilestoneModel.fromJson(doc.data(), docId: doc.id);
+    }).toList();
+  }
+
+  /// Loads all quests from `plans/{planId}/quests/`.
+  static Future<List<QuestNodeModel>> loadQuests(
+      String uid, String planId) async {
+    final snapshot = await _questsCol(uid, planId).get();
+    return snapshot.docs.map((doc) {
+      return QuestNodeModel.fromJson(doc.data());
+    }).toList();
+  }
+
+  // ──────────────────────────────────────────────
+  //  Write helpers
+  // ──────────────────────────────────────────────
+
+  /// Saves/replaces plan metadata document.
+  static Future<void> savePlan(
+      String uid, String planId, QuestPlanModel plan) async {
+    await _planRef(uid, planId).set(plan.toJson());
+  }
+
+  // ──────────────────────────────────────────────
+  //  addQuestsToPlan — writes to subcollections
+  // ──────────────────────────────────────────────
+
+  /// Writes quests, milestones, and plan metadata to subcollections.
+  /// Returns the updated [UserModel] with in-memory populated data, or null on failure.
   Future<UserModel?> addQuestsToPlan({
     required String uid,
+    required String planId,
     required List<QuestNodeModel> newQuests,
     int? currentMilestoneIndex,
-    bool clearExisting = false,
-    List<MilestoneModel>? milestones,
+    required List<MilestoneModel> milestones,
   }) async {
     if (newQuests.isEmpty) return null;
 
@@ -41,47 +120,56 @@ class QuestService {
 
         final loadedUser = UserModel.fromJson(data, uid);
 
-        List<QuestNodeModel> questsToAdd;
-        if (clearExisting) {
-          // Replace all quests — clear existing, use new quests directly
-          questsToAdd = newQuests
-              .map((q) => q.copyWith(
-                    dependsOn: const [],
-                    isActive: true,
-                    isCompleted: false,
-                  ))
-              .toList();
-        } else {
-          // Only add quests whose IDs don't already exist
-          final existingIds =
-              loadedUser.currentPlan.quests.map((q) => q.nodeId).toSet();
-          questsToAdd = newQuests
-              .where((q) => !existingIds.contains(q.nodeId))
-              .map((q) => q.copyWith(
-                    dependsOn: const [],
-                    isActive: true,
-                    isCompleted: false,
-                  ))
-              .toList();
-          if (questsToAdd.isEmpty) return;
+        // Prepare quests: all start active with no dependencies cleared
+        final questsToWrite = newQuests
+            .map((q) => q.copyWith(
+                  dependsOn: const [],
+                  isActive: true,
+                  isCompleted: false,
+                ))
+            .toList();
+
+        // Write each quest to the quests subcollection
+        for (final quest in questsToWrite) {
+          transaction.set(
+            _questRef(uid, planId, quest.nodeId),
+            quest.toJson(),
+          );
         }
 
-        final mergedQuests = clearExisting
-            ? questsToAdd
-            : [...loadedUser.currentPlan.quests, ...questsToAdd];
-        final updatedPlan =
-            loadedUser.currentPlan.copyWith(
-              quests: mergedQuests,
-              currentMilestoneIndex: currentMilestoneIndex,
-              milestones: milestones,
-            );
-        final normalizedUser = loadedUser.copyWith(
-          currentPlan: updatedPlan,
-          updatedAt: DateTime.now(),
+        // Write each milestone to the milestones subcollection
+        for (final milestone in milestones) {
+          transaction.set(
+            _milestoneRef(uid, planId, milestone.id),
+            milestone.toJson(),
+          );
+        }
+
+        // Write plan metadata
+        final plan = loadedUser.currentPlan.copyWith(
+          id: planId,
+          currentMilestoneIndex: currentMilestoneIndex,
+          milestones: milestones,
+          quests: questsToWrite,
+        );
+        transaction.set(_planRef(uid, planId), plan.toJson());
+
+        // Update user doc with activePlanId
+        transaction.set(
+          userRef,
+          {
+            'activePlanId': planId,
+            'updatedAt': DateTime.now(),
+          },
+          SetOptions(merge: true),
         );
 
-        transaction.set(userRef,
-            normalizedUser.toJson(), SetOptions(merge: true));
+        // Build in-memory model
+        final normalizedUser = loadedUser.copyWith(
+          activePlanId: planId,
+          currentPlan: plan,
+          updatedAt: DateTime.now(),
+        );
         updatedUser = normalizedUser;
       });
     } catch (e) {
@@ -91,10 +179,15 @@ class QuestService {
     return updatedUser;
   }
 
-  /// Completes the quest with [questId] for the user document [uid].
-  /// Returns the updated `UserModel` on success, or `null` on failure.
+  // ──────────────────────────────────────────────
+  //  completeQuestTransaction
+  // ──────────────────────────────────────────────
+
+  /// Updates a single quest document in the subcollection + user doc timestamp.
+  /// Returns the updated [UserModel] with in-memory data, or null on failure.
   Future<UserModel?> completeQuestTransaction({
     required String uid,
+    required String planId,
     required String questId,
     String reflectionNote = '',
     String? imageUrl,
@@ -113,63 +206,86 @@ class QuestService {
         if (data == null) return;
 
         final loadedUser = UserModel.fromJson(data, uid);
-        final quests = loadedUser.currentPlan.quests;
-        final questIndex = quests.indexWhere((q) => q.nodeId == questId);
-        if (questIndex == -1) return;
+        final resolvedPlanId = planId.isNotEmpty ? planId : loadedUser.activePlanId;
+        if (resolvedPlanId.isEmpty) return;
 
-        final targetQuest = quests[questIndex];
-        if (targetQuest.isCompleted) return;
-
-        // Determine completed IDs
-        final completedIds = quests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
-
-        // Check readiness (all dependencies completed)
-        final isReady = targetQuest.dependsOn.isEmpty ||
-            targetQuest.dependsOn.every((dep) => completedIds.contains(dep));
-
-        if (!isReady) return;
-
-        final updatedQuests = List<QuestNodeModel>.from(quests);
-        updatedQuests[questIndex] = targetQuest.copyWith(
-          isCompleted: true,
-          isActive: false,
-          reflectionNote: reflectionNote,
-          completedAt: DateTime.now(),
-          imageUrl: imageUrl,
-          greeting: greeting,
-          observation: observation,
-          tip: tip,
+        // Update the quest document in subcollection
+        final questRef = _questRef(uid, resolvedPlanId, questId);
+        transaction.set(
+          questRef,
+          {
+            'isCompleted': true,
+            'isActive': false,
+            'reflectionNote': reflectionNote,
+            'completedAt': DateTime.now(),
+            if (imageUrl != null) 'imageUrl': imageUrl,
+            if (greeting != null) 'greeting': greeting,
+            if (observation != null) 'observation': observation,
+            if (tip != null) 'tip': tip,
+          },
+          SetOptions(merge: true),
         );
 
-        // Normalize: recompute active flags for ALL ready quests (no cap)
-        final completedAfter = updatedQuests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
-        final ready = <String>{};
-        for (final q in updatedQuests) {
-          if (q.isCompleted) continue;
-          final isReady = q.dependsOn.isEmpty || q.dependsOn.every((d) => completedAfter.contains(d));
-          if (isReady) ready.add(q.nodeId);
-        }
-
-        final normalized = updatedQuests.map((q) {
-          final shouldBeActive = ready.contains(q.nodeId) && !q.isCompleted;
-          return q.copyWith(isActive: shouldBeActive);
-        }).toList();
-
-        final updatedPlan = loadedUser.currentPlan.copyWith(quests: normalized);
-        final normalizedUser = loadedUser.copyWith(
-          currentPlan: updatedPlan,
-          updatedAt: DateTime.now(),
-          lastQuestCompletionDate: DateTime.now(),
+        // Update user doc timestamp
+        transaction.set(
+          userRef,
+          {
+            'updatedAt': DateTime.now(),
+            'lastQuestCompletionDate': DateTime.now(),
+          },
+          SetOptions(merge: true),
         );
-
-        transaction.set(userRef, normalizedUser.toJson(), SetOptions(merge: true));
-        updatedUser = normalizedUser;
       });
     } catch (e) {
-      // bubble up as null
+      return null;
+    }
+
+    // After transaction, reload all data to build the in-memory model
+    try {
+      final resolvedPlanId = planId.isNotEmpty
+          ? planId
+          : (await userRef.get()).data()?['activePlanId'] as String? ?? '';
+      if (resolvedPlanId.isEmpty) return null;
+
+      final planSnapshot = await _planRef(uid, resolvedPlanId).get();
+      if (!planSnapshot.exists) return null;
+
+      final plan = QuestPlanModel.fromJson(
+          planSnapshot.data()!, docId: resolvedPlanId);
+      final milestones = await loadMilestones(uid, resolvedPlanId);
+      final quests = await loadQuests(uid, resolvedPlanId);
+
+      final userSnapshot = await userRef.get();
+      final userData = userSnapshot.data();
+      if (userData == null) return null;
+
+      final fullPlan = plan.copyWith(
+        milestones: milestones,
+        quests: quests,
+      );
+      updatedUser = UserModel.fromJson(userData, uid).copyWith(
+        activePlanId: resolvedPlanId,
+        currentPlan: fullPlan,
+      );
+    } catch (e) {
       return null;
     }
 
     return updatedUser;
+  }
+
+  // ──────────────────────────────────────────────
+  //  Utility
+  // ──────────────────────────────────────────────
+
+  /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
+  /// ready quests remain).
+  bool needsReplenishment(List<QuestNodeModel> quests, {int minVisible = 3}) {
+    final completedIds =
+        quests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
+    final readyCount = quests.where((q) =>
+        !q.isCompleted &&
+        (q.dependsOn.isEmpty || q.dependsOn.every(completedIds.contains))).length;
+    return readyCount < minVisible;
   }
 }

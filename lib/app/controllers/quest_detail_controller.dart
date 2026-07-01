@@ -180,6 +180,7 @@ class QuestDetailController extends GetxController {
       
       final updatedUser = await questService.completeQuestTransaction(
         uid: homeController.user.value?.id ?? '',
+        planId: homeController.user.value?.activePlanId ?? '',
         questId: questId,
         reflectionNote: reflectionNote,
         imageUrl: imageUrl,
