@@ -69,10 +69,12 @@ class _ForestPageState extends State<ForestPage> {
           ? const Center(child: Text('Please sign in'))
           : !_categoriesLoaded
               ? const Center(child: CircularProgressIndicator())
-              : StreamBuilder<DocumentSnapshot>(
+              : StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
                       .doc(uid)
+                      .collection('savedTrees')
+                      .orderBy('savedAt', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
@@ -82,13 +84,8 @@ class _ForestPageState extends State<ForestPage> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final data = snapshot.data?.data() as Map<String, dynamic>?;
-                    final forestTrees = data?['forestTrees'] as Map<String, dynamic>? ?? {};
-                    final entries = forestTrees.entries
-                        .where((e) => e.value != null)
-                        .toList();
-
-                    if (entries.isEmpty) {
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -128,10 +125,13 @@ class _ForestPageState extends State<ForestPage> {
                           mainAxisSpacing: 12,
                           childAspectRatio: 0.85,
                         ),
-                        itemCount: entries.length,
+                        itemCount: docs.length,
                         itemBuilder: (context, index) {
-                          final categoryId = entries[index].key;
+                          final data = docs[index].data() as Map<String, dynamic>;
+                          final categoryId = data['categoryId'] as String? ?? '';
                           final cat = _findCategoryById(categoryId);
+                          final treeName = data['name'] as String? ?? 'My Tree';
+                          final xpAtSave = data['xpAtSave'] as int? ?? 8000;
 
                           return Container(
                             decoration: BoxDecoration(
@@ -154,14 +154,11 @@ class _ForestPageState extends State<ForestPage> {
                                   height: 100,
                                   fit: BoxFit.contain,
                                 ),
-                                const SizedBox(height: 8),
-                                if (cat != null)
-                                  Icon(cat.icon, size: 18, color: AppColors.primary),
                                 const SizedBox(height: 4),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
-                                    cat?.name ?? 'Unknown',
+                                    treeName,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: AppFonts.badge,
@@ -171,10 +168,27 @@ class _ForestPageState extends State<ForestPage> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                if (cat != null)
+                                  Icon(cat.icon, size: 16, color: AppColors.primary),
                                 const SizedBox(height: 2),
-                                const Text(
-                                  '8000 XP',
-                                  style: TextStyle(
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    cat?.name ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: AppFonts.micro,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$xpAtSave XP',
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: AppFonts.micro,
                                     color: AppColors.textSecondary,
