@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
+import '../models/milestone_model.dart';
 
 class QuestService {
   /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
@@ -24,7 +25,8 @@ class QuestService {
     required String uid,
     required List<QuestNodeModel> newQuests,
     int? currentMilestoneIndex,
-    bool clearExisting = false,  // NEW: replace all quests instead of merging
+    bool clearExisting = false,
+    List<MilestoneModel>? milestones,
   }) async {
     if (newQuests.isEmpty) return null;
 
@@ -70,7 +72,8 @@ class QuestService {
         final updatedPlan =
             loadedUser.currentPlan.copyWith(
               quests: mergedQuests,
-              currentMilestoneIndex: currentMilestoneIndex,  // null = no change
+              currentMilestoneIndex: currentMilestoneIndex,
+              milestones: milestones,
             );
         final normalizedUser = loadedUser.copyWith(
           currentPlan: updatedPlan,

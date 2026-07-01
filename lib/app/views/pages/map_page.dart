@@ -29,7 +29,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Animation<double>? _shakeAnimation;
   int _previousStage = -1;
   String? _lastCategoryName;
-  Set<String> _savedCategoryIds = {};
+  final Set<String> _hasTriggeredSaveForCategory = {};
 
   final List<String> _speechMessages = [
     "Oh, hello! Who's that? Are you my new gardener?",
@@ -75,7 +75,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     ]).animate(_shakeController!);
     _checkTutorialStatus();
     _loadCategories();
-    _loadSavedTrees();
   }
 
   @override
@@ -128,42 +127,126 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.forward(from: 0.0);
   }
 
-  Future<void> _loadSavedTrees() async {
+  Future<void> _saveTreeToForest(CategoryModel category, String treeName) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+    final progressionController = Get.find<ProgressionController>();
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final forestData = doc.data()?['forestTrees'] as Map<String, dynamic>? ?? {};
-      _savedCategoryIds = forestData.entries
-          .where((e) => e.value != null)
-          .map((e) => e.key)
-          .toSet();
-    } catch (e) {
-      print('--- Error loading saved trees: $e ---');
-    }
-  }
-
-  Future<void> _saveTreeToForest(String categoryId) async {
-    if (_savedCategoryIds.contains(categoryId)) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    try {
+      // Save to subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
-          .update({'forestTrees.$categoryId': {
-        'categoryId': categoryId,
+          .collection('savedTrees')
+          .add({
+        'name': treeName,
+        'categoryId': category.id,
+        'categoryName': category.name,
         'savedAt': FieldValue.serverTimestamp(),
         'xpAtSave': 8000,
-      }});
-      _savedCategoryIds.add(categoryId);
-      print('--- Tree saved to forest: $categoryId ---');
+      });
+
+      // Reset category XP to 0 so user can grow a new tree
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'categoryXp.${category.name}': 0});
+      progressionController.categoryXp[category.name] = 0;
+
+      print('--- Tree saved to forest: ${category.name} ---');
     } catch (e) {
       print('--- Error saving tree to forest: $e ---');
     }
+  }
+
+  Future<void> _showTreeNamingDialog(CategoryModel category) async {
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final result = await Get.dialog<bool>(
+      barrierDismissible: false,
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Congratulations!\nYour tree has grown!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: AppFonts.titleLg,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Your ${category.name} tree has reached full maturity. Give it a name to save it in your forest!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: AppFonts.caption,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    hintText: 'Give your tree a name...',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    if (value.trim().length > 30) {
+                      return 'Name must be 30 characters or less';
+                    }
+                    return null;
+                  },
+                  maxLength: 30,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (formKey.currentState!.validate()) {
+                        Get.back(result: true);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Plant Tree',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: AppFonts.badge,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result == true && nameController.text.trim().isNotEmpty) {
+      _saveTreeToForest(category, nameController.text.trim());
+    }
+    nameController.dispose();
   }
 
   Future<void> _loadCategories() async {
@@ -322,9 +405,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             _previousStage = stage;
           }
 
-          // Auto-save mature tree to forest
-          if (stage == 4) {
-            _saveTreeToForest(category.id);
+          // Show naming dialog for mature tree
+          if (stage == 4 && !_hasTriggeredSaveForCategory.contains(category.id)) {
+            _hasTriggeredSaveForCategory.add(category.id);
+            _showTreeNamingDialog(category);
           }
 
           final currentMin = thresholds[stage];

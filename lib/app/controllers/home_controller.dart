@@ -543,6 +543,14 @@ class HomeController extends GetxController {
     final nextMilestone = plan.milestones[nextIndex];
     final milestoneNumber = (nextIndex + 1).toString();
 
+    // Mark current milestone as completed
+    final updatedMilestones = plan.milestones.asMap().map((i, m) {
+      if (i == plan.currentMilestoneIndex) {
+        return MapEntry(i, m.copyWith(completed: true));
+      }
+      return MapEntry(i, m);
+    }).values.toList();
+
     final newQuests = await _geminiService.generatePhaseDAG(
       hobby: hobby.value,
       level: level.value,
@@ -556,7 +564,8 @@ class HomeController extends GetxController {
       uid: currentUser.uid,
       newQuests: newQuests,
       currentMilestoneIndex: nextIndex,
-      clearExisting: true,  // replace old quests entirely
+      clearExisting: true,
+      milestones: updatedMilestones,
     );
 
     if (updatedUser == null) return;

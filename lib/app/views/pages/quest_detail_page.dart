@@ -33,7 +33,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   bool get _canCompleteQuest =>
       currentQuest.isActive &&
       !currentQuest.isCompleted &&
-      reflectionController.text.trim().length >= 15;
+      reflectionController.text.trim().length >= 15 &&
+      (currentQuest.type != 'challenge' || selectedImage != null);
 
   @override
   void initState() {
@@ -97,21 +98,22 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       reflectionController.text.trim(),
       imageFile: selectedImage,
     );
+    // Check milestone BEFORE popping (mounted is still true here)
+    final hasCompletedMilestone = Get.find<HomeController>().hasCompletedMilestone();
     // Navigate back, then show level-up if triggered
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) Navigator.of(context).pop();
     await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) {
-      await Get.find<ProgressionController>().showPendingLevelUp();
-      // Show milestone-complete screen after level-up is dismissed
-      if (mounted && Get.find<HomeController>().hasCompletedMilestone()) {
-        await Get.generalDialog(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const MilestoneCompleteScreen(),
-          barrierDismissible: false,
-          barrierLabel: 'Milestone Complete',
-        );
-      }
+    // Show pending level-up (uses Get.generalDialog with root navigator)
+    await Get.find<ProgressionController>().showPendingLevelUp();
+    // Show milestone-complete screen after level-up is dismissed
+    if (hasCompletedMilestone) {
+      await Get.generalDialog(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const MilestoneCompleteScreen(),
+        barrierDismissible: false,
+        barrierLabel: 'Milestone Complete',
+      );
     }
   }
 
@@ -781,6 +783,19 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   ),
                 ],
               ),
+              if (currentQuest.type == 'challenge')
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Photo is required for challenge quest',
+                    style: TextStyle(
+                  fontSize: AppFonts.micro,
+                      fontWeight: FontWeight.w500,
+                      fontStyle: FontStyle.italic,
+                      color: selectedImage == null ? AppColors.error : null,
+                    ),
+                  ),
+                ),
               if (currentQuest.type != 'challenge')
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
