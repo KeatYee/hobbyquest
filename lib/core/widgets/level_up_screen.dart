@@ -72,56 +72,52 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Stack(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
       children: [
-        Container(
-          color: Colors.white,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Expanded(child: SizedBox.shrink()),
-              const VideoLoader(
-                size: 300,
-                videoAsset: 'assets/videos/fox_jump.mp4',
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Expanded(child: SizedBox.shrink()),
+            const VideoLoader(
+              size: 300,
+              videoAsset: 'assets/videos/fox_jump.mp4',
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Level Up!',
+              style: TextStyle(
+                fontSize: AppFonts.titlePage,
+                fontWeight: FontWeight.w900,
+                color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Level Up!',
-                style: TextStyle(
-                  fontSize: AppFonts.titlePage,
-                  fontWeight: FontWeight.w900,
-                  color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You reached Level ${widget.newLevel}',
+              style: const TextStyle(
+                fontSize: AppFonts.body,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 40),
+            FilledButton(
+              onPressed: _onContinue,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'You reached Level ${widget.newLevel}',
-                style: const TextStyle(
-                  fontSize: AppFonts.body,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(fontSize: AppFonts.button, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 40),
-              FilledButton(
-                onPressed: _onContinue,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: AppFonts.button, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const Expanded(child: SizedBox.shrink()),
-            ],
-          ),
+            ),
+            const Expanded(child: SizedBox.shrink()),
+          ],
         ),
         // Four corners confetti
         _buildConfetti(Alignment.topLeft, _ctrTL),
