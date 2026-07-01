@@ -617,14 +617,28 @@ class HomeController extends GetxController {
       return MapEntry(i, m);
     }).values.toList();
 
-    final newQuests = await _geminiService.generatePhaseDAG(
-      hobby: hobby.value,
-      level: level.value,
-      goal: goal.value,
-      frequency: frequency.value,
-      milestoneTitle: nextMilestone.title,
-      milestoneNumber: milestoneNumber,
-    );
+    // Check API key before calling Gemini
+    if (!_geminiService.hasApiKey) {
+      print('--- WARNING: No Gemini API key configured — using fallback quests ---');
+    }
+
+    List<QuestNodeModel> newQuests;
+    try {
+      newQuests = await _geminiService.generatePhaseDAG(
+        hobby: hobby.value,
+        level: level.value,
+        goal: goal.value,
+        frequency: frequency.value,
+        milestoneTitle: nextMilestone.title,
+        milestoneNumber: milestoneNumber,
+      );
+    } catch (e) {
+      print('--- ERROR: Gemini API failed during milestone advancement: $e ---');
+      print('--- WARNING: Using fallback quests ---');
+      // generatePhaseDAG already returns fallback internally on failure,
+      // but if an unexpected exception escapes, rethrow to abort
+      rethrow;
+    }
 
     final updatedUser = await _questService.addQuestsToPlan(
       uid: uid,

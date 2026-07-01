@@ -362,9 +362,8 @@ class OnboardingController extends GetxController {
         );
       }).toList();
 
-      // Prepare quests (set all as active root quests)
+      // Prepare quests (set as active, not completed — preserve DAG)
       final quests = planWithData.quests.map((q) => q.copyWith(
-        dependsOn: const [],
         isActive: true,
         isCompleted: false,
       )).toList();

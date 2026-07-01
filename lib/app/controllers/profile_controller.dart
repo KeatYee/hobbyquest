@@ -215,11 +215,65 @@ class ProfileController extends GetxController {
     try {
       AppDialogs.showLoading(message: 'Deleting account...');
 
-      // 1. Delete Firestore user document
-      await _firestore.collection('users').doc(user.uid).delete();
-
-      // 2. Delete Firebase Auth account
+      // 1. Delete Firebase Auth account FIRST — if this fails, data stays safe
       await user.delete();
+
+      // 2. Clean up Firestore subcollections
+      final uid = user.uid;
+      final batch = _firestore.batch();
+
+      // 2a. Delete all quests and milestones under each plan
+      final plansSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('plans')
+          .get();
+      for (final planDoc in plansSnap.docs) {
+        final planId = planDoc.id;
+
+        final questsSnap = await _firestore
+            .collection('users').doc(uid)
+            .collection('plans').doc(planId)
+            .collection('quests')
+            .get();
+        for (final q in questsSnap.docs) {
+          batch.delete(q.reference);
+        }
+
+        final milestonesSnap = await _firestore
+            .collection('users').doc(uid)
+            .collection('plans').doc(planId)
+            .collection('milestones')
+            .get();
+        for (final m in milestonesSnap.docs) {
+          batch.delete(m.reference);
+        }
+
+        batch.delete(planDoc.reference);
+      }
+
+      // 2b. Delete tree subcollection
+      final treeSnap = await _firestore
+          .collection('users').doc(uid)
+          .collection('tree')
+          .get();
+      for (final t in treeSnap.docs) {
+        batch.delete(t.reference);
+      }
+
+      // 2c. Delete legacy savedTrees subcollection (if any)
+      final savedTreesSnap = await _firestore
+          .collection('users').doc(uid)
+          .collection('savedTrees')
+          .get();
+      for (final st in savedTreesSnap.docs) {
+        batch.delete(st.reference);
+      }
+
+      // 2d. Delete user document
+      batch.delete(_firestore.collection('users').doc(uid));
+
+      await batch.commit();
 
       // 3. Sign out from Google
       await GoogleSignIn.instance.signOut();

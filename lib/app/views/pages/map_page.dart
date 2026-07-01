@@ -8,6 +8,7 @@ import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../services/category_service.dart';
 import '../../models/category_model.dart';
+import '../../models/tree_model.dart';
 import '../../routes/app_routes.dart';
 
 class MapPage extends StatefulWidget {
@@ -131,19 +132,36 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final progressionController = Get.find<ProgressionController>();
+    final homeCtrl = Get.find<HomeController>();
+    final plan = homeCtrl.user.value?.currentPlan;
     try {
-      // Save to subcollection
+      // Gather data from completed quests
+      final completedQuests =
+          plan?.quests.where((q) => q.isCompleted).toList() ?? [];
+      final totalQuestCompleted = completedQuests.length;
+      final learningTimeMinutes = completedQuests.fold<int>(
+        0,
+        (total, q) => total + q.durationMinutes,
+      );
+
+      final tree = TreeModel(
+        treeName: treeName,
+        goalName: plan?.goal ?? homeCtrl.goal.value,
+        categoryId: category.id,
+        hobbyType: plan?.hobby ?? homeCtrl.hobby.value,
+        plantedDate: DateTime.now(),
+        completedDate: DateTime.now(),
+        totalQuestCompleted: totalQuestCompleted,
+        totalxp: 8000,
+        learningTimeMinutes: learningTimeMinutes,
+      );
+
+      // Save to tree subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
-          .collection('savedTrees')
-          .add({
-        'name': treeName,
-        'categoryId': category.id,
-        'categoryName': category.name,
-        'savedAt': FieldValue.serverTimestamp(),
-        'xpAtSave': 8000,
-      });
+          .collection('tree')
+          .add(tree.toJson());
 
       // Reset category XP to 0 so user can grow a new tree
       await FirebaseFirestore.instance

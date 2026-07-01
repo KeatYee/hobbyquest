@@ -120,10 +120,9 @@ class QuestService {
 
         final loadedUser = UserModel.fromJson(data, uid);
 
-        // Prepare quests: all start active with no dependencies cleared
+        // Prepare quests: all start active, not completed (preserve DAG)
         final questsToWrite = newQuests
             .map((q) => q.copyWith(
-                  dependsOn: const [],
                   isActive: true,
                   isCompleted: false,
                 ))

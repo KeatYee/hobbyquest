@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../models/category_model.dart';
+import '../../models/tree_model.dart';
 import '../../services/category_service.dart';
 
 class ForestPage extends StatefulWidget {
@@ -73,8 +74,8 @@ class _ForestPageState extends State<ForestPage> {
                   stream: FirebaseFirestore.instance
                       .collection('users')
                       .doc(uid)
-                      .collection('savedTrees')
-                      .orderBy('savedAt', descending: true)
+                      .collection('tree')
+                      .orderBy('completedDate', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
@@ -127,11 +128,11 @@ class _ForestPageState extends State<ForestPage> {
                         ),
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
-                          final data = docs[index].data() as Map<String, dynamic>;
-                          final categoryId = data['categoryId'] as String? ?? '';
-                          final cat = _findCategoryById(categoryId);
-                          final treeName = data['name'] as String? ?? 'My Tree';
-                          final xpAtSave = data['xpAtSave'] as int? ?? 8000;
+                          final tree = TreeModel.fromJson(
+                            docs[index].data() as Map<String, dynamic>,
+                            docId: docs[index].id,
+                          );
+                          final cat = _findCategoryById(tree.categoryId);
 
                           return Container(
                             decoration: BoxDecoration(
@@ -158,7 +159,7 @@ class _ForestPageState extends State<ForestPage> {
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
-                                    treeName,
+                                    tree.treeName,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: AppFonts.badge,
@@ -187,7 +188,7 @@ class _ForestPageState extends State<ForestPage> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '$xpAtSave XP',
+                                  '${tree.totalxp} XP',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: AppFonts.micro,
