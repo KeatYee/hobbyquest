@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/controllers/home_controller.dart';
+import '../constants/color_constants.dart';
 import '../constants/font_constants.dart';
 import 'video_loader.dart';
 
@@ -20,10 +21,12 @@ class _MilestoneCompleteScreenState extends State<MilestoneCompleteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Stack(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Stack(
         children: [
           Container(
             color: Colors.white,
@@ -36,12 +39,12 @@ class _MilestoneCompleteScreenState extends State<MilestoneCompleteScreen> {
                   videoAsset: 'assets/videos/fox_keepgoing.mp4',
                 ),
                 const SizedBox(height: 20),
-                Text(
+                const Text(
                   'Milestone Complete!',
                   style: TextStyle(
                     fontSize: AppFonts.titleLg,
                     fontWeight: FontWeight.w900,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: AppColors.primary,
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -75,6 +78,7 @@ class _MilestoneCompleteScreenState extends State<MilestoneCompleteScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
