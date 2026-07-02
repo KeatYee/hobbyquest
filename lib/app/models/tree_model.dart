@@ -6,6 +6,7 @@ class TreeModel {
   final String categoryId;
   final int xpRequired;
   final int treeIndex;
+  final int questsCompleted;
   final DateTime? createdAt;
   final DateTime? grownAt;
 
@@ -15,6 +16,7 @@ class TreeModel {
     required this.categoryId,
     this.xpRequired = 0,
     this.treeIndex = 0,
+    this.questsCompleted = 0,
     this.createdAt,
     this.grownAt,
   });
@@ -26,6 +28,7 @@ class TreeModel {
       categoryId: json['categoryId'] as String? ?? '',
       xpRequired: json['xpRequired'] as int? ?? 0,
       treeIndex: json['treeIndex'] as int? ?? 0,
+      questsCompleted: json['questsCompleted'] as int? ?? 0,
       createdAt: _readDateTime(json['createdAt']),
       grownAt: _readDateTime(json['grownAt']),
     );
@@ -37,6 +40,7 @@ class TreeModel {
       'categoryId': categoryId,
       'xpRequired': xpRequired,
       'treeIndex': treeIndex,
+      'questsCompleted': questsCompleted,
       'createdAt': createdAt,
       'grownAt': grownAt,
     };
@@ -55,6 +59,7 @@ class TreeModel {
     String? categoryId,
     int? xpRequired,
     int? treeIndex,
+    int? questsCompleted,
     DateTime? createdAt,
     DateTime? grownAt,
   }) {
@@ -64,6 +69,7 @@ class TreeModel {
       categoryId: categoryId ?? this.categoryId,
       xpRequired: xpRequired ?? this.xpRequired,
       treeIndex: treeIndex ?? this.treeIndex,
+      questsCompleted: questsCompleted ?? this.questsCompleted,
       createdAt: createdAt ?? this.createdAt,
       grownAt: grownAt ?? this.grownAt,
     );

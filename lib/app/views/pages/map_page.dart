@@ -151,11 +151,24 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         firstFree++;
       }
 
+      // Count completed quests from current plan
+      final userSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final rawPlan = userSnap.data()?['currentPlan'] as Map<String, dynamic>?;
+      final rawQuests = rawPlan?['quests'] as List<dynamic>? ?? [];
+      final completedCount = rawQuests
+          .where((q) =>
+              q is Map<String, dynamic> && q['isCompleted'] == true)
+          .length;
+
       final tree = TreeModel(
         treeName: treeName,
         categoryId: category.id,
         xpRequired: 800,
         treeIndex: firstFree,
+        questsCompleted: completedCount,
         createdAt: DateTime.now(),
         grownAt: DateTime.now(),
       );

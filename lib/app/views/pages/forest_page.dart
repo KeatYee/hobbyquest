@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../models/tree_model.dart';
+import '../../routes/app_routes.dart';
 
 class ForestPage extends StatefulWidget {
   const ForestPage({super.key});
@@ -14,7 +15,7 @@ class ForestPage extends StatefulWidget {
 }
 
 class _ForestPageState extends State<ForestPage> {
-  static const int _spotCount = 6;
+  static const int _spotCount = 9;
 
   Future<void> _onSwap(
     TreeModel dragged,
@@ -46,18 +47,18 @@ class _ForestPageState extends State<ForestPage> {
   Widget _buildEmptySpot(bool isHovered) {
     return Center(
       child: Container(
-        width: 70,
-        height: 70,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           color: isHovered
               ? AppColors.primary.withValues(alpha: 0.15)
-              : AppColors.surface.withValues(alpha: 0.3),
+              : AppColors.surface.withValues(alpha: 0.15),
           shape: BoxShape.circle,
           border: Border.all(
             color: isHovered
                 ? AppColors.primary.withValues(alpha: 0.6)
-                : AppColors.surface.withValues(alpha: 0.4),
-            width: isHovered ? 2.5 : 2,
+                : AppColors.surface.withValues(alpha: 0.2),
+            width: isHovered ? 1.5 : 1,
           ),
         ),
         child: Icon(
@@ -75,15 +76,15 @@ class _ForestPageState extends State<ForestPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildTreeAsset(),
-          const SizedBox(height: 4),
+          _buildTreeAsset(width: 120, height: 120),
+          const SizedBox(height: 2),
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () => _showTreeInfo(tree),
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.surface.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
@@ -93,10 +94,10 @@ class _ForestPageState extends State<ForestPage> {
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      size: 14,
+                      size: 10,
                       color: AppColors.surface.withValues(alpha: 0.8),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       tree.treeName,
                       style: TextStyle(
@@ -116,6 +117,70 @@ class _ForestPageState extends State<ForestPage> {
   }
 
   void _showTreeInfo(TreeModel tree) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    void renameTree() {
+      final controller = TextEditingController(text: tree.treeName);
+      Get.dialog(
+        Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Rename Tree',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Enter new name',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final newName = controller.text.trim();
+                      if (newName.isNotEmpty && uid != null) {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .collection('tree')
+                            .doc(tree.id)
+                            .update({'treeName': newName});
+                      }
+                      Get.back();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -125,6 +190,10 @@ class _ForestPageState extends State<ForestPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: _buildTreeAsset(width: 100, height: 100),
+              ),
+              const SizedBox(height: 12),
               Text(
                 tree.treeName,
                 style: const TextStyle(
@@ -148,20 +217,55 @@ class _ForestPageState extends State<ForestPage> {
                   color: AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(height: 6),
+              Text(
+                'Quests Completed: ${tree.questsCompleted}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Get.back();
+                        renameTree();
+                      },
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: const Text('Rename'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
-                  child: const Text('Close'),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Get.back();
+                        Get.toNamed(AppRoutes.GOAL_HISTORY);
+                      },
+                      icon: const Icon(Icons.explore_rounded, size: 16),
+                      label: const Text('Journey'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -170,11 +274,41 @@ class _ForestPageState extends State<ForestPage> {
     );
   }
 
-  Widget _buildTreeAsset() {
+  Widget _statItem(IconData icon, String value, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.8)),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textPrimary.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTreeAsset({double width = 140, double height = 140}) {
     return Image.asset(
       'assets/images/mature_tree.png',
-      width: 140,
-      height: 140,
+      width: width,
+      height: height,
       fit: BoxFit.contain,
     );
   }
@@ -209,9 +343,12 @@ class _ForestPageState extends State<ForestPage> {
               children: [
                 // Forest background image
                 Positioned.fill(
-                  child: Image.asset(
-                    'assets/images/forestBG.jpg',
-                    fit: BoxFit.cover,
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: Image.asset(
+                      'assets/images/forestBG.jpg',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 // Grid content
@@ -247,14 +384,50 @@ class _ForestPageState extends State<ForestPage> {
                       occupied[e.tree.treeIndex] = e;
                     }
 
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: GridView.builder(
+                    final treesGrown = items.where((e) => e.tree.grownAt != null).length;
+                    final totalXp = items.fold<int>(0, (acc, e) => acc + e.tree.xpRequired);
+
+                    return Column(
+                      children: [
+                        // Stats bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          margin: const EdgeInsets.fromLTRB(32, 110, 32, 32),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              _statItem(
+                                Icons.forest_rounded,
+                                '$treesGrown',
+                                'Trees Grown',
+                              ),
+                              Container(
+                                width: 1,
+                                height: 28,
+                                color: AppColors.surface.withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(width: 16),
+                              _statItem(
+                                Icons.flash_on_rounded,
+                                '$totalXp',
+                                'Total XP',
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Grid
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                            child: GridView.builder(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
+                          crossAxisCount: 3,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 1.0,
+                          childAspectRatio: 0.78,
                         ),
                         itemCount: _spotCount,
                         itemBuilder: (context, spotIndex) {
@@ -317,11 +490,14 @@ class _ForestPageState extends State<ForestPage> {
                           }
                         },
                       ),
-                    );
-                  },
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              );
+              },
             ),
+          ],
+        ),
     );
   }
 }
