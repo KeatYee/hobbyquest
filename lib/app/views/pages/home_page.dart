@@ -6,6 +6,8 @@ import '../../routes/app_routes.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../models/quest_plan_model.dart';
+import '../../models/milestone_model.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -333,14 +335,17 @@ class HomePage extends StatelessWidget {
       final completedQuests = quests.where((q) => q.isCompleted).length;
       final totalQuests = quests.length;
 
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border, width: 1),
-        ),
-        child: Row(
+      return InkWell(
+        onTap: () => _showGoalInfo(plan),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border, width: 1),
+          ),
+          child: Row(
           children: [
             // Milestone icon
             Container(
@@ -411,8 +416,182 @@ class HomePage extends StatelessWidget {
             ),
           ],
         ),
+      ),
       );
     });
+  }
+
+  void _showGoalInfo(QuestPlanModel plan) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Goal title
+              const Text(
+                'My Goal',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                plan.goal,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Hobby & Level
+              Row(
+                children: [
+                  _infoChip(
+                    Icons.auto_awesome_rounded,
+                    plan.hobby,
+                  ),
+                  const SizedBox(width: 8),
+                  _infoChip(
+                    Icons.trending_up_rounded,
+                    plan.level,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _infoChip(
+                Icons.schedule_rounded,
+                plan.frequency,
+              ),
+              const SizedBox(height: 20),
+              // Milestones header
+              const Text(
+                'Milestones',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...plan.milestones.map((m) => _milestoneRow(m, plan)),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textSecondary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _milestoneRow(MilestoneModel m, QuestPlanModel plan) {
+    final index = plan.milestones.indexOf(m);
+    final isCurrent = index == plan.currentMilestoneIndex;
+    final isCompleted = m.completed || index < plan.currentMilestoneIndex;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isCompleted
+                  ? AppColors.success
+                  : (isCurrent
+                      ? AppColors.primary
+                      : AppColors.border),
+            ),
+            child: Center(
+              child: isCompleted
+                  ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                  : Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isCurrent ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              m.title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                color: isCompleted
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (isCurrent)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Current',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────
