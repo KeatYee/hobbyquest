@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../models/tree_model.dart';
-import '../../routes/app_routes.dart';
+import '../../../core/utils/dialog_utils.dart';
 
 class ForestPage extends StatefulWidget {
   const ForestPage({super.key});
@@ -119,156 +119,107 @@ class _ForestPageState extends State<ForestPage> {
   void _showTreeInfo(TreeModel tree) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    void renameTree() {
-      final controller = TextEditingController(text: tree.treeName);
-      Get.dialog(
-        Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    void renameTree() async {
+      final newName = await AppDialogs.input(
+        title: 'Rename Tree',
+        initialValue: tree.treeName,
+        hintText: 'Enter new name',
+        confirmLabel: 'Save',
+      );
+      if (newName != null && newName.isNotEmpty && uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('tree')
+            .doc(tree.id)
+            .update({'treeName': newName});
+      }
+    }
+
+    AppDialogs.custom(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: _buildTreeAsset(width: 100, height: 100),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tree.treeName,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'XP Required: ${tree.xpRequired}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Grown At: ${tree.grownAt != null ? '${tree.grownAt!.year}-${tree.grownAt!.month.toString().padLeft(2, '0')}-${tree.grownAt!.day.toString().padLeft(2, '0')}' : 'N/A'}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Quests Completed: ${tree.questsCompleted}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Learning Time: ${tree.learningMinutes ~/ 60}h ${tree.learningMinutes % 60}m',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Text(
-                  'Rename Tree',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Enter new name',
-                    border: OutlineInputBorder(
+                TextButton(
+                  onPressed: () {
+                    Get.back();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  child: const Text('Close'),
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final newName = controller.text.trim();
-                      if (newName.isNotEmpty && uid != null) {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(uid)
-                            .collection('tree')
-                            .doc(tree.id)
-                            .update({'treeName': newName});
-                      }
-                      Get.back();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                const SizedBox(width: 12),
+                FilledButton(
+                  onPressed: () {
+                    Get.back();
+                    renameTree();
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Save'),
                   ),
+                  child: const Text('Rename'),
                 ),
               ],
             ),
-          ),
-        ),
-      );
-    }
-
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: _buildTreeAsset(width: 100, height: 100),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                tree.treeName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'XP Required: ${tree.xpRequired}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Grown At: ${tree.grownAt != null ? '${tree.grownAt!.year}-${tree.grownAt!.month.toString().padLeft(2, '0')}-${tree.grownAt!.day.toString().padLeft(2, '0')}' : 'N/A'}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Quests Completed: ${tree.questsCompleted}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Get.back();
-                        renameTree();
-                      },
-                      icon: const Icon(Icons.edit_rounded, size: 16),
-                      label: const Text('Rename'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Get.back();
-                        Get.toNamed(AppRoutes.GOAL_HISTORY);
-                      },
-                      icon: const Icon(Icons.explore_rounded, size: 16),
-                      label: const Text('Journey'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -276,6 +227,7 @@ class _ForestPageState extends State<ForestPage> {
 
   Widget _statItem(IconData icon, String value, String label) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(icon, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.8)),
         const SizedBox(width: 8),
@@ -399,21 +351,24 @@ class _ForestPageState extends State<ForestPage> {
                           ),
                           child: Row(
                             children: [
-                              _statItem(
-                                Icons.forest_rounded,
-                                '$treesGrown',
-                                'Trees Grown',
+                              Expanded(
+                                child: _statItem(
+                                  Icons.forest_rounded,
+                                  '$treesGrown',
+                                  'Trees Grown',
+                                ),
                               ),
                               Container(
                                 width: 1,
                                 height: 28,
                                 color: AppColors.surface.withValues(alpha: 0.3),
                               ),
-                              const SizedBox(width: 16),
-                              _statItem(
-                                Icons.flash_on_rounded,
-                                '$totalXp',
-                                'Total XP',
+                              Expanded(
+                                child: _statItem(
+                                  Icons.flash_on_rounded,
+                                  '$totalXp',
+                                  'Total XP',
+                                ),
                               ),
                             ],
                           ),

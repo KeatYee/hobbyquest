@@ -162,6 +162,17 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           .where((q) =>
               q is Map<String, dynamic> && q['isCompleted'] == true)
           .length;
+      final totalMinutes = rawQuests
+          .where((q) =>
+              q is Map<String, dynamic> && q['isCompleted'] == true)
+          .fold<int>(
+        0,
+        (acc, q) =>
+            acc +
+            ((q['durationMinutes'] as int?) ??
+                (q['duration_minutes'] as int?) ??
+                0),
+      );
 
       final tree = TreeModel(
         treeName: treeName,
@@ -169,6 +180,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         xpRequired: 800,
         treeIndex: firstFree,
         questsCompleted: completedCount,
+        learningMinutes: totalMinutes,
         createdAt: DateTime.now(),
         grownAt: DateTime.now(),
       );
