@@ -69,20 +69,113 @@ class _ForestPageState extends State<ForestPage> {
     );
   }
 
-  Widget _buildTreeAsset() {
-    return ClipOval(
-      child: Container(
-        color: AppColors.surface.withValues(alpha: 0.2),
+  Widget _buildTreeWithInfo(TreeModel tree) {
+    return GestureDetector(
+      onTap: () => _showTreeInfo(tree),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildTreeAsset(),
+          const SizedBox(height: 4),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showTreeInfo(tree),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: AppColors.surface.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      tree.treeName,
+                      style: TextStyle(
+                        fontSize: AppFonts.micro,
+                        color: AppColors.surface.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTreeInfo(TreeModel tree) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Image.asset(
-            'assets/images/mature_tree.png',
-            width: 100,
-            height: 100,
-            fit: BoxFit.contain,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tree.treeName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'XP Required: ${tree.xpRequired}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Grown At: ${tree.grownAt != null ? '${tree.grownAt!.year}-${tree.grownAt!.month.toString().padLeft(2, '0')}-${tree.grownAt!.day.toString().padLeft(2, '0')}' : 'N/A'}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTreeAsset() {
+    return Image.asset(
+      'assets/images/mature_tree.png',
+      width: 140,
+      height: 140,
+      fit: BoxFit.contain,
     );
   }
 
@@ -101,17 +194,28 @@ class _ForestPageState extends State<ForestPage> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => Get.back(),
         ),
       ),
+      extendBodyBehindAppBar: true,
       backgroundColor: AppColors.success,
       body: uid == null
           ? const Center(child: Text('Please sign in'))
-          : StreamBuilder<QuerySnapshot>(
+          : Stack(
+              children: [
+                // Forest background image
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/forestBG.jpg',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                // Grid content
+                StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
                       .doc(uid)
@@ -169,7 +273,7 @@ class _ForestPageState extends State<ForestPage> {
                                     shape: BoxShape.circle,
                                     color: isHovered
                                         ? AppColors.primary.withValues(alpha: 0.15)
-                                        : AppColors.surface.withValues(alpha: 0.15),
+                                        : Colors.transparent,
                                     border: isHovered
                                         ? Border.all(
                                             color: AppColors.primary, width: 2.5)
@@ -180,6 +284,7 @@ class _ForestPageState extends State<ForestPage> {
                                     child: LongPressDraggable<TreeModel>(
                                       data: entry.tree,
                                       feedback: Material(
+                                        color: Colors.transparent,
                                         elevation: 8,
                                         shape: const CircleBorder(),
                                         clipBehavior: Clip.antiAlias,
@@ -191,9 +296,9 @@ class _ForestPageState extends State<ForestPage> {
                                       ),
                                       childWhenDragging: Opacity(
                                         opacity: 0.3,
-                                        child: _buildTreeAsset(),
+                                        child: _buildTreeWithInfo(entry.tree),
                                       ),
-                                      child: _buildTreeAsset(),
+                                      child: _buildTreeWithInfo(entry.tree),
                                     ),
                                   ),
                                 );
@@ -215,6 +320,8 @@ class _ForestPageState extends State<ForestPage> {
                     );
                   },
                 ),
+              ],
+            ),
     );
   }
 }
