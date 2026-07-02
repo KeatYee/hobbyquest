@@ -6,6 +6,7 @@ import '../../../core/constants/font_constants.dart';
 import '../../models/user_model.dart';
 import '../../controllers/profile_controller.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../../routes/app_routes.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -187,6 +188,14 @@ class ProfilePage extends StatelessWidget {
       label: "SETTINGS",
       child: Column(
         children: [
+          _SettingsTile(
+            icon: Icons.history_rounded,
+            iconColor: AppColors.info,
+            title: "Goal History",
+            subtitle: "View your past goals",
+            onTap: () => Get.toNamed(AppRoutes.GOAL_HISTORY),
+          ),
+          const _TileDivider(),
           _SettingsTile(
             icon: Icons.notifications_outlined,
             iconColor: AppColors.warning,

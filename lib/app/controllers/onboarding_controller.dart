@@ -10,6 +10,8 @@ import '../models/user_model.dart';
 import '../services/category_service.dart';
 import '../services/gemini_service.dart';
 import '../services/quest_service.dart';
+import '../services/goal_history_service.dart';
+import '../models/goal_history_model.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
 
 class OnboardingController extends GetxController {
@@ -434,7 +436,17 @@ class OnboardingController extends GetxController {
             .set(quest.toJson());
       }
 
-      print("--- SUCCESS: User profile and plan saved to subcollections ---");
+      // Save initial goal history
+      await GoalHistoryService.saveGoalHistory(uid, GoalHistoryModel(
+        hobby: planWithData.hobby,
+        level: planWithData.level,
+        goal: planWithData.goal,
+        frequency: planWithData.frequency,
+        category: category.value,
+        createdAt: DateTime.now(),
+      ));
+
+      print("--- SUCCESS: User profile, plan, and goal history saved ---");
     } catch (e) {
       print("--- ERROR: Failed to save user data: $e ---");
       rethrow;

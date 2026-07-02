@@ -10,6 +10,7 @@ import '../views/pages/dashboard_page.dart';
 import '../views/pages/quest_detail_page.dart';
 import '../views/pages/user_profile_page.dart';
 import '../views/pages/forest_page.dart';
+import '../views/pages/goal_history_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -58,6 +59,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.FOREST,
       page: () => const ForestPage(),
+    ),
+    GetPage(
+      name: AppRoutes.GOAL_HISTORY,
+      page: () => const GoalHistoryPage(),
     ),
   ];
 }

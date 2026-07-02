@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../routes/app_routes.dart';
 import '../../core/utils/dialog_utils.dart';
+import '../services/goal_history_service.dart';
 
 class ProfileController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -270,7 +271,10 @@ class ProfileController extends GetxController {
         batch.delete(st.reference);
       }
 
-      // 2d. Delete user document
+      // 2d. Delete goalHistory subcollection
+      await GoalHistoryService.deleteAllGoalHistory(uid);
+
+      // 2e. Delete user document
       batch.delete(_firestore.collection('users').doc(uid));
 
       await batch.commit();
