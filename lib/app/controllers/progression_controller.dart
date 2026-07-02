@@ -77,8 +77,12 @@ class ProgressionController extends GetxController {
     if (resolvedCategory == null) {
       try {
         resolvedCategory = await _resolveCurrentCategory();
-      } catch (_) {}
+        print('--- DEBUG: _resolveCurrentCategory returned: $resolvedCategory ---');
+      } catch (e) {
+        print('--- ERROR: _resolveCurrentCategory threw: $e ---');
+      }
     }
+    print('--- DEBUG: completeQuest resolvedCategory=$resolvedCategory, xpReward=$xpReward ---');
 
     final userRef = _firestore.collection('users').doc(user.uid);
 
@@ -155,6 +159,9 @@ class ProgressionController extends GetxController {
     if (resolvedCategory != null) {
       categoryXp[resolvedCategory] =
           (categoryXp[resolvedCategory] ?? 0) + xpReward;
+      print('--- DEBUG: categoryXp updated: [${resolvedCategory}] = ${categoryXp[resolvedCategory]} ---');
+    } else {
+      print('--- WARN: resolvedCategory is null, categoryXp NOT updated ---');
     }
 
     final previousLevel = (previousXP ~/ 1000) + 1;
@@ -215,15 +222,40 @@ class ProgressionController extends GetxController {
   Future<String?> _resolveCurrentCategory() async {
     try {
       final hobby = Get.find<HomeController>().hobby.value;
-      if (hobby.isEmpty) return null;
+      print('--- DEBUG _resolveCurrentCategory: hobby="$hobby" ---');
+      if (hobby.isEmpty) {
+        print('--- DEBUG _resolveCurrentCategory: hobby is EMPTY, returning null ---');
+        return null;
+      }
       final cats = await _categoryService.getCategories();
+      print('--- DEBUG _resolveCurrentCategory: loaded ${cats.length} categories ---');
+      if (cats.isEmpty) return null;
+
+      // 1. Try exact hobby match
       for (final cat in cats) {
+        print('--- DEBUG _resolveCurrentCategory: checking category "${cat.name}" with hobbies: ${cat.hobbyNames} ---');
         if (cat.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+          print('--- DEBUG _resolveCurrentCategory: MATCHED category "${cat.name}" ---');
           return cat.name;
         }
       }
-      return null;
-    } catch (_) {
+
+      // 2. Fallback: hobby matches a category name keyword (e.g. "Learning" → "Skill & Strategy")
+      final hobbyLower = hobby.toLowerCase();
+      for (final cat in cats) {
+        final catName = cat.name.toLowerCase();
+        if (catName.contains(hobbyLower) || hobbyLower.contains(catName) ||
+            cat.hobbyNames.any((h) => h.toLowerCase().contains(hobbyLower) || hobbyLower.contains(h.toLowerCase()))) {
+          print('--- DEBUG _resolveCurrentCategory: PARTIAL MATCHED category "${cat.name}" for hobby="$hobby" ---');
+          return cat.name;
+        }
+      }
+
+      // 3. Last resort: first category
+      print('--- DEBUG _resolveCurrentCategory: NO match, falling back to first category "${cats.first.name}" ---');
+      return cats.first.name;
+    } catch (e) {
+      print('--- ERROR _resolveCurrentCategory: exception: $e ---');
       return null;
     }
   }

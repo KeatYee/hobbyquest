@@ -10,6 +10,7 @@ import '../../services/category_service.dart';
 import '../../models/category_model.dart';
 import '../../models/tree_model.dart';
 import '../../routes/app_routes.dart';
+import '../../../core/utils/dialog_utils.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -81,6 +82,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _floatController?.stop();
+    _shakeController?.stop();
     _floatController?.dispose();
     _shakeController?.dispose();
     super.dispose();
@@ -133,28 +136,28 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final progressionController = Get.find<ProgressionController>();
-    final homeCtrl = Get.find<HomeController>();
-    final plan = homeCtrl.user.value?.currentPlan;
+
     try {
-      // Gather data from completed quests
-      final completedQuests =
-          plan?.quests.where((q) => q.isCompleted).toList() ?? [];
-      final totalQuestCompleted = completedQuests.length;
-      final learningTimeMinutes = completedQuests.fold<int>(
-        0,
-        (total, q) => total + q.durationMinutes,
-      );
+      // Find first free spot index
+      final existingDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('tree')
+          .get();
+      final usedIndices =
+          existingDocs.docs.map((doc) => doc['treeIndex'] as int? ?? 0).toSet();
+      int firstFree = 0;
+      while (usedIndices.contains(firstFree) && firstFree < 6) {
+        firstFree++;
+      }
 
       final tree = TreeModel(
         treeName: treeName,
-        goalName: plan?.goal ?? homeCtrl.goal.value,
         categoryId: category.id,
-        hobbyType: plan?.hobby ?? homeCtrl.hobby.value,
-        plantedDate: DateTime.now(),
-        completedDate: DateTime.now(),
-        totalQuestCompleted: totalQuestCompleted,
-        totalxp: 8000,
-        learningTimeMinutes: learningTimeMinutes,
+        xpRequired: 800,
+        treeIndex: firstFree,
+        createdAt: DateTime.now(),
+        grownAt: DateTime.now(),
       );
 
       // Save to tree subcollection
@@ -181,89 +184,94 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    final result = await Get.dialog<bool>(
+    final result = await AppDialogs.custom<bool>(
       barrierDismissible: false,
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      builder: (context) => Form(
+        key: formKey,
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Congratulations!\nYour tree has grown!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: AppFonts.titleLg,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Congratulations!\nYour tree has grown!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppFonts.titleLg,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Your ${category.name} tree has reached full maturity. Give it a name to save it in your forest!',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: AppFonts.caption,
-                    color: AppColors.textSecondary,
-                  ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Your ${category.name} tree has reached full maturity. Give it a name to save it in your forest!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: AppFonts.caption,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    hintText: 'Give your tree a name...',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  hintText: 'Give your tree a name...',
+                  border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a name';
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a name';
+                  }
+                  if (value.trim().length > 30) {
+                    return 'Name must be 30 characters or less';
+                  }
+                  return null;
+                },
+                maxLength: 30,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      Get.back(result: true);
                     }
-                    if (value.trim().length > 30) {
-                      return 'Name must be 30 characters or less';
-                    }
-                    return null;
                   },
-                  maxLength: 30,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState!.validate()) {
-                        Get.back(result: true);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Plant Tree',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: AppFonts.badge,
-                      ),
+                  ),
+                  child: const Text(
+                    'Plant Tree',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: AppFonts.badge,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
 
     if (result == true && nameController.text.trim().isNotEmpty) {
-      _saveTreeToForest(category, nameController.text.trim());
+      await _saveTreeToForest(category, nameController.text.trim());
+      // Navigate to the dedicated Forest page where the tree is displayed
+      Get.toNamed(AppRoutes.FOREST);
     }
     nameController.dispose();
   }
@@ -405,7 +413,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         child: Obx(() {
           final progressionController = Get.find<ProgressionController>();
           final xp = progressionController.categoryXp[category.name] ?? 0;
-          final thresholds = [0, 800, 2500, 5000, 8000];
+          final thresholds = [0, 100, 300, 500, 800];
           final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
 
           // Compute actual stage from XP
@@ -453,7 +461,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           _showTreeNamingDialog(category);
                         }
                       }
-                    : null,
+                    : stage == 4
+                        ? () => _showTreeNamingDialog(category)
+                        : null,
             child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -523,21 +533,24 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                       fit: BoxFit.contain,
                     ),
                   ),
-                  // "Level Up!" speech bubble when next stage is pending
-                  if (hasPending)
+                  // Speech bubble when next stage is pending or tree is fully grown
+                  if (hasPending || stage == 4)
                     Positioned(
                       top: -56,
-                      right: -12,
+                      left: 0,
+                      right: 0,
                       child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _displayedStage++;
-                            _triggerShake();
-                          });
-                          if (_displayedStage == 4) {
-                            _showTreeNamingDialog(category);
-                          }
-                        },
+                        onTap: hasPending
+                            ? () {
+                                setState(() {
+                                  _displayedStage++;
+                                  _triggerShake();
+                                });
+                                if (_displayedStage == 4) {
+                                  _showTreeNamingDialog(category);
+                                }
+                              }
+                            : () => _showTreeNamingDialog(category),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -556,9 +569,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                   ),
                                 ],
                               ),
-                              child: const Text(
-                                'Tap me to grow!',
-                                style: TextStyle(
+                              child: Text(
+                                hasPending ? 'Tap me to grow!' : 'Save me to forest!',
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: AppFonts.badge,
                                   color: AppColors.textPrimary,
@@ -574,7 +587,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Tap to level up',
+                              hasPending ? 'Tap to level up' : 'Tap to name your tree',
                               style: TextStyle(
                                 fontSize: AppFonts.micro,
                                 color: AppColors.textSecondary.withOpacity(0.6),
