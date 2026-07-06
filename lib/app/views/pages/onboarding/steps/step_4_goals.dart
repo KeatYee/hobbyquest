@@ -14,7 +14,7 @@ class Step4Goals extends StatefulWidget {
 class _Step4GoalsState extends State<Step4Goals> {
   // GlobalKey for Form Validation (Text Input)
   final _formKey = GlobalKey<FormState>();
-  
+
   // Local state to track Frequency validation error
   bool showFrequencyError = false;
 
@@ -72,14 +72,17 @@ class _Step4GoalsState extends State<Step4Goals> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          const SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Section 1: The Main Goal
-            Text("YOUR MAIN QUEST", style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900, 
+            Text(
+              "YOUR MAIN QUEST",
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
                 fontSize: AppFonts.title,
-                letterSpacing: 1.0
-            )),
+                letterSpacing: 1.0,
+              ),
+            ),
             const SizedBox(height: 15),
 
             // Predefined Goals Dropdown
@@ -109,6 +112,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                     controller.isPredefinedGoal.value = value != null;
                     if (value != null) {
                       controller.goalController.text = value;
+                      controller.goalValidationError.value = '';
                     }
                   });
                 },
@@ -126,7 +130,10 @@ class _Step4GoalsState extends State<Step4Goals> {
                 hintText: "e.g. Learn to draw Doraemon",
                 prefixIcon: Icon(Icons.flag_rounded),
               ),
-              onChanged: (_) => controller.isPredefinedGoal.value = false,
+              onChanged: (_) {
+                controller.isPredefinedGoal.value = false;
+                controller.goalValidationError.value = '';
+              },
               // Simple validation: Goal cannot be empty
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -144,7 +151,11 @@ class _Step4GoalsState extends State<Step4Goals> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -160,15 +171,18 @@ class _Step4GoalsState extends State<Step4Goals> {
                 ),
               );
             }),
-            
+
             const SizedBox(height: 30),
 
             // Section 2: Frequency
-            Text("LEARNING PACE", style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900, 
+            Text(
+              "LEARNING PACE",
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
                 fontSize: AppFonts.title,
-                letterSpacing: 1.0
-            )),
+                letterSpacing: 1.0,
+              ),
+            ),
 
             // Inline Error for Frequency
             if (showFrequencyError && controller.frequency.value.isEmpty)
@@ -176,10 +190,18 @@ class _Step4GoalsState extends State<Step4Goals> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 5),
-                    Text("Choose your learning pace",
-                      style: textTheme.bodyMedium?.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)
+                    Text(
+                      "Choose your learning pace",
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -188,13 +210,15 @@ class _Step4GoalsState extends State<Step4Goals> {
             const SizedBox(height: 15),
 
             // Frequency Chips (Wrap Widget handles multiple rows automatically)
-            Obx(() => Wrap(
-              spacing: 12, // Horizontal gap
-              runSpacing: 12, // Vertical gap
-              children: frequencyOptions.map((option) {
-                return _buildFrequencyChip(controller, option, textTheme);
-              }).toList(),
-            )),
+            Obx(
+              () => Wrap(
+                spacing: 12, // Horizontal gap
+                runSpacing: 12, // Vertical gap
+                children: frequencyOptions.map((option) {
+                  return _buildFrequencyChip(controller, option, textTheme);
+                }).toList(),
+              ),
+            ),
 
             const SizedBox(height: 40),
 
@@ -207,13 +231,16 @@ class _Step4GoalsState extends State<Step4Goals> {
                   onPressed: isValidating
                       ? null
                       : () {
-                          print("--- ACTION: Final Button Clicked (Step 5) ---");
+                          print(
+                            "--- ACTION: Final Button Clicked (Step 5) ---",
+                          );
 
                           // 1. Validate Text Input
                           bool isTextValid = _formKey.currentState!.validate();
-                          
+
                           // 2. Validate Frequency Selection
-                          bool isFrequencyValid = controller.frequency.value.isNotEmpty;
+                          bool isFrequencyValid =
+                              controller.frequency.value.isNotEmpty;
 
                           if (!isFrequencyValid) {
                             print("--- ERROR: Frequency not selected ---");
@@ -222,12 +249,14 @@ class _Step4GoalsState extends State<Step4Goals> {
 
                           // 3. Execute
                           if (isTextValid && isFrequencyValid) {
-                            print("--- SUCCESS: All Steps Complete. Generating Plan... ---");
+                            print(
+                              "--- SUCCESS: All Steps Complete. Generating Plan... ---",
+                            );
                             // Dismiss keyboard
                             FocusManager.instance.primaryFocus?.unfocus();
-                            
+
                             // Trigger the Final Logic in Controller
-                            controller.nextPage(); 
+                            controller.nextPage();
                           }
                         },
                   style: ElevatedButton.styleFrom(
@@ -268,7 +297,11 @@ class _Step4GoalsState extends State<Step4Goals> {
   }
 
   // Helper Widget for Frequency Chips
-  Widget _buildFrequencyChip(OnboardingController controller, String label, TextTheme textTheme) {
+  Widget _buildFrequencyChip(
+    OnboardingController controller,
+    String label,
+    TextTheme textTheme,
+  ) {
     bool isSelected = controller.frequency.value == label;
     bool isError = showFrequencyError && controller.frequency.value.isEmpty;
 
@@ -288,12 +321,20 @@ class _Step4GoalsState extends State<Step4Goals> {
             color: isSelected ? AppColors.primary : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isError ? AppColors.error : (isSelected ? AppColors.primary : Colors.grey.shade300),
+              color: isError
+                  ? AppColors.error
+                  : (isSelected ? AppColors.primary : Colors.grey.shade300),
               width: 1.5,
             ),
-            boxShadow: isSelected 
-              ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] 
-              : [],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
           child: Text(
             label,

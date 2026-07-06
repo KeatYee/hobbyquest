@@ -11,6 +11,7 @@ import '../services/category_service.dart';
 import '../services/gemini_service.dart';
 import '../services/quest_service.dart';
 import '../services/goal_history_service.dart';
+import '../services/push_notification_service.dart';
 import '../models/goal_history_model.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
 
@@ -445,6 +446,10 @@ class OnboardingController extends GetxController {
         category: category.value,
         createdAt: DateTime.now(),
       ));
+
+      if (Get.isRegistered<PushNotificationService>()) {
+        await Get.find<PushNotificationService>().registerCurrentDevice();
+      }
 
       print("--- SUCCESS: User profile, plan, and goal history saved ---");
     } catch (e) {

@@ -70,6 +70,62 @@ class _ForestPageState extends State<ForestPage> {
     );
   }
 
+  Widget _buildNoTreesMessage() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(32, 0, 32, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.surface.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.22),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.park_outlined,
+              color: AppColors.surface.withValues(alpha: 0.9),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No trees yet',
+                  style: TextStyle(
+                    color: AppColors.surface.withValues(alpha: 0.98),
+                    fontSize: AppFonts.body,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Complete quests and grow a tree from the map to start your forest.',
+                  style: TextStyle(
+                    color: AppColors.surface.withValues(alpha: 0.86),
+                    fontSize: AppFonts.caption,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTreeWithInfo(TreeModel tree) {
     return GestureDetector(
       onTap: () => _showTreeInfo(tree),
@@ -143,16 +199,11 @@ class _ForestPageState extends State<ForestPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: _buildTreeAsset(width: 100, height: 100),
-            ),
+            Center(child: _buildTreeAsset(width: 100, height: 100)),
             const SizedBox(height: 12),
             Text(
               tree.treeName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             Text(
@@ -229,7 +280,11 @@ class _ForestPageState extends State<ForestPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.8)),
+        Icon(
+          icon,
+          size: 18,
+          color: AppColors.textPrimary.withValues(alpha: 0.8),
+        ),
         const SizedBox(width: 8),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +338,10 @@ class _ForestPageState extends State<ForestPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => Get.back(),
         ),
       ),
@@ -331,19 +389,28 @@ class _ForestPageState extends State<ForestPage> {
                     }).toList();
 
                     // Map treeIndex → entry for quick lookup
-                    final occupied = <int, ({TreeModel tree, DocumentReference ref})>{};
+                    final occupied =
+                        <int, ({TreeModel tree, DocumentReference ref})>{};
                     for (final e in items) {
                       occupied[e.tree.treeIndex] = e;
                     }
 
-                    final treesGrown = items.where((e) => e.tree.grownAt != null).length;
-                    final totalXp = items.fold<int>(0, (acc, e) => acc + e.tree.xpRequired);
+                    final treesGrown = items
+                        .where((e) => e.tree.grownAt != null)
+                        .length;
+                    final totalXp = items.fold<int>(
+                      0,
+                      (acc, e) => acc + e.tree.xpRequired,
+                    );
 
                     return Column(
                       children: [
                         // Stats bar
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
                           margin: const EdgeInsets.fromLTRB(32, 110, 32, 32),
                           decoration: BoxDecoration(
                             color: AppColors.surface.withValues(alpha: 0.25),
@@ -374,85 +441,107 @@ class _ForestPageState extends State<ForestPage> {
                           ),
                         ),
                         // Grid
+                        if (items.isEmpty) _buildNoTreesMessage(),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                             child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.78,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 0.78,
+                                  ),
+                              itemCount: _spotCount,
+                              itemBuilder: (context, spotIndex) {
+                                final entry = occupied[spotIndex];
+                                if (entry != null) {
+                                  return DragTarget<TreeModel>(
+                                    onAcceptWithDetails: (details) {
+                                      _onSwap(details.data, entry, items);
+                                    },
+                                    builder:
+                                        (context, candidateData, rejectedData) {
+                                          final isHovered =
+                                              candidateData.isNotEmpty &&
+                                              candidateData.first?.id != null &&
+                                              candidateData.first!.id !=
+                                                  entry.tree.id;
+                                          return Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isHovered
+                                                  ? AppColors.primary
+                                                        .withValues(alpha: 0.15)
+                                                  : Colors.transparent,
+                                              border: isHovered
+                                                  ? Border.all(
+                                                      color: AppColors.primary,
+                                                      width: 2.5,
+                                                    )
+                                                  : null,
+                                            ),
+                                            child: Opacity(
+                                              opacity: isHovered ? 0.7 : 1.0,
+                                              child:
+                                                  LongPressDraggable<TreeModel>(
+                                                    data: entry.tree,
+                                                    feedback: Material(
+                                                      color: Colors.transparent,
+                                                      elevation: 8,
+                                                      shape:
+                                                          const CircleBorder(),
+                                                      clipBehavior:
+                                                          Clip.antiAlias,
+                                                      child: SizedBox(
+                                                        width: 160,
+                                                        height: 160,
+                                                        child:
+                                                            _buildTreeAsset(),
+                                                      ),
+                                                    ),
+                                                    childWhenDragging: Opacity(
+                                                      opacity: 0.3,
+                                                      child: _buildTreeWithInfo(
+                                                        entry.tree,
+                                                      ),
+                                                    ),
+                                                    child: _buildTreeWithInfo(
+                                                      entry.tree,
+                                                    ),
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                  );
+                                } else {
+                                  return DragTarget<TreeModel>(
+                                    onAcceptWithDetails: (details) {
+                                      _onAssignToEmptySpot(
+                                        details.data,
+                                        spotIndex,
+                                        items,
+                                      );
+                                    },
+                                    builder:
+                                        (context, candidateData, rejectedData) {
+                                          final isHovered =
+                                              candidateData.isNotEmpty;
+                                          return _buildEmptySpot(isHovered);
+                                        },
+                                  );
+                                }
+                              },
+                            ),
+                          ),
                         ),
-                        itemCount: _spotCount,
-                        itemBuilder: (context, spotIndex) {
-                          final entry = occupied[spotIndex];
-                          if (entry != null) {
-                            return DragTarget<TreeModel>(
-                              onAcceptWithDetails: (details) {
-                                _onSwap(details.data, entry, items);
-                              },
-                              builder: (context, candidateData, rejectedData) {
-                                final isHovered = candidateData.isNotEmpty &&
-                                    candidateData.first?.id != null &&
-                                    candidateData.first!.id != entry.tree.id;
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isHovered
-                                        ? AppColors.primary.withValues(alpha: 0.15)
-                                        : Colors.transparent,
-                                    border: isHovered
-                                        ? Border.all(
-                                            color: AppColors.primary, width: 2.5)
-                                        : null,
-                                  ),
-                                  child: Opacity(
-                                    opacity: isHovered ? 0.7 : 1.0,
-                                    child: LongPressDraggable<TreeModel>(
-                                      data: entry.tree,
-                                      feedback: Material(
-                                        color: Colors.transparent,
-                                        elevation: 8,
-                                        shape: const CircleBorder(),
-                                        clipBehavior: Clip.antiAlias,
-                                        child: SizedBox(
-                                          width: 160,
-                                          height: 160,
-                                          child: _buildTreeAsset(),
-                                        ),
-                                      ),
-                                      childWhenDragging: Opacity(
-                                        opacity: 0.3,
-                                        child: _buildTreeWithInfo(entry.tree),
-                                      ),
-                                      child: _buildTreeWithInfo(entry.tree),
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          } else {
-                            return DragTarget<TreeModel>(
-                              onAcceptWithDetails: (details) {
-                                _onAssignToEmptySpot(details.data, spotIndex, items);
-                              },
-                              builder: (context, candidateData, rejectedData) {
-                                final isHovered = candidateData.isNotEmpty;
-                                return _buildEmptySpot(isHovered);
-                              },
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              );
-              },
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes/app_routes.dart';
+import '../services/push_notification_service.dart';
 
 class AuthController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,6 +31,10 @@ class AuthController extends GetxController {
             .get();
 
         if (userDoc.exists) {
+          if (Get.isRegistered<PushNotificationService>()) {
+            await Get.find<PushNotificationService>().registerCurrentDevice();
+          }
+
           // Case B1: Profile exists -> Go to Dashboard
           Get.offAllNamed(AppRoutes.DASHBOARD);
         } else {

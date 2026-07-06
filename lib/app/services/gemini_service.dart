@@ -28,8 +28,7 @@ class GoalValidationResult {
 
 class GeminiService {
   String get _apiKey {
-    final key = dotenv.env['GEMINI_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
-    return key.trim();
+    return _envValue(const ['GEMINI_API_KEY', 'API_KEY']);
   }
 
   // Initialize the Gemini Model
@@ -97,24 +96,11 @@ class GeminiService {
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
     if (!hasApiKey) {
-      final milestones = _buildMilestones(
-        hobby: hobby,
-        level: level,
-        goal: normalizedGoal,
-      );
-      return QuestPlanModel(
+      return _buildFallbackQuestPlan(
         hobby: hobby,
         level: level,
         goal: normalizedGoal,
         frequency: frequency,
-        currentMilestoneIndex: 0,
-        progress: 0,
-        milestones: milestones,
-        quests: _buildFallbackPhaseDag(
-          hobby: hobby,
-          milestoneNumber: '1',
-          frequency: frequency,
-        ),
       );
     }
 
@@ -199,18 +185,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
       );
     } catch (e) {
       print('[GeminiService] Quest plan API call failed: $e');
-      return QuestPlanModel(
+      return _buildFallbackQuestPlan(
         hobby: hobby,
         level: level,
         goal: normalizedGoal,
         frequency: frequency,
-        progress: 0,
-        milestones: _buildMilestones(
-          hobby: hobby,
-          level: level,
-          goal: normalizedGoal,
-        ),
-        quests: const [],
       );
     }
   }
@@ -220,11 +199,17 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     required String level,
     required String goal,
   }) async {
+    final localValidation = _validateGoalLocally(
+      hobby: hobby,
+      goal: goal,
+    );
+
+    if (!localValidation.isValid) {
+      return localValidation;
+    }
+
     if (!hasApiKey) {
-      return const GoalValidationResult(
-        isValid: true,
-        reason: '',
-      );
+      return localValidation;
     }
 
     try {
@@ -256,16 +241,17 @@ Use this exact schema:
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
 
-      final isValid = jsonMap['is_valid'] == true;
+      final isValid = _readBool(jsonMap['is_valid'] ?? jsonMap['isValid']);
+      if (isValid == null) {
+        return localValidation;
+      }
+
       final reason = jsonMap['reason']?.toString().trim() ?? '';
 
       return GoalValidationResult(isValid: isValid, reason: reason);
     } catch (e) {
       print('[GeminiService] Goal validation API call failed: $e');
-      return const GoalValidationResult(
-        isValid: false,
-        reason: 'Unable to validate goal. Please try again.',
-      );
+      return localValidation;
     }
   }
 
@@ -745,6 +731,95 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 
     final raw = trimmed.substring(start, end + 1);
     return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  String _envValue(List<String> names) {
+    for (final name in names) {
+      final directValue = dotenv.env[name]?.trim() ?? '';
+      if (directValue.isNotEmpty) {
+        return directValue;
+      }
+    }
+
+    for (final entry in dotenv.env.entries) {
+      final keyMatches = names.contains(entry.key.trim());
+      final value = entry.value.trim();
+      if (keyMatches && value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+  QuestPlanModel _buildFallbackQuestPlan({
+    required String hobby,
+    required String level,
+    required String goal,
+    required String frequency,
+  }) {
+    return QuestPlanModel(
+      hobby: hobby,
+      level: level,
+      goal: goal,
+      frequency: frequency,
+      currentMilestoneIndex: 0,
+      progress: 0,
+      milestones: _buildMilestones(
+        hobby: hobby,
+        level: level,
+        goal: goal,
+      ),
+      quests: _buildFallbackPhaseDag(
+        hobby: hobby,
+        milestoneNumber: '1',
+        frequency: frequency,
+      ),
+    );
+  }
+
+  GoalValidationResult _validateGoalLocally({
+    required String hobby,
+    required String goal,
+  }) {
+    final normalizedGoal = goal.trim();
+    if (normalizedGoal.isEmpty) {
+      return const GoalValidationResult(
+        isValid: false,
+        reason: 'Please define your quest.',
+      );
+    }
+
+    if (normalizedGoal.length < 4) {
+      return const GoalValidationResult(
+        isValid: false,
+        reason: 'Add a little more detail to your goal.',
+      );
+    }
+
+    final words = normalizedGoal
+        .split(RegExp(r'\s+'))
+        .where((word) => word.trim().isNotEmpty)
+        .length;
+
+    if (words < 2 && hobby.trim().isEmpty) {
+      return const GoalValidationResult(
+        isValid: false,
+        reason: 'Make your goal specific enough to build a plan.',
+      );
+    }
+
+    return const GoalValidationResult(isValid: true, reason: '');
+  }
+
+  bool? _readBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.toLowerCase().trim();
+      if (normalized == 'true') return true;
+      if (normalized == 'false') return false;
+    }
+    return null;
   }
 
   String _sanitizeType(String type) {
