@@ -184,6 +184,8 @@ class ProfilePage extends StatelessWidget {
   //  General settings section
   // ───────────────────────────────────────────
   Widget _buildGeneralSection() {
+    final ctrl = Get.find<ProfileController>();
+
     return _SectionCard(
       label: "SETTINGS",
       child: Column(
@@ -196,12 +198,12 @@ class ProfilePage extends StatelessWidget {
             onTap: () => Get.toNamed(AppRoutes.GOAL_HISTORY),
           ),
           const _TileDivider(),
-          _SettingsTile(
-            icon: Icons.notifications_outlined,
-            iconColor: AppColors.warning,
-            title: "Notifications",
-            subtitle: "Manage your alerts",
-            onTap: () => AppDialogs.info('Coming Soon', 'Notification settings coming soon!'),
+          Obx(
+            () => _NotificationSettingsTile(
+              isEnabled: ctrl.notificationsEnabled.value,
+              isUpdating: ctrl.isUpdatingNotifications.value,
+              onChanged: ctrl.updateNotificationsEnabled,
+            ),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -839,6 +841,92 @@ class _SettingsTile extends StatelessWidget {
 // ═══════════════════════════════════════════════
 //  Helpers
 // ═══════════════════════════════════════════════
+class _NotificationSettingsTile extends StatelessWidget {
+  final bool isEnabled;
+  final bool isUpdating;
+  final Future<bool> Function(bool enabled) onChanged;
+
+  const _NotificationSettingsTile({
+    required this.isEnabled,
+    required this.isUpdating,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = isEnabled ? AppColors.warning : AppColors.textSecondary;
+
+    return InkWell(
+      onTap: isUpdating ? null : () => onChanged(!isEnabled),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isEnabled
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: iconColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Notifications",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: AppFonts.bodyLg,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isEnabled
+                        ? "Guild alerts are enabled"
+                        : "Guild alerts are disabled",
+                    style: TextStyle(
+                      fontSize: AppFonts.badge,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (isUpdating)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.primary,
+                ),
+              )
+            else
+              Switch.adaptive(
+                value: isEnabled,
+                activeColor: AppColors.primary,
+                onChanged: onChanged,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TileDivider extends StatelessWidget {
   const _TileDivider();
 

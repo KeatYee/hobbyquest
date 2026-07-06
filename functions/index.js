@@ -227,6 +227,10 @@ async function sendPushNotification(recipientId, notification) {
 async function getRecipientTokens(recipientId) {
   const snapshot = await db.collection("users").doc(recipientId).get();
   const data = snapshot.data() || {};
+  if (data.notificationsEnabled === false) {
+    return [];
+  }
+
   const tokenSet = new Set(asStringArray(data.fcmTokens));
   const singleToken = asTrimmedString(data.fcmToken);
 

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../routes/app_routes.dart';
+import '../services/push_notification_service.dart';
 import '../../core/utils/dialog_utils.dart';
 import '../services/goal_history_service.dart';
 
@@ -13,8 +14,10 @@ class ProfileController extends GetxController {
 
   // ── Reactive state ──────────────────────────────────────────
   final isLoading = true.obs;
+  final isUpdatingNotifications = false.obs;
   final userModel = Rxn<UserModel>();
   final guildPostCount = 0.obs;
+  final notificationsEnabled = true.obs;
 
   // ── Convenience getters ─────────────────────────────────────
   int get totalXP => userModel.value?.totalXP ?? 0;
@@ -59,6 +62,8 @@ class ProfileController extends GetxController {
           docSnap.data() as Map<String, dynamic>,
           user.uid,
         );
+        notificationsEnabled.value =
+            userModel.value?.notificationsEnabled ?? true;
       }
       guildPostCount.value = postSnap.docs.length;
     } catch (e) {
@@ -184,6 +189,48 @@ class ProfileController extends GetxController {
     } catch (e) {
       AppDialogs.error('Error', 'Failed to update birth date: $e');
       return false;
+    }
+  }
+
+  /// Persist notification preference and add/remove this device token.
+  Future<bool> updateNotificationsEnabled(bool enabled) async {
+    final user = _auth.currentUser;
+    if (user == null || isUpdatingNotifications.value) return false;
+
+    final previousValue = notificationsEnabled.value;
+    notificationsEnabled.value = enabled;
+    isUpdatingNotifications.value = true;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'notificationsEnabled': enabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (Get.isRegistered<PushNotificationService>()) {
+        await Get.find<PushNotificationService>()
+            .applyNotificationPreference(enabled);
+      }
+
+      if (userModel.value != null) {
+        userModel.value = userModel.value!.copyWith(
+          notificationsEnabled: enabled,
+        );
+      }
+
+      AppDialogs.success(
+        enabled ? 'Notifications On' : 'Notifications Off',
+        enabled
+            ? 'Guild alerts will be sent to this device.'
+            : 'This device will stop receiving push alerts.',
+      );
+      return true;
+    } catch (e) {
+      notificationsEnabled.value = previousValue;
+      AppDialogs.error('Error', 'Failed to update notifications: $e');
+      return false;
+    } finally {
+      isUpdatingNotifications.value = false;
     }
   }
 

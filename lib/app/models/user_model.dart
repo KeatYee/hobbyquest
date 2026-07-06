@@ -18,6 +18,7 @@ class UserModel {
 
   // Tutorial flags
   final bool mapTutorialDone;
+  final bool notificationsEnabled;
 
   // Timestamps
   final DateTime? createdAt;
@@ -43,6 +44,7 @@ class UserModel {
     this.dailyQuestCompletionCount = 0,
     this.categoryXp = const {},
     this.mapTutorialDone = false,
+    this.notificationsEnabled = true,
     this.createdAt,
     this.updatedAt,
     this.lastRerollDate,
@@ -72,6 +74,7 @@ class UserModel {
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       categoryXp: _readCategoryXp(json),
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
           ? _readDateTime(json['updatedAt'])
@@ -94,6 +97,7 @@ class UserModel {
       'activePlanId': activePlanId,
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
+      'notificationsEnabled': notificationsEnabled,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
@@ -115,6 +119,7 @@ class UserModel {
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'categoryXp': categoryXp,
       'mapTutorialDone': mapTutorialDone,
+      'notificationsEnabled': notificationsEnabled,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
@@ -137,6 +142,7 @@ class UserModel {
     int? dailyQuestCompletionCount,
     Map<String, int>? categoryXp,
     bool? mapTutorialDone,
+    bool? notificationsEnabled,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -158,6 +164,8 @@ class UserModel {
       dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       categoryXp: categoryXp ?? this.categoryXp,
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
+      notificationsEnabled:
+          notificationsEnabled ?? this.notificationsEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastRerollDate: lastRerollDate ?? this.lastRerollDate,

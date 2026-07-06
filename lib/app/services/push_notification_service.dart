@@ -50,6 +50,11 @@ class PushNotificationService extends GetxService {
       final uid = _auth.currentUser?.uid;
       if (uid == null) return;
 
+      if (!await _notificationsEnabledFor(uid)) {
+        await _removeToken(uid, token);
+        return;
+      }
+
       await _removeLastToken();
       await _saveToken(uid, token);
     });
@@ -73,6 +78,11 @@ class PushNotificationService extends GetxService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
+    if (!await _notificationsEnabledFor(uid)) {
+      await _removeCurrentDeviceToken(uid);
+      return;
+    }
+
     String? token;
     try {
       token = await _messaging.getToken();
@@ -84,6 +94,19 @@ class PushNotificationService extends GetxService {
     if (token == null || token.trim().isEmpty) return;
 
     await _saveToken(uid, token);
+  }
+
+  Future<void> applyNotificationPreference(bool enabled) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    if (!enabled) {
+      await _removeCurrentDeviceToken(uid);
+      return;
+    }
+
+    await _requestPermission();
+    await registerCurrentDevice();
   }
 
   Future<void> _requestPermission() async {
@@ -242,6 +265,69 @@ class PushNotificationService extends GetxService {
       _lastToken = token;
     } catch (e) {
       print('--- ERROR: Failed to save FCM token: $e ---');
+    }
+  }
+
+  Future<bool> _notificationsEnabledFor(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      final data = doc.data();
+      final value = data?['notificationsEnabled'];
+      return value is bool ? value : true;
+    } catch (e) {
+      print('--- ERROR: Failed to read notification preference: $e ---');
+      return true;
+    }
+  }
+
+  Future<void> _removeToken(String uid, String token) async {
+    if (token.trim().isEmpty) return;
+
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // The profile may not exist yet, or it may already be deleted.
+    } finally {
+      if (_lastUid == uid && _lastToken == token) {
+        _lastUid = null;
+        _lastToken = null;
+      }
+    }
+  }
+
+  Future<void> _removeCurrentDeviceToken(String uid) async {
+    final tokens = <String>{};
+    final lastToken = _lastUid == uid ? _lastToken : null;
+    if (lastToken != null && lastToken.trim().isNotEmpty) {
+      tokens.add(lastToken);
+    }
+
+    try {
+      final currentToken = await _messaging.getToken();
+      if (currentToken != null && currentToken.trim().isNotEmpty) {
+        tokens.add(currentToken);
+      }
+    } catch (e) {
+      print('--- ERROR: Failed to get FCM token for removal: $e ---');
+    }
+
+    if (tokens.isEmpty) return;
+
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'fcmTokens': FieldValue.arrayRemove(tokens.toList()),
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // The profile may not exist yet, or it may already be deleted.
+    } finally {
+      if (_lastUid == uid && tokens.contains(_lastToken)) {
+        _lastUid = null;
+        _lastToken = null;
+      }
     }
   }
 
