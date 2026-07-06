@@ -131,6 +131,13 @@ class ProfilePage extends StatelessWidget {
                       bgColor: AppColors.info.withOpacity(0.1),
                       value: ctrl.guildPostCount.toString(),
                       label: "Guild Posts",
+                      onTap: () => Get.toNamed(
+                        AppRoutes.USER_GUILD_POSTS,
+                        arguments: {
+                          'userId': ctrl.uid,
+                          'title': 'My Guild Posts',
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -659,6 +666,7 @@ class _StatTile extends StatelessWidget {
   final Color bgColor;
   final String value;
   final String label;
+  final VoidCallback? onTap;
 
   const _StatTile({
     required this.icon,
@@ -666,53 +674,71 @@ class _StatTile extends StatelessWidget {
     required this.bgColor,
     required this.value,
     required this.label,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
+    final content = Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: AppFonts.button,
-                    fontWeight: FontWeight.w800,
-                    color: iconColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: AppFonts.button,
+                  fontWeight: FontWeight.w800,
+                  color: iconColor,
                 ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppFonts.micro,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFonts.micro,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+        ),
+        if (onTap != null) ...[
+          const SizedBox(width: 4),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 12,
+            color: AppColors.textSecondary,
           ),
         ],
+      ],
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: content,
+        ),
       ),
     );
   }

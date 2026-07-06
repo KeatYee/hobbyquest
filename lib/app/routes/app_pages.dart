@@ -9,6 +9,7 @@ import '../views/pages/home_page.dart';
 import '../views/pages/dashboard_page.dart';
 import '../views/pages/quest_detail_page.dart';
 import '../views/pages/user_profile_page.dart';
+import '../views/pages/user_guild_posts_page.dart';
 import '../views/pages/forest_page.dart';
 import '../views/pages/goal_history_page.dart';
 import '../bindings/onboarding_binding.dart';
@@ -54,6 +55,20 @@ class AppPages {
       page: () {
         final userId = Get.arguments as String;
         return UserProfilePage(userId: userId);
+      },
+    ),
+    GetPage(
+      name: AppRoutes.USER_GUILD_POSTS,
+      page: () {
+        final arguments = Get.arguments;
+        if (arguments is Map) {
+          return UserGuildPostsPage(
+            userId: arguments['userId']?.toString() ?? '',
+            title: arguments['title']?.toString(),
+          );
+        }
+
+        return UserGuildPostsPage(userId: arguments?.toString() ?? '');
       },
     ),
     GetPage(
