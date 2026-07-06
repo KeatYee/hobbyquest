@@ -28,6 +28,7 @@ class GuildController extends GetxController {
   final userReactions = <String, Set<String>>{}.obs;
   final userPeerReviews = <String, Set<String>>{}.obs;
   final currentUserId = Rx<String?>(null);
+  final focusedPostId = Rx<String?>(null);
   StreamSubscription? _authSubscription;
 
   @override
@@ -247,8 +248,9 @@ class GuildController extends GetxController {
 
     // If no context available, fall back to chronological sort
     if (currentHobby == null) {
-      return List<GuildPostModel>.from(posts)
+      final sorted = List<GuildPostModel>.from(posts)
         ..sort((a, b) => _compareDesc(a.createdAt, b.createdAt));
+      return _withFocusedPostFirst(sorted);
     }
 
     // Score each post
@@ -288,7 +290,27 @@ class GuildController extends GetxController {
         return _compareDesc(a.key.createdAt, b.key.createdAt);
       });
 
-    return sorted.map((e) => e.key).toList();
+    return _withFocusedPostFirst(sorted.map((e) => e.key).toList());
+  }
+
+  void focusPost(String? postId) {
+    final normalizedPostId = postId?.trim() ?? '';
+    if (normalizedPostId.isEmpty) return;
+
+    focusedPostId.value = normalizedPostId;
+  }
+
+  List<GuildPostModel> _withFocusedPostFirst(List<GuildPostModel> sortedPosts) {
+    final postId = focusedPostId.value;
+    if (postId == null || postId.isEmpty) return sortedPosts;
+
+    final focusedIndex = sortedPosts.indexWhere((post) => post.id == postId);
+    if (focusedIndex <= 0) return sortedPosts;
+
+    final reordered = List<GuildPostModel>.from(sortedPosts);
+    final focusedPost = reordered.removeAt(focusedIndex);
+    reordered.insert(0, focusedPost);
+    return reordered;
   }
 
   /// Compare two nullable DateTimes descending (most recent first).

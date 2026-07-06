@@ -37,6 +37,10 @@ class AuthController extends GetxController {
 
           // Case B1: Profile exists -> Go to Dashboard
           Get.offAllNamed(AppRoutes.DASHBOARD);
+          if (Get.isRegistered<PushNotificationService>()) {
+            await Get.find<PushNotificationService>()
+                .openPendingInitialMessageIfAny();
+          }
         } else {
           // Case B2: Zombie User (Auth yes, Data no) -> Force back to Onboarding
           print(

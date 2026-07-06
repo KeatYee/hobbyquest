@@ -16,6 +16,10 @@ class GuildPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GuildController controller = Get.find<GuildController>();
+    final arguments = Get.arguments;
+    if (arguments is Map) {
+      controller.focusPost(arguments['postId']?.toString());
+    }
 
     return SafeArea(
       child: Stack(
@@ -91,10 +95,12 @@ class GuildPage extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final post = sortedPosts[index];
+        final isFocused = controller.focusedPostId.value == post.id;
         return _GuildPostCard(
           key: ValueKey(post.id),
           controller: controller,
           post: post,
+          isFocused: isFocused,
           onPeerReviewTap: () => _showPeerReviewSheet(context, post),
         );
       },
@@ -601,12 +607,14 @@ Map<String, double> _averageRatingsFrom(GuildPostModel post) {
 class _GuildPostCard extends StatelessWidget {
   final GuildController controller;
   final GuildPostModel post;
+  final bool isFocused;
   final VoidCallback onPeerReviewTap;
 
   const _GuildPostCard({
     super.key,
     required this.controller,
     required this.post,
+    required this.isFocused,
     required this.onPeerReviewTap,
   });
 
@@ -623,9 +631,14 @@ class _GuildPostCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isFocused ? AppColors.primaryLight : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border.withOpacity(0.6)),
+        border: Border.all(
+          color: isFocused
+              ? AppColors.primary.withOpacity(0.7)
+              : AppColors.border.withOpacity(0.6),
+          width: isFocused ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),

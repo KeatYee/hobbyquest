@@ -14,6 +14,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Initialize the controller
     final DashboardController controller = Get.put(DashboardController());
+    controller.applyRouteArguments(Get.arguments);
 
     return Scaffold(
       backgroundColor: AppColors.background,
