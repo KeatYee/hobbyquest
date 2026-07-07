@@ -627,6 +627,7 @@ class _GuildPostCard extends StatelessWidget {
     final hasAvatarSvg = avatarSvg != null && avatarSvg.trim().isNotEmpty;
     final displayName = controller.userNicknames[post.userId] ?? post.userId;
     final hasImage = post.imageUrl.isNotEmpty;
+    final canViewStats = controller.canViewPostStats(post);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -701,29 +702,29 @@ class _GuildPostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // 3-dot menu
-              PopupMenuButton<String>(
-                position: PopupMenuPosition.under,
-                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-                onSelected: (value) {
-                  if (value == 'stats') {
-                    _showStatsDialog(context, controller, post);
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'stats',
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.bar_chart, size: 14, color: AppColors.textPrimary),
-                        const SizedBox(width: 6),
-                        Text('View Stats', style: TextStyle(fontSize: AppFonts.caption, fontWeight: FontWeight.w600)),
-                      ],
+              if (canViewStats)
+                PopupMenuButton<String>(
+                  position: PopupMenuPosition.under,
+                  icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                  onSelected: (value) {
+                    if (value == 'stats') {
+                      _showStatsDialog(context, controller, post);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'stats',
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.bar_chart, size: 14, color: AppColors.textPrimary),
+                          const SizedBox(width: 6),
+                          Text('View Stats', style: TextStyle(fontSize: AppFonts.caption, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -770,15 +771,17 @@ class _GuildPostCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(emoji, style: TextStyle(fontSize: AppFonts.button)),
-                          const SizedBox(width: 3),
-                          Text(
-                            count.toString(),
-                            style: TextStyle(
-                              fontSize: AppFonts.caption,
-                              fontWeight: FontWeight.w700,
-                              color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
+                          if (canViewStats) ...[
+                            const SizedBox(width: 3),
+                            Text(
+                              count.toString(),
+                              style: TextStyle(
+                                fontSize: AppFonts.caption,
+                                fontWeight: FontWeight.w700,
+                                color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

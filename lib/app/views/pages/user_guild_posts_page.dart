@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -66,6 +67,14 @@ class UserGuildPostsPage extends StatelessWidget {
           }
 
           final data = snapshot.data ?? const _UserGuildPostsData.empty();
+          if (data.isPrivate) {
+            return const _EmptyState(
+              icon: Icons.lock_outline_rounded,
+              title: 'Private profile',
+              subtitle: 'This adventurer has hidden their guild posts.',
+            );
+          }
+
           if (data.posts.isEmpty) {
             return const _EmptyState(
               icon: Icons.forum_outlined,
@@ -91,13 +100,32 @@ class UserGuildPostsPage extends StatelessWidget {
 }
 
 Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
-  if (userId.trim().isEmpty) {
+  final trimmedUserId = userId.trim();
+  if (trimmedUserId.isEmpty) {
     return const _UserGuildPostsData.empty();
+  }
+
+  final currentUid = FirebaseAuth.instance.currentUser?.uid;
+  final ownerSnapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(trimmedUserId)
+      .get();
+  final ownerProfile = _UserSummary.fromFirestore(
+    trimmedUserId,
+    ownerSnapshot.data(),
+  );
+
+  if (currentUid != trimmedUserId && !ownerProfile.profileVisible) {
+    return _UserGuildPostsData(
+      posts: const [],
+      profiles: {trimmedUserId: ownerProfile},
+      isPrivate: true,
+    );
   }
 
   final postSnapshot = await FirebaseFirestore.instance
       .collection('guild_posts')
-      .where('userId', isEqualTo: userId)
+      .where('userId', isEqualTo: trimmedUserId)
       .get();
 
   final posts = postSnapshot.docs
@@ -125,9 +153,9 @@ Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
     );
   }
 
-  final profiles = <String, _UserSummary>{};
+  final profiles = <String, _UserSummary>{trimmedUserId: ownerProfile};
   await Future.wait(
-    userIds.map((id) async {
+    userIds.where((id) => !profiles.containsKey(id)).map((id) async {
       try {
         final snapshot = await FirebaseFirestore.instance
             .collection('users')
@@ -146,26 +174,33 @@ Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
 class _UserGuildPostsData {
   final List<GuildPostModel> posts;
   final Map<String, _UserSummary> profiles;
+  final bool isPrivate;
 
   const _UserGuildPostsData({
     required this.posts,
     required this.profiles,
+    this.isPrivate = false,
   });
 
   const _UserGuildPostsData.empty()
       : posts = const [],
-        profiles = const {};
+        profiles = const {},
+        isPrivate = false;
 }
 
 class _UserSummary {
   final String id;
   final String name;
   final String avatarSvg;
+  final bool profileVisible;
+  final bool postStatsVisible;
 
   const _UserSummary({
     required this.id,
     required this.name,
     required this.avatarSvg,
+    this.profileVisible = true,
+    this.postStatsVisible = true,
   });
 
   factory _UserSummary.fromFirestore(String id, Map<String, dynamic>? data) {
@@ -177,6 +212,8 @@ class _UserSummary {
           ? nickname
           : (displayName.isNotEmpty ? displayName : _shortUserId(id)),
       avatarSvg: data?['avatarSvg']?.toString().trim() ?? '',
+      profileVisible: data?['profileVisible'] as bool? ?? true,
+      postStatsVisible: data?['postStatsVisible'] as bool? ?? true,
     );
   }
 
@@ -185,6 +222,8 @@ class _UserSummary {
       id: id,
       name: _shortUserId(id),
       avatarSvg: '',
+      profileVisible: true,
+      postStatsVisible: true,
     );
   }
 }
@@ -206,6 +245,8 @@ class _UserGuildPostCard extends StatelessWidget {
     );
     final hasImage = post.imageUrl.trim().isNotEmpty;
     final author = profiles[post.userId] ?? _UserSummary.fallback(post.userId);
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final canViewStats = currentUid == author.id || author.postStatsVisible;
     final avatarLabel = author.name.trim().isNotEmpty
         ? author.name.trim().characters.first.toUpperCase()
         : '?';
@@ -275,44 +316,45 @@ class _UserGuildPostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                position: PopupMenuPosition.under,
-                icon: const Icon(
-                  Icons.more_vert,
-                  color: AppColors.textSecondary,
-                ),
-                onSelected: (value) {
-                  if (value == 'stats') {
-                    _showStatsDialog(context, post, profiles);
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'stats',
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.bar_chart,
-                          size: 14,
-                          color: AppColors.textPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'View Stats',
-                          style: TextStyle(
-                            fontSize: AppFonts.caption,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+              if (canViewStats)
+                PopupMenuButton<String>(
+                  position: PopupMenuPosition.under,
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: AppColors.textSecondary,
                   ),
-                ],
-              ),
+                  onSelected: (value) {
+                    if (value == 'stats') {
+                      _showStatsDialog(context, post, profiles);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'stats',
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.bar_chart,
+                            size: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'View Stats',
+                            style: TextStyle(
+                              fontSize: AppFonts.caption,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -332,7 +374,7 @@ class _UserGuildPostCard extends StatelessWidget {
               fontSize: AppFonts.bodyLg,
             ),
           ),
-          if (hasImage) ...[
+          if(hasImage) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -346,11 +388,17 @@ class _UserGuildPostCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          _GuildMetricsRow(
-            post: post,
-            reactionCount: reactionCount,
-          ),
-          if (reactionCount > 0) ...[
+          if (canViewStats)
+            _GuildMetricsRow(
+              post: post,
+              reactionCount: reactionCount,
+            )
+          else
+            _MetricPill(
+              icon: Icons.visibility_off_outlined,
+              label: 'Post stats hidden',
+            ),
+          if (canViewStats && reactionCount > 0) ...[
             const SizedBox(height: 16),
             _SectionLabel(
               icon: Icons.favorite_outline_rounded,
@@ -360,8 +408,8 @@ class _UserGuildPostCard extends StatelessWidget {
             _ReactionGroups(post: post, profiles: profiles),
           ],
         ],
-      ),
-    );
+      ));
+    
   }
 }
 

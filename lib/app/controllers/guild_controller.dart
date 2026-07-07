@@ -24,6 +24,7 @@ class GuildController extends GetxController {
   final isLoading = false.obs;
   final userAvatars = <String, String>{}.obs;
   final userNicknames = <String, String>{}.obs;
+  final userPostStatsVisible = <String, bool>{}.obs;
   final selectedCategoryId = Rx<String?>(null);
   final userReactions = <String, Set<String>>{}.obs;
   final userPeerReviews = <String, Set<String>>{}.obs;
@@ -85,7 +86,11 @@ class GuildController extends GetxController {
   /// Fetch a user's profile from Firestore and cache in [userAvatars]/[userNicknames].
   /// Does nothing if already cached.
   void _ensureProfileLoaded(String userId) {
-    if (userNicknames.containsKey(userId) && userAvatars.containsKey(userId)) return;
+    if (userNicknames.containsKey(userId) &&
+        userAvatars.containsKey(userId) &&
+        userPostStatsVisible.containsKey(userId)) {
+      return;
+    }
     _firestore.collection('users').doc(userId).get().then((doc) {
       final data = doc.data();
       if (data == null) return;
@@ -93,7 +98,14 @@ class GuildController extends GetxController {
       final nickname = data['nickname'] as String? ?? '';
       if (avatarSvg.trim().isNotEmpty) userAvatars[userId] = avatarSvg;
       if (nickname.trim().isNotEmpty) userNicknames[userId] = nickname;
+      userPostStatsVisible[userId] =
+          data['postStatsVisible'] as bool? ?? true;
     }).catchError((_) {});
+  }
+
+  bool canViewPostStats(GuildPostModel post) {
+    final uid = currentUserId.value;
+    return uid == post.userId || (userPostStatsVisible[post.userId] ?? true);
   }
 
   /// Load all data (categories, posts, user profiles) from Firestore
@@ -136,6 +148,7 @@ class GuildController extends GetxController {
 
       final loadedUserAvatars = <String, String>{};
       final loadedUserNicknames = <String, String>{};
+      final loadedUserPostStatsVisible = <String, bool>{};
       for (var userId in userIds) {
         final userDoc = await _firestore.collection('users').doc(userId).get();
         final data = userDoc.data();
@@ -143,12 +156,15 @@ class GuildController extends GetxController {
         final nickname = data?['nickname'] as String? ?? '';
         if (avatarSvg.trim().isNotEmpty) loadedUserAvatars[userId] = avatarSvg;
         if (nickname.trim().isNotEmpty) loadedUserNicknames[userId] = nickname;
+        loadedUserPostStatsVisible[userId] =
+            data?['postStatsVisible'] as bool? ?? true;
       }
 
       categories.value = loadedCategories;
       posts.value = loadedPosts;
       userAvatars.value = loadedUserAvatars;
       userNicknames.value = loadedUserNicknames;
+      userPostStatsVisible.value = loadedUserPostStatsVisible;
 
       // Populate reactions & peer reviews for the current user
       _populateCurrentUserState();

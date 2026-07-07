@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
+import 'guild_controller.dart';
 import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
 import '../../core/utils/dialog_utils.dart';
@@ -15,9 +16,12 @@ class ProfileController extends GetxController {
   // ── Reactive state ──────────────────────────────────────────
   final isLoading = true.obs;
   final isUpdatingNotifications = false.obs;
+  final isUpdatingPrivacy = false.obs;
   final userModel = Rxn<UserModel>();
   final guildPostCount = 0.obs;
   final notificationsEnabled = true.obs;
+  final profileVisible = true.obs;
+  final postStatsVisible = true.obs;
 
   // ── Convenience getters ─────────────────────────────────────
   int get totalXP => userModel.value?.totalXP ?? 0;
@@ -64,6 +68,8 @@ class ProfileController extends GetxController {
         );
         notificationsEnabled.value =
             userModel.value?.notificationsEnabled ?? true;
+        profileVisible.value = userModel.value?.profileVisible ?? true;
+        postStatsVisible.value = userModel.value?.postStatsVisible ?? true;
       }
       guildPostCount.value = postSnap.docs.length;
     } catch (e) {
@@ -231,6 +237,74 @@ class ProfileController extends GetxController {
       return false;
     } finally {
       isUpdatingNotifications.value = false;
+    }
+  }
+
+  Future<bool> updateProfileVisibility(bool visible) {
+    return _updatePrivacySetting(
+      field: 'profileVisible',
+      value: visible,
+      currentValue: profileVisible,
+      successTitle: visible ? 'Profile Visible' : 'Profile Hidden',
+      successMessage: visible
+          ? 'Other adventurers can view your profile.'
+          : 'Other adventurers will see that your profile is private.',
+      applyToModel: (model) => model.copyWith(profileVisible: visible),
+    );
+  }
+
+  Future<bool> updatePostStatsVisibility(bool visible) async {
+    final updated = await _updatePrivacySetting(
+      field: 'postStatsVisible',
+      value: visible,
+      currentValue: postStatsVisible,
+      successTitle: visible ? 'Post Stats Visible' : 'Post Stats Hidden',
+      successMessage: visible
+          ? 'Other adventurers can view your post stats.'
+          : 'Reaction and review stats will be hidden from other adventurers.',
+      applyToModel: (model) => model.copyWith(postStatsVisible: visible),
+    );
+
+    if (updated && Get.isRegistered<GuildController>()) {
+      Get.find<GuildController>().userPostStatsVisible[uid] = visible;
+    }
+
+    return updated;
+  }
+
+  Future<bool> _updatePrivacySetting({
+    required String field,
+    required bool value,
+    required RxBool currentValue,
+    required String successTitle,
+    required String successMessage,
+    required UserModel Function(UserModel model) applyToModel,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null || isUpdatingPrivacy.value) return false;
+
+    final previousValue = currentValue.value;
+    currentValue.value = value;
+    isUpdatingPrivacy.value = true;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        field: value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (userModel.value != null) {
+        userModel.value = applyToModel(userModel.value!);
+      }
+
+      AppDialogs.success(successTitle, successMessage);
+      return true;
+    } catch (e) {
+      currentValue.value = previousValue;
+      AppDialogs.error('Error', 'Failed to update privacy setting: $e');
+      return false;
+    } finally {
+      isUpdatingPrivacy.value = false;
     }
   }
 

@@ -43,15 +43,17 @@ class _GoalHistoryPageState extends State<GoalHistoryPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textOnPrimary,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
           "GOAL HISTORY",
           style: TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: AppFonts.caption,
             letterSpacing: 2.5,
+            color: AppColors.textPrimary,
           ),
         ),
         centerTitle: true,

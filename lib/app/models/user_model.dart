@@ -19,6 +19,8 @@ class UserModel {
   // Tutorial flags
   final bool mapTutorialDone;
   final bool notificationsEnabled;
+  final bool profileVisible;
+  final bool postStatsVisible;
 
   // Timestamps
   final DateTime? createdAt;
@@ -45,6 +47,8 @@ class UserModel {
     this.categoryXp = const {},
     this.mapTutorialDone = false,
     this.notificationsEnabled = true,
+    this.profileVisible = true,
+    this.postStatsVisible = true,
     this.createdAt,
     this.updatedAt,
     this.lastRerollDate,
@@ -75,6 +79,8 @@ class UserModel {
       categoryXp: _readCategoryXp(json),
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+      profileVisible: json['profileVisible'] as bool? ?? true,
+      postStatsVisible: json['postStatsVisible'] as bool? ?? true,
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null
           ? _readDateTime(json['updatedAt'])
@@ -98,6 +104,8 @@ class UserModel {
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'notificationsEnabled': notificationsEnabled,
+      'profileVisible': profileVisible,
+      'postStatsVisible': postStatsVisible,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
@@ -120,6 +128,8 @@ class UserModel {
       'categoryXp': categoryXp,
       'mapTutorialDone': mapTutorialDone,
       'notificationsEnabled': notificationsEnabled,
+      'profileVisible': profileVisible,
+      'postStatsVisible': postStatsVisible,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastRerollDate': lastRerollDate,
@@ -143,6 +153,8 @@ class UserModel {
     Map<String, int>? categoryXp,
     bool? mapTutorialDone,
     bool? notificationsEnabled,
+    bool? profileVisible,
+    bool? postStatsVisible,
     QuestPlanModel? currentPlan,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -166,6 +178,8 @@ class UserModel {
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
       notificationsEnabled:
           notificationsEnabled ?? this.notificationsEnabled,
+      profileVisible: profileVisible ?? this.profileVisible,
+      postStatsVisible: postStatsVisible ?? this.postStatsVisible,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastRerollDate: lastRerollDate ?? this.lastRerollDate,

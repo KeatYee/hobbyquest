@@ -12,6 +12,7 @@ import '../views/pages/user_profile_page.dart';
 import '../views/pages/user_guild_posts_page.dart';
 import '../views/pages/forest_page.dart';
 import '../views/pages/goal_history_page.dart';
+import '../views/pages/privacy_security_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -78,6 +79,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.GOAL_HISTORY,
       page: () => const GoalHistoryPage(),
+    ),
+    GetPage(
+      name: AppRoutes.PRIVACY_SECURITY,
+      page: () => const PrivacySecurityPage(),
     ),
   ];
 }

@@ -9,4 +9,5 @@ abstract class AppRoutes {
   static const USER_GUILD_POSTS = '/user-guild-posts';
   static const FOREST = '/forest';
   static const GOAL_HISTORY = '/goal-history';
+  static const PRIVACY_SECURITY = '/privacy-security';
 }

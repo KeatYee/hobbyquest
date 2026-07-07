@@ -61,7 +61,7 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 24),
                   _buildAccountSection(context, currentUser, userModel),
                   const SizedBox(height: 24),
-                  _buildGeneralSection(),
+                  _buildGeneralSection(context),
                   const SizedBox(height: 28),
                   _buildLogoutButton(context),
                   const SizedBox(height: 12),
@@ -190,7 +190,7 @@ class ProfilePage extends StatelessWidget {
   // ───────────────────────────────────────────
   //  General settings section
   // ───────────────────────────────────────────
-  Widget _buildGeneralSection() {
+  Widget _buildGeneralSection(BuildContext context) {
     final ctrl = Get.find<ProfileController>();
 
     return _SectionCard(
@@ -217,8 +217,8 @@ class ProfilePage extends StatelessWidget {
             icon: Icons.privacy_tip_outlined,
             iconColor: AppColors.info,
             title: "Privacy & Security",
-            subtitle: "Control your data",
-            onTap: () => AppDialogs.info('Coming Soon', 'Privacy settings coming soon!'),
+            subtitle: "Visibility and policy",
+            onTap: () => Get.toNamed(AppRoutes.PRIVACY_SECURITY),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -741,7 +741,8 @@ class _StatTile extends StatelessWidget {
         ),
       ),
     );
-  }
+}
+
 }
 
 // ═══════════════════════════════════════════════
@@ -943,7 +944,7 @@ class _NotificationSettingsTile extends StatelessWidget {
             else
               Switch.adaptive(
                 value: isEnabled,
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
                 onChanged: onChanged,
               ),
           ],

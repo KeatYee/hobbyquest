@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
@@ -51,19 +52,31 @@ class UserProfilePage extends StatelessWidget {
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final userModel = UserModel.fromJson(data, userId);
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          final isOwnProfile = currentUid == userId;
+          final canViewProfile = isOwnProfile || userModel.profileVisible;
+          final canViewStats = isOwnProfile || userModel.postStatsVisible;
+
+          if (!canViewProfile) {
+            return const _PrivateProfileState();
+          }
 
           final totalXP = data['totalXP'] ??
               (((data['level'] ?? 1) - 1) * 1000 + (data['currentXp'] ?? 0));
           final level = (totalXP ~/ 1000) + 1;
           final xp = totalXP % 1000;
 
-          return FutureBuilder<QuerySnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('guild_posts')
-                .where('userId', isEqualTo: userId)
-                .get(),
+          return FutureBuilder<QuerySnapshot?>(
+            future: canViewStats
+                ? FirebaseFirestore.instance
+                    .collection('guild_posts')
+                    .where('userId', isEqualTo: userId)
+                    .get()
+                : Future<QuerySnapshot?>.value(null),
             builder: (context, postSnap) {
-              final guildPostCount = (postSnap.hasData && postSnap.data != null)
+              final guildPostCount = (canViewStats &&
+                      postSnap.hasData &&
+                      postSnap.data != null)
                   ? postSnap.data!.docs.length
                   : 0;
 
@@ -125,81 +138,85 @@ class UserProfilePage extends StatelessWidget {
 
                     const SizedBox(height: 36),
 
-                    // Stats
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                            color: AppColors.border, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _StatTile(
-                                  icon: Icons.stars_rounded,
-                                  iconColor: AppColors.primary,
-                                  bgColor: AppColors.primaryLight,
-                                  value: "LVL $level",
-                                  label: "Rank",
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _StatTile(
-                                  icon: Icons.flash_on_rounded,
-                                  iconColor: AppColors.warning,
-                                  bgColor: AppColors.warning.withOpacity(0.12),
-                                  value: totalXP.toString(),
-                                  label: "Total XP",
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _StatTile(
-                                  icon: Icons.rocket_launch_rounded,
-                                  iconColor: AppColors.error,
-                                  bgColor: AppColors.error.withOpacity(0.08),
-                                  value: "${1000 - xp} XP",
-                                  label: "Next Level",
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _StatTile(
-                                  icon: Icons.forum_rounded,
-                                  iconColor: const Color(0xFF6C63FF),
-                                  bgColor: const Color(0xFF6C63FF).withOpacity(0.1),
-                                  value: guildPostCount.toString(),
-                                  label: "Guild Posts",
-                                  onTap: () => Get.toNamed(
-                                    AppRoutes.USER_GUILD_POSTS,
-                                    arguments: {
-                                      'userId': userId,
-                                      'title': '${userModel.nickname} Posts',
-                                    },
+                    if (canViewStats)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border:
+                              Border.all(color: AppColors.border, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StatTile(
+                                    icon: Icons.stars_rounded,
+                                    iconColor: AppColors.primary,
+                                    bgColor: AppColors.primaryLight,
+                                    value: "LVL $level",
+                                    label: "Rank",
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _StatTile(
+                                    icon: Icons.flash_on_rounded,
+                                    iconColor: AppColors.warning,
+                                    bgColor:
+                                        AppColors.warning.withOpacity(0.12),
+                                    value: totalXP.toString(),
+                                    label: "Total XP",
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StatTile(
+                                    icon: Icons.rocket_launch_rounded,
+                                    iconColor: AppColors.error,
+                                    bgColor: AppColors.error.withOpacity(0.08),
+                                    value: "${1000 - xp} XP",
+                                    label: "Next Level",
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _StatTile(
+                                    icon: Icons.forum_rounded,
+                                    iconColor: const Color(0xFF6C63FF),
+                                    bgColor: const Color(0xFF6C63FF)
+                                        .withOpacity(0.1),
+                                    value: guildPostCount.toString(),
+                                    label: "Guild Posts",
+                                    onTap: () => Get.toNamed(
+                                      AppRoutes.USER_GUILD_POSTS,
+                                      arguments: {
+                                        'userId': userId,
+                                        'title': '${userModel.nickname} Posts',
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const _StatsHiddenCard(),
                   ],
                 ),
               );
@@ -212,6 +229,100 @@ class UserProfilePage extends StatelessWidget {
 }
 
 // ── Reusable stat tile (same style as ProfilePage) ──
+class _PrivateProfileState extends StatelessWidget {
+  const _PrivateProfileState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.primary,
+                size: 34,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              "Private profile",
+              style: TextStyle(
+                fontSize: AppFonts.title,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "This adventurer has hidden their profile.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppFonts.caption,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsHiddenCard extends StatelessWidget {
+  const _StatsHiddenCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.visibility_off_outlined,
+            color: AppColors.textSecondary,
+            size: 22,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Post stats are hidden by this user.",
+              style: TextStyle(
+                fontSize: AppFonts.caption,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
