@@ -113,18 +113,6 @@ class HomePage extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Decorative background circles
-          Positioned(
-            right: -8,
-            top: -4,
-            child: _HudCircle(size: 88, opacity: 0.08),
-          ),
-          Positioned(
-            right: 52,
-            bottom: 0,
-            child: _HudCircle(size: 44, opacity: 0.05),
-          ),
-
           // Main content
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -141,13 +129,6 @@ class HomePage extends StatelessWidget {
                         color: AppColors.textOnPrimary,
                         width: 2.5,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.textShadow,
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
                       child: Obx(() {
                       final avatarPath = controller.avatarSvg.value;
@@ -223,8 +204,8 @@ class HomePage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
+                            horizontal: 10,
+                            vertical: 5,
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.textOnPrimary.withOpacity(0.18),
@@ -236,15 +217,15 @@ class HomePage extends StatelessWidget {
                               const Icon(
                                 Icons.local_fire_department_rounded,
                                 color: AppColors.secondary,
-                                size: 14,
+                                size: 18,
                               ),
-                              const SizedBox(width: 3),
+                              const SizedBox(width: 4),
                               Obx(
                                 () => Text(
                                   "${progressionController.streak.value} day${progressionController.streak.value == 1 ? '' : 's'}",
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: AppFonts.badge,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: AppFonts.caption,
                                     color: AppColors.textOnPrimary,
                                   ),
                                 ),
@@ -258,23 +239,13 @@ class HomePage extends StatelessWidget {
 
                     // Hobby label
                     Obx(
-                      () => Row(
-                        children: [
-                          const Icon(
-                            Icons.auto_awesome_rounded,
-                            size: 13,
-                            color: AppColors.secondary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            "Learning: ${controller.hobby.value}",
-                            style: TextStyle(
-                              color: AppColors.textOnPrimary.withOpacity(0.85),
-                              fontSize: AppFonts.badge,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      () => Text(
+                        controller.hobby.value,
+                        style: TextStyle(
+                          color: AppColors.textOnPrimary.withOpacity(0.85),
+                          fontSize: AppFonts.badge,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -299,7 +270,7 @@ class HomePage extends StatelessWidget {
                     // XP TEXT
                     Obx(
                       () => Text(
-                        "${progressionController.currentXpInLevel} / 1000 XP  ·  Level ${progressionController.currentLevel + 1} soon",
+                        "${progressionController.currentXpInLevel} / 1000 XP",
                         style: TextStyle(
                           color: AppColors.textOnPrimary.withOpacity(0.78),
                           fontSize: AppFonts.micro,
@@ -780,15 +751,6 @@ class HomePage extends StatelessWidget {
                               : AppColors.border),
                       width: 1,
                     ),
-                    boxShadow: isLocked || isCompleted
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: AppColors.textShadow,
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                   ),
                   // ClipRRect so the left accent bar respects rounded corners
                   child: ClipRRect(
@@ -1102,22 +1064,4 @@ class HomePage extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════
-//  Helper widget: decorative circle in the HUD
 // ═══════════════════════════════════════════════
-class _HudCircle extends StatelessWidget {
-  final double size;
-  final double opacity;
-  const _HudCircle({required this.size, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.textOnPrimary.withOpacity(opacity),
-      ),
-    );
-  }
-}

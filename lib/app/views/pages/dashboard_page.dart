@@ -31,13 +31,7 @@ class DashboardPage extends StatelessWidget {
       )),
 
       // ✅ Bottom Navigation Bar with your Theme Colors
-      bottomNavigationBar: Obx(() => Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20),
-          ],
-        ),
-        child: BottomNavigationBar(
+      bottomNavigationBar: Obx(() => BottomNavigationBar(
           currentIndex: controller.tabIndex.value,
           onTap: controller.changeTabIndex,
           type: BottomNavigationBarType.fixed,
@@ -70,7 +64,6 @@ class DashboardPage extends StatelessWidget {
               label: "Profile"
             ),
           ],
-        ),
       )),
     );
   }
