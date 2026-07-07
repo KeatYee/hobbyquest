@@ -54,7 +54,7 @@ class ProfilePage extends StatelessWidget {
             ),
             // ── Body ──────────────────────────────────────
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              padding: const EdgeInsets.fromLTRB(20, 76, 20, 40),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildStatsSection(),
@@ -317,7 +317,6 @@ class ProfilePage extends StatelessWidget {
     if (confirmed == true) Get.find<ProfileController>().logout();
   }
 }
-
 // ═══════════════════════════════════════════════
 //  Edit Dialogs
 // ═══════════════════════════════════════════════
@@ -433,51 +432,31 @@ class _HeroHeader extends StatelessWidget {
                   ),
                 ),
 
-                // Avatar + name area with decorative circles
+                // Avatar + name area
                 SizedBox(
                   height: 170,
-                  child: Stack(
-                    alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Positioned(
-                        right: 28,
-                        top: 8,
-                        child: _Circle(size: 90, opacity: 0.08),
+                      _buildAvatar(userModel.avatarSvg),
+                      const SizedBox(height: 12),
+                      Text(
+                        userModel.nickname,
+                        style: TextStyle(
+                          fontSize: AppFonts.valueLg,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textOnPrimary,
+                          letterSpacing: 0.4,
+                        ),
                       ),
-                      Positioned(
-                        left: 18,
-                        bottom: 16,
-                        child: _Circle(size: 56, opacity: 0.06),
-                      ),
-                      Positioned(
-                        left: 90,
-                        top: 6,
-                        child: _Circle(size: 30, opacity: 0.05),
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildAvatar(userModel.avatarSvg),
-                          const SizedBox(height: 12),
-                          Text(
-                            userModel.nickname,
-                            style: TextStyle(
-                              fontSize: AppFonts.valueLg,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textOnPrimary,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            currentUser.email ?? '',
-                            style: TextStyle(
-                              fontSize: AppFonts.badge,
-                              color: AppColors.textOnPrimary.withOpacity(0.72),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        currentUser.email ?? '',
+                        style: TextStyle(
+                          fontSize: AppFonts.badge,
+                          color: AppColors.textOnPrimary.withOpacity(0.72),
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ],
                   ),
@@ -509,13 +488,6 @@ class _HeroHeader extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.textOnPrimary, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: CircleAvatar(
         radius: 46,
@@ -561,13 +533,6 @@ class _XPCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.textShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -639,13 +604,6 @@ class _XPCard extends StatelessWidget {
                       colors: [AppColors.primary, AppColors.accent],
                     ),
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -776,13 +734,6 @@ class _SectionCard extends StatelessWidget {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.border, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.textShadow,
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: child,
@@ -965,24 +916,6 @@ class _TileDivider extends StatelessWidget {
       color: AppColors.border,
       indent: 70,
       endIndent: 0,
-    );
-  }
-}
-
-class _Circle extends StatelessWidget {
-  final double size;
-  final double opacity;
-  const _Circle({required this.size, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.textOnPrimary.withOpacity(opacity),
-      ),
     );
   }
 }
