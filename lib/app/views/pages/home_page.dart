@@ -8,6 +8,7 @@ import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../models/quest_plan_model.dart';
 import '../../models/milestone_model.dart';
+import '../widgets/shaking_mailbox_button.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -44,7 +45,10 @@ class HomePage extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // MISSION LOG HEADER
-                  _buildSectionHeader("MISSION LOG"),
+                  _buildSectionHeader(
+                    "MISSION LOG",
+                    trailing: _buildGrowthLetterButton(controller),
+                  ),
                   const SizedBox(height: 14),
 
                   // ACTIVE / LOCKED QUESTS (non-completed)
@@ -291,6 +295,15 @@ class HomePage extends StatelessWidget {
   // ─────────────────────────────────────────────────────────────
   //  MILESTONE PROGRESS
   // ─────────────────────────────────────────────────────────────
+  Widget _buildGrowthLetterButton(HomeController controller) {
+    return Obx(
+      () => ShakingMailboxButton(
+        isShaking: controller.hasUnreadGrowthLetter.value,
+        onTap: () => Get.toNamed(AppRoutes.GROWTH_LETTER),
+      ),
+    );
+  }
+
   Widget _buildMilestoneProgress(HomeController controller) {
     return Obx(() {
       final plan = controller.user.value?.currentPlan;
@@ -647,7 +660,7 @@ class HomePage extends StatelessWidget {
   // ─────────────────────────────────────────────────────────────
   //  SECTION HEADER
   // ─────────────────────────────────────────────────────────────
-  Widget _buildSectionHeader(String label) {
+  Widget _buildSectionHeader(String label, {Widget? trailing}) {
     return Row(
       children: [
         Container(
@@ -668,6 +681,10 @@ class HomePage extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
+        if (trailing != null) ...[
+          const Spacer(),
+          trailing,
+        ],
       ],
     );
   }

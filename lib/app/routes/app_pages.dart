@@ -14,6 +14,7 @@ import '../views/pages/forest_page.dart';
 import '../views/pages/goal_history_page.dart';
 import '../views/pages/privacy_security_page.dart';
 import '../views/pages/help_support_page.dart';
+import '../views/pages/growth_letter_page.dart';
 import '../bindings/onboarding_binding.dart';
 
 class AppPages {
@@ -88,6 +89,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.HELP_SUPPORT,
       page: () => const HelpSupportPage(),
+    ),
+    GetPage(
+      name: AppRoutes.GROWTH_LETTER,
+      page: () => const GrowthLetterPage(),
     ),
   ];
 }

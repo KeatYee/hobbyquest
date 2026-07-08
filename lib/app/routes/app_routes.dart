@@ -11,4 +11,5 @@ abstract class AppRoutes {
   static const GOAL_HISTORY = '/goal-history';
   static const PRIVACY_SECURITY = '/privacy-security';
   static const HELP_SUPPORT = '/help-support';
+  static const GROWTH_LETTER = '/growth-letter';
 }

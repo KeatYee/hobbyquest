@@ -278,7 +278,7 @@ class ProfilePage extends StatelessWidget {
             fontWeight: FontWeight.w700,
             fontSize: AppFonts.button,
             letterSpacing: 0.3,
-            color: AppColors.error.withOpacity(0.7),
+            color: AppColors.error,
           ),
         ),
         style: OutlinedButton.styleFrom(

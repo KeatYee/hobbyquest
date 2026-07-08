@@ -8,6 +8,7 @@ import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
 import '../../core/utils/dialog_utils.dart';
 import '../services/goal_history_service.dart';
+import '../services/growth_letter_service.dart';
 
 class ProfileController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -395,7 +396,10 @@ class ProfileController extends GetxController {
       // 2d. Delete goalHistory subcollection
       await GoalHistoryService.deleteAllGoalHistory(uid);
 
-      // 2e. Delete feedback subcollection
+      // 2e. Delete growthLetters subcollection
+      await GrowthLetterService.deleteAllGrowthLetters(uid);
+
+      // 2f. Delete feedback subcollection
       final feedbackSnap = await _firestore
           .collection('users')
           .doc(uid)
@@ -405,7 +409,7 @@ class ProfileController extends GetxController {
         batch.delete(feedback.reference);
       }
 
-      // 2f. Delete user document
+      // 2g. Delete user document
       batch.delete(_firestore.collection('users').doc(uid));
 
       await batch.commit();

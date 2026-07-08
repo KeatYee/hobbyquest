@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/growth_letter_model.dart';
 import '../models/quest_node_model.dart';
 import '../services/gemini_service.dart';
+import '../services/growth_letter_service.dart';
 import '../services/quest_service.dart';
 import '../models/user_model.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
+  final GrowthLetterService _growthLetterService = GrowthLetterService();
   final QuestService _questService = QuestService();
+  StreamSubscription<GrowthLetterModel?>? _growthLetterSubscription;
   // --- STATE VARIABLES (Reactivity) ---
 
   // User Profile Data (Typed Model)
@@ -22,6 +28,7 @@ class HomeController extends GetxController {
 
   // Loading state
   var isLoadingProfile = true.obs;
+  var hasUnreadGrowthLetter = false.obs;
 
   // Quest List (Backed by the user's saved current plan)
   var dailyQuests = <QuestNodeModel>[].obs;
@@ -31,6 +38,12 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     _loadUserProfile();
+  }
+
+  @override
+  void onClose() {
+    _growthLetterSubscription?.cancel();
+    super.onClose();
   }
 
   /// Returns ALL quest nodes with recomputed isActive flags based on DAG.
@@ -200,6 +213,7 @@ class HomeController extends GetxController {
         frequency.value = currentPlan.frequency;
         level.value = currentPlan.level;
         dailyQuests.value = getAllQuestNodes(currentPlan.quests);
+        _watchGrowthLetterAvailability(uid);
 
         print(
           "--- SUCCESS: Loaded user profile for ${loadedUser.nickname} ---",
@@ -212,6 +226,41 @@ class HomeController extends GetxController {
     } finally {
       isLoadingProfile.value = false;
     }
+  }
+
+  Future<void> refreshGrowthLetterAvailability() async {
+    final uid = user.value?.id ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) {
+      hasUnreadGrowthLetter.value = false;
+      return;
+    }
+
+    try {
+      hasUnreadGrowthLetter.value =
+          await _growthLetterService.hasUnreadGrowthLetter(uid);
+    } catch (e) {
+      print('--- WARNING: Failed to check growth letter availability: $e ---');
+      hasUnreadGrowthLetter.value = false;
+    }
+  }
+
+  void _watchGrowthLetterAvailability(String uid) {
+    _growthLetterSubscription?.cancel();
+    if (uid.isEmpty) {
+      hasUnreadGrowthLetter.value = false;
+      return;
+    }
+
+    _growthLetterSubscription =
+        _growthLetterService.watchLatestGrowthLetter(uid).listen(
+      (latest) {
+        hasUnreadGrowthLetter.value = latest != null && latest.readAt == null;
+      },
+      onError: (error) {
+        print('--- WARNING: Failed to watch growth letter availability: $error ---');
+        hasUnreadGrowthLetter.value = false;
+      },
+    );
   }
 
   // --- ACTIONS ---

@@ -599,6 +599,60 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
         )['title']!;
   }
 
+  Future<String> generateGrowthLetter({
+    required String nickname,
+    required String hobby,
+    required int questCount,
+    required List<String> questTitles,
+    required List<String> reflections,
+  }) async {
+    if (!hasApiKey) {
+      return _buildFallbackGrowthLetter(
+        nickname: nickname,
+        hobby: hobby,
+        questCount: questCount,
+        reflections: reflections,
+      );
+    }
+
+    try {
+      final prompt = '''
+You are writing a warm weekly growth letter for a gamified hobby learning app.
+The user is learning $hobby.
+
+User:
+- Name: $nickname
+- Completed quests this week: $questCount
+- Quest titles: ${questTitles.isEmpty ? 'None provided' : questTitles.join(' | ')}
+- Reflection notes: ${reflections.isEmpty ? 'None provided' : reflections.join(' | ')}
+
+Instructions:
+1. Write directly to the user as a short letter.
+2. Start with "Dear $nickname,".
+3. Briefly acknowledge what the user worked on this week.
+4. Mention one struggle, pattern, or improvement from the reflections.
+5. Name their strongest growth and end with one specific focus for next week.
+6. Keep it between 70 and 110 words. Use 4 short paragraphs. Each paragraph should be 1 sentence only.
+7. Do not use markdown, bullets, headings, or emojis.
+''';
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final text = response.text?.trim() ?? '';
+      if (text.isEmpty) {
+        throw const FormatException('Empty growth letter response');
+      }
+      return text;
+    } catch (e) {
+      print('[GeminiService] Growth letter API call failed: $e');
+      return _buildFallbackGrowthLetter(
+        nickname: nickname,
+        hobby: hobby,
+        questCount: questCount,
+        reflections: reflections,
+      );
+    }
+  }
+
   Future<Map<String, dynamic>?> generateQuestImageFeedback({
     required XFile imageFile,
     required String hobby,
@@ -715,6 +769,23 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 
     final random = Random(DateTime.now().millisecondsSinceEpoch);
     return fallbacks[random.nextInt(fallbacks.length)];
+  }
+
+  String _buildFallbackGrowthLetter({
+    required String nickname,
+    required String hobby,
+    required int questCount,
+    required List<String> reflections,
+  }) {
+    final reflectionHint = reflections.isEmpty
+        ? 'Even without long notes, your completed quests show steady effort.'
+        : 'Your reflections show that you are starting to notice what feels difficult and what improves with practice.';
+
+    return 'Dear $nickname,\n\n'
+        'This week, your $hobby tree grew through $questCount quest${questCount == 1 ? '' : 's'}. '
+        '$reflectionHint\n\n'
+        'Your strongest growth this week: you kept showing up and turning small actions into progress.\n\n'
+        'Next week, your path will focus on one clear practice step at a time.';
   }
 
   Map<String, dynamic> _extractJsonObject(String source) {
