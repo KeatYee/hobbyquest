@@ -395,7 +395,17 @@ class ProfileController extends GetxController {
       // 2d. Delete goalHistory subcollection
       await GoalHistoryService.deleteAllGoalHistory(uid);
 
-      // 2e. Delete user document
+      // 2e. Delete feedback subcollection
+      final feedbackSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('feedback')
+          .get();
+      for (final feedback in feedbackSnap.docs) {
+        batch.delete(feedback.reference);
+      }
+
+      // 2f. Delete user document
       batch.delete(_firestore.collection('users').doc(uid));
 
       await batch.commit();

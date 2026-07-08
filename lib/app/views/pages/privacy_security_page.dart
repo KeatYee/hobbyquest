@@ -39,15 +39,6 @@ class PrivacySecurityPage extends StatelessWidget {
           () => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Manage what other adventurers can see.",
-                style: TextStyle(
-                  fontSize: AppFonts.badge,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 24),
               _PrivacySwitchTile(
                 icon: Icons.person_search_outlined,
                 iconColor: AppColors.info,
