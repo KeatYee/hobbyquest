@@ -218,6 +218,7 @@ class QuestDetailController extends GetxController {
       
       homeController.dailyQuests.value = allNodes;
       print('--- DEBUG: homeController.dailyQuests updated ---');
+      await homeController.refreshGrowthLetterAvailability();
 
       print('--- INFO: Quest $questId completed. Total quest nodes: ${allNodes.length} ---');
       for (final q in allNodes) {

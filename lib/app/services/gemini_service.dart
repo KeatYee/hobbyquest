@@ -19,6 +19,20 @@ class ValidationResult {
   const ValidationResult.invalid(this.error) : isValid = false;
 }
 
+class GrowthLetterDraft {
+  final String letter;
+  final String strongestGrowth;
+  final String focusArea;
+  final String nextWeekFocus;
+
+  const GrowthLetterDraft({
+    required this.letter,
+    required this.strongestGrowth,
+    required this.focusArea,
+    required this.nextWeekFocus,
+  });
+}
+
 class GoalValidationResult {
   final bool isValid;
   final String reason;
@@ -599,7 +613,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
         )['title']!;
   }
 
-  Future<String> generateGrowthLetter({
+  Future<GrowthLetterDraft> generateGrowthLetter({
     required String nickname,
     required String hobby,
     required int questCount,
@@ -607,7 +621,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     required List<String> reflections,
   }) async {
     if (!hasApiKey) {
-      return _buildFallbackGrowthLetter(
+      return _buildFallbackGrowthLetterDraft(
         nickname: nickname,
         hobby: hobby,
         questCount: questCount,
@@ -626,14 +640,24 @@ User:
 - Quest titles: ${questTitles.isEmpty ? 'None provided' : questTitles.join(' | ')}
 - Reflection notes: ${reflections.isEmpty ? 'None provided' : reflections.join(' | ')}
 
+Return valid JSON only with this exact shape:
+{
+  "letter": "Dear $nickname,...",
+  "strongestGrowth": "2 to 4 words",
+  "focusArea": "2 to 4 words",
+  "nextWeekFocus": "2 to 4 words"
+}
+
 Instructions:
-1. Write directly to the user as a short letter.
-2. Start with "Dear $nickname,".
+1. The letter must write directly to the user as a short letter.
+2. The letter must start with "Dear $nickname,".
 3. Briefly acknowledge what the user worked on this week.
 4. Mention one struggle, pattern, or improvement from the reflections.
-5. Name their strongest growth and end with one specific focus for next week.
-6. Keep it between 70 and 110 words. Use 4 short paragraphs. Each paragraph should be 1 sentence only.
-7. Do not use markdown, bullets, headings, or emojis.
+5. Keep the letter between 70 and 110 words. Use 4 short paragraphs. Each paragraph should be 1 sentence only.
+6. strongestGrowth must name the user's best growth pattern from the quests/reflections.
+7. focusArea must name one specific skill or habit that needs attention.
+8. nextWeekFocus must name one specific next practice path.
+9. Keep chip values short, natural, and specific. Do not use markdown, bullets, headings, or emojis.
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
@@ -641,10 +665,31 @@ Instructions:
       if (text.isEmpty) {
         throw const FormatException('Empty growth letter response');
       }
-      return text;
+
+      final json = _extractJsonObject(text);
+      final letter = json['letter']?.toString().trim() ?? '';
+      if (letter.isEmpty) {
+        throw const FormatException('Empty growth letter field');
+      }
+
+      return GrowthLetterDraft(
+        letter: letter,
+        strongestGrowth: _readShortString(
+          json['strongestGrowth'],
+          fallback: 'Persistence',
+        ),
+        focusArea: _readShortString(
+          json['focusArea'],
+          fallback: 'Practice details',
+        ),
+        nextWeekFocus: _readShortString(
+          json['nextWeekFocus'],
+          fallback: 'Guided practice',
+        ),
+      );
     } catch (e) {
       print('[GeminiService] Growth letter API call failed: $e');
-      return _buildFallbackGrowthLetter(
+      return _buildFallbackGrowthLetterDraft(
         nickname: nickname,
         hobby: hobby,
         questCount: questCount,
@@ -771,7 +816,7 @@ Instructions:
     return fallbacks[random.nextInt(fallbacks.length)];
   }
 
-  String _buildFallbackGrowthLetter({
+  GrowthLetterDraft _buildFallbackGrowthLetterDraft({
     required String nickname,
     required String hobby,
     required int questCount,
@@ -781,11 +826,24 @@ Instructions:
         ? 'Even without long notes, your completed quests show steady effort.'
         : 'Your reflections show that you are starting to notice what feels difficult and what improves with practice.';
 
-    return 'Dear $nickname,\n\n'
+    final letter = 'Dear $nickname,\n\n'
         'This week, your $hobby tree grew through $questCount quest${questCount == 1 ? '' : 's'}. '
         '$reflectionHint\n\n'
         'Your strongest growth this week: you kept showing up and turning small actions into progress.\n\n'
         'Next week, your path will focus on one clear practice step at a time.';
+
+    return GrowthLetterDraft(
+      letter: letter,
+      strongestGrowth: 'Persistence',
+      focusArea: reflections.isEmpty ? 'Reflection notes' : 'Practice details',
+      nextWeekFocus: 'Guided practice',
+    );
+  }
+
+  String _readShortString(dynamic value, {String fallback = ''}) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return fallback;
+    return text.length <= 48 ? text : text.substring(0, 48).trim();
   }
 
   Map<String, dynamic> _extractJsonObject(String source) {

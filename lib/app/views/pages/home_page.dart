@@ -298,7 +298,7 @@ class HomePage extends StatelessWidget {
   Widget _buildGrowthLetterButton(HomeController controller) {
     return Obx(
       () => ShakingMailboxButton(
-        isShaking: controller.hasUnreadGrowthLetter.value,
+        isShaking: controller.hasAvailableGrowthLetter.value,
         onTap: () => Get.toNamed(AppRoutes.GROWTH_LETTER),
       ),
     );

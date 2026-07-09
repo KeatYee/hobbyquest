@@ -15,6 +15,7 @@ class HomeController extends GetxController {
   final GrowthLetterService _growthLetterService = GrowthLetterService();
   final QuestService _questService = QuestService();
   StreamSubscription<GrowthLetterModel?>? _growthLetterSubscription;
+  Timer? _growthLetterAvailabilityTimer;
   // --- STATE VARIABLES (Reactivity) ---
 
   // User Profile Data (Typed Model)
@@ -28,7 +29,7 @@ class HomeController extends GetxController {
 
   // Loading state
   var isLoadingProfile = true.obs;
-  var hasUnreadGrowthLetter = false.obs;
+  var hasAvailableGrowthLetter = false.obs;
 
   // Quest List (Backed by the user's saved current plan)
   var dailyQuests = <QuestNodeModel>[].obs;
@@ -43,6 +44,7 @@ class HomeController extends GetxController {
   @override
   void onClose() {
     _growthLetterSubscription?.cancel();
+    _growthLetterAvailabilityTimer?.cancel();
     super.onClose();
   }
 
@@ -230,36 +232,61 @@ class HomeController extends GetxController {
 
   Future<void> refreshGrowthLetterAvailability() async {
     final uid = user.value?.id ?? FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (uid.isEmpty) {
-      hasUnreadGrowthLetter.value = false;
+    final planId = user.value?.activePlanId ?? '';
+    if (uid.isEmpty || planId.isEmpty) {
+      hasAvailableGrowthLetter.value = false;
+      _scheduleGrowthLetterAvailabilityRefresh(null);
       return;
     }
 
     try {
-      hasUnreadGrowthLetter.value =
-          await _growthLetterService.hasUnreadGrowthLetter(uid);
+      final availability = await _growthLetterService
+          .checkGrowthLetterAvailability(uid: uid, planId: planId);
+      hasAvailableGrowthLetter.value = availability.isAvailable;
+      _scheduleGrowthLetterAvailabilityRefresh(availability.nextCheckAt);
     } catch (e) {
       print('--- WARNING: Failed to check growth letter availability: $e ---');
-      hasUnreadGrowthLetter.value = false;
+      hasAvailableGrowthLetter.value = false;
+      _scheduleGrowthLetterAvailabilityRefresh(null);
     }
   }
 
   void _watchGrowthLetterAvailability(String uid) {
     _growthLetterSubscription?.cancel();
     if (uid.isEmpty) {
-      hasUnreadGrowthLetter.value = false;
+      hasAvailableGrowthLetter.value = false;
+      _scheduleGrowthLetterAvailabilityRefresh(null);
       return;
     }
 
     _growthLetterSubscription =
         _growthLetterService.watchLatestGrowthLetter(uid).listen(
-      (latest) {
-        hasUnreadGrowthLetter.value = latest != null && latest.readAt == null;
+      (_) {
+        unawaited(refreshGrowthLetterAvailability());
       },
       onError: (error) {
         print('--- WARNING: Failed to watch growth letter availability: $error ---');
-        hasUnreadGrowthLetter.value = false;
+        hasAvailableGrowthLetter.value = false;
+        _scheduleGrowthLetterAvailabilityRefresh(null);
       },
+    );
+    unawaited(refreshGrowthLetterAvailability());
+  }
+
+  void _scheduleGrowthLetterAvailabilityRefresh(DateTime? nextCheckAt) {
+    _growthLetterAvailabilityTimer?.cancel();
+    _growthLetterAvailabilityTimer = null;
+    if (nextCheckAt == null) return;
+
+    final delay = nextCheckAt.difference(DateTime.now());
+    if (delay <= Duration.zero) {
+      unawaited(refreshGrowthLetterAvailability());
+      return;
+    }
+
+    _growthLetterAvailabilityTimer = Timer(
+      delay,
+      () => unawaited(refreshGrowthLetterAvailability()),
     );
   }
 
@@ -308,6 +335,7 @@ class HomeController extends GetxController {
     level.value = updatedPlan.level;
     
     dailyQuests.value = getAllQuestNodes(updatedPlan.quests);
+    await refreshGrowthLetterAvailability();
     
     print('--- INFO: Quest $questId completed via HomeController ---');
 

@@ -5,6 +5,16 @@ import '../models/quest_node_model.dart';
 import '../models/user_model.dart';
 import 'gemini_service.dart';
 
+class GrowthLetterAvailability {
+  final bool isAvailable;
+  final DateTime? nextCheckAt;
+
+  const GrowthLetterAvailability({
+    required this.isAvailable,
+    this.nextCheckAt,
+  });
+}
+
 class GrowthLetterService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GeminiService _geminiService = GeminiService();
@@ -50,9 +60,39 @@ class GrowthLetterService {
     });
   }
 
-  Future<bool> hasUnreadGrowthLetter(String uid) async {
+  Future<GrowthLetterAvailability> checkGrowthLetterAvailability({
+    required String uid,
+    required String planId,
+  }) async {
+    if (uid.isEmpty || planId.isEmpty) {
+      return const GrowthLetterAvailability(isAvailable: false);
+    }
+
     final latest = await loadLatestGrowthLetter(uid);
-    return latest != null && latest.readAt == null;
+    if (latest != null && latest.readAt == null) {
+      return const GrowthLetterAvailability(isAvailable: true);
+    }
+
+    final now = DateTime.now();
+    final latestAnchorDate = latest?.createdAt ?? latest?.periodEnd;
+    if (latestAnchorDate != null) {
+      final nextAllowed = latestAnchorDate.add(const Duration(days: 7));
+      if (now.isBefore(nextAllowed)) {
+        return GrowthLetterAvailability(
+          isAvailable: false,
+          nextCheckAt: nextAllowed,
+        );
+      }
+    }
+
+    final hasCompletedQuests = await _hasCompletedQuestsForPeriod(
+      uid: uid,
+      planId: planId,
+      periodStart: now.subtract(const Duration(days: 7)),
+      periodEnd: now,
+    );
+
+    return GrowthLetterAvailability(isAvailable: hasCompletedQuests);
   }
 
   Future<void> markGrowthLetterRead({
@@ -78,19 +118,43 @@ class GrowthLetterService {
     final periodStart = now.subtract(const Duration(days: 7));
 
     final latest = await loadLatestGrowthLetter(uid);
-    if (latest?.createdAt != null) {
-      final nextAllowed = latest!.createdAt!.add(const Duration(days: 7));
+    var shouldReuseLatest = false;
+    final latestAnchorDate = latest?.createdAt ?? latest?.periodEnd;
+    if (latestAnchorDate != null) {
+      final nextAllowed = latestAnchorDate.add(const Duration(days: 7));
       if (now.isBefore(nextAllowed)) {
-        return latest;
+        shouldReuseLatest = true;
       }
     }
+
+    if (shouldReuseLatest &&
+        latest != null &&
+        latest.hasPersonalizedInsights &&
+        latest.hasWeeklyStats) {
+      return latest;
+    }
+
+    final needsInsightBackfill =
+        shouldReuseLatest && latest != null && !latest.hasPersonalizedInsights;
+    final needsStatsBackfill =
+        shouldReuseLatest && latest != null && !latest.hasWeeklyStats;
+
+    final questPeriodStart = shouldReuseLatest && latest != null
+        ? latest.periodStart
+        : periodStart;
+    final questPeriodEnd = shouldReuseLatest && latest != null
+        ? latest.periodEnd
+        : periodEnd;
 
     final quests = await _loadCompletedQuestsForPeriod(
       uid: uid,
       planId: planId,
-      periodStart: periodStart,
+      periodStart: questPeriodStart,
+      periodEnd: questPeriodEnd,
     );
     if (quests.isEmpty) return latest;
+
+    final weeklyStreakDays = _calculateWeeklyStreakDays(quests);
 
     final reflections = quests
         .map((quest) => quest.reflectionNote.trim())
@@ -98,7 +162,20 @@ class GrowthLetterService {
         .take(8)
         .toList();
 
-    final letterText = await _geminiService.generateGrowthLetter(
+    if (needsStatsBackfill && !needsInsightBackfill) {
+      final letterRef = _lettersCol(uid).doc(latest!.id);
+      await letterRef.update({
+        'questCount': quests.length,
+        'reflectionCount': reflections.length,
+        'weeklyStreakDays': weeklyStreakDays,
+        'questIds': quests.map((quest) => quest.nodeId).toList(),
+      });
+
+      final saved = await letterRef.get();
+      return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
+    }
+
+    final draft = await _geminiService.generateGrowthLetter(
       nickname: user.nickname,
       hobby: user.currentPlan.hobby,
       questCount: quests.length,
@@ -106,16 +183,37 @@ class GrowthLetterService {
       reflections: reflections,
     );
 
+    if (needsInsightBackfill) {
+      final letterRef = _lettersCol(uid).doc(latest!.id);
+      await letterRef.update({
+        'questCount': quests.length,
+        'reflectionCount': reflections.length,
+        'weeklyStreakDays': weeklyStreakDays,
+        'questIds': quests.map((quest) => quest.nodeId).toList(),
+        'strongestGrowth': draft.strongestGrowth,
+        'focusArea': draft.focusArea,
+        'nextWeekFocus': draft.nextWeekFocus,
+        'hasPersonalizedInsights': true,
+      });
+
+      final saved = await letterRef.get();
+      return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
+    }
+
     final docRef = await _lettersCol(uid).add(
       GrowthLetterModel(
         uid: uid,
         planId: planId,
         hobby: user.currentPlan.hobby,
         nickname: user.nickname,
-        letter: letterText,
+        letter: draft.letter,
         questCount: quests.length,
         reflectionCount: reflections.length,
+        weeklyStreakDays: weeklyStreakDays,
         questIds: quests.map((quest) => quest.nodeId).toList(),
+        strongestGrowth: draft.strongestGrowth,
+        focusArea: draft.focusArea,
+        nextWeekFocus: draft.nextWeekFocus,
         periodStart: periodStart,
         periodEnd: periodEnd,
       ).toJson(),
@@ -129,14 +227,20 @@ class GrowthLetterService {
     required String uid,
     required String planId,
     required DateTime periodStart,
+    required DateTime periodEnd,
   }) async {
-    final snapshot = await _questsCol(uid, planId)
+    final query = _questsCol(uid, planId)
         .where(
           'completedAt',
           isGreaterThanOrEqualTo: Timestamp.fromDate(periodStart),
         )
-        .orderBy('completedAt', descending: true)
-        .get();
+        .where(
+          'completedAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(periodEnd),
+        )
+        .orderBy('completedAt', descending: true);
+
+    final snapshot = await query.get();
 
     final quests = snapshot.docs
         .map((doc) => QuestNodeModel.fromJson(doc.data()))
@@ -148,6 +252,54 @@ class GrowthLetterService {
       return bDate.compareTo(aDate);
     });
     return quests;
+  }
+
+  Future<bool> _hasCompletedQuestsForPeriod({
+    required String uid,
+    required String planId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+  }) async {
+    final quests = await _loadCompletedQuestsForPeriod(
+      uid: uid,
+      planId: planId,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+    );
+    return quests.isNotEmpty;
+  }
+
+  int _calculateWeeklyStreakDays(List<QuestNodeModel> quests) {
+    final completedDays = <DateTime>{};
+    for (final quest in quests) {
+      final completedAt = quest.completedAt;
+      if (completedAt == null) continue;
+
+      completedDays.add(
+        DateTime(completedAt.year, completedAt.month, completedAt.day),
+      );
+    }
+
+    if (completedDays.isEmpty) return 0;
+
+    final sortedDays = completedDays.toList()..sort();
+    var longestStreak = 1;
+    var currentStreak = 1;
+
+    for (var index = 1; index < sortedDays.length; index++) {
+      final dayGap = sortedDays[index].difference(sortedDays[index - 1]).inDays;
+      if (dayGap == 1) {
+        currentStreak += 1;
+      } else if (dayGap > 1) {
+        currentStreak = 1;
+      }
+
+      if (currentStreak > longestStreak) {
+        longestStreak = currentStreak;
+      }
+    }
+
+    return longestStreak;
   }
 
   static Future<void> deleteAllGrowthLetters(String uid) async {

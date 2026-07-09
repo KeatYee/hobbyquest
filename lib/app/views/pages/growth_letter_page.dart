@@ -98,46 +98,8 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
                       key: _letterImageKey,
                       child: _LetterCard(letter: currentLetter),
                     ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton.icon(
-                      onPressed: controller.isGenerating.value
-                          ? null
-                          : () => controller.writeLetter(),
-                      icon: controller.isGenerating.value
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: AppColors.textOnPrimary,
-                              ),
-                            )
-                          : const Icon(Icons.auto_awesome_rounded, size: 19),
-                      label: Text(
-                        controller.isGenerating.value
-                            ? 'Writing...'
-                            : 'Check For Growth Letter',
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textOnPrimary,
-                        disabledBackgroundColor: AppColors.border,
-                        disabledForegroundColor: AppColors.textSecondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: AppFonts.button,
-                        ),
-                      ),
-                    ),
-                  ),
                   if (currentLetter != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -166,30 +128,6 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: controller.showDemoLetter,
-                      icon: const Icon(Icons.science_outlined, size: 18),
-                      label: const Text('Show Demo Letter'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(
-                          color: AppColors.primary,
-                          width: 1.4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: AppFonts.button,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             );
@@ -241,7 +179,8 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
 
     final title = 'My weekly Growth Letter';
     final body = 'Sharing my weekly Growth Letter from HobbyQuest.\n\n'
-        '${letter.questCount} quests - ${letter.reflectionCount} reflections';
+        '${letter.questCount} quest${letter.questCount == 1 ? '' : 's'} - '
+        '${letter.weeklyStreakDays} day${letter.weeklyStreakDays == 1 ? '' : 's'} week streak';
 
     showModalBottomSheet(
       context: context,
@@ -337,9 +276,9 @@ class _EmptyLetterCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'A letter is still being written',
-                  style: GoogleFonts.caveat(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 28,
+                  style: GoogleFonts.openSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: AppFonts.bodyLg,
                     color: GrowthLetterPage._ink,
                   ),
                 ),
@@ -372,10 +311,10 @@ class _EmptyLetterCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Awaiting growth',
-                  style: GoogleFonts.caveat(
+                  style: GoogleFonts.openSans(
                     color: AppColors.primary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontSize: AppFonts.badge,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -394,51 +333,57 @@ class _LetterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final greeting = _letterGreeting;
+    final body = _letterBody;
+
     return _LetterSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Text(
+            'Your weekly letter',
+            style: GoogleFonts.caveat(
+              fontWeight: FontWeight.w700,
+              fontSize: 30,
+              color: GrowthLetterPage._ink,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6E2B8),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: GrowthLetterPage._paperEdge),
-                ),
-                child: const Icon(
-                  Icons.local_florist_rounded,
-                  color: AppColors.primary,
-                  size: 27,
-                ),
+              _GrowthStampChop(
+                label: 'Strongest growth',
+                value: letter.strongestGrowth,
+                icon: Icons.trending_up_rounded,
+                angle: -0.035,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your weekly letter',
-                      style: GoogleFonts.caveat(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 30,
-                        color: GrowthLetterPage._ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${letter.questCount} quests, ${letter.reflectionCount} reflections',
-                      style: GoogleFonts.openSans(
-                        color: AppColors.textSecondary,
-                        fontSize: AppFonts.badge,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+              _GrowthStampChop(
+                label: 'Focus area',
+                value: letter.focusArea,
+                icon: Icons.center_focus_strong_rounded,
+                angle: 0.025,
+              ),
+              _GrowthStampChop(
+                label: 'Next week',
+                value: letter.nextWeekFocus,
+                icon: Icons.flag_rounded,
+                angle: -0.02,
+              ),
+              _GrowthStampChop(
+                label: 'Total quests',
+                value:
+                    '${letter.questCount} quest${letter.questCount == 1 ? '' : 's'}',
+                icon: Icons.assignment_turned_in_rounded,
+                angle: 0.03,
+              ),
+              _GrowthStampChop(
+                label: 'Week streak',
+                value:
+                    '${letter.weeklyStreakDays} day${letter.weeklyStreakDays == 1 ? '' : 's'}',
+                icon: Icons.local_fire_department_rounded,
+                angle: -0.025,
               ),
             ],
           ),
@@ -447,14 +392,31 @@ class _LetterCard extends StatelessWidget {
             painter: const _PaperLinesPainter(),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(2, 2, 2, 8),
-              child: Text(
-                letter.letter,
-                style: GoogleFonts.caveat(
-                  color: GrowthLetterPage._ink,
-                  fontSize: 25,
-                  height: 1.34,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (greeting.isNotEmpty) ...[
+                    Text(
+                      greeting,
+                      style: GoogleFonts.caveat(
+                        color: GrowthLetterPage._ink,
+                        fontSize: 27,
+                        height: 1.1,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Text(
+                    body,
+                    style: GoogleFonts.openSans(
+                      color: GrowthLetterPage._ink,
+                      fontSize: AppFonts.body,
+                      height: 1.68,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -463,23 +425,12 @@ class _LetterCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: Transform.rotate(
               angle: -0.08,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0x14D46A36),
-                  border: Border.all(color: AppColors.primary, width: 1.3),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'HobbyQuest',
-                  style: GoogleFonts.caveat(
-                    color: AppColors.primary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                  ),
+              child: Text(
+                'HobbyQuest',
+                style: GoogleFonts.caveat(
+                  color: AppColors.primary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -487,6 +438,26 @@ class _LetterCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String get _letterGreeting {
+    final text = letter.letter.trim();
+    if (text.isEmpty) return '';
+
+    final lines = text.split(RegExp(r'\r?\n'));
+    final firstLine = lines.first.trim();
+    if (firstLine.toLowerCase().startsWith('dear ')) {
+      return firstLine;
+    }
+    return '';
+  }
+
+  String get _letterBody {
+    final text = letter.letter.trim();
+    final greeting = _letterGreeting;
+    if (greeting.isEmpty) return text;
+
+    return text.substring(greeting.length).trimLeft();
   }
 }
 
@@ -533,6 +504,129 @@ class _LetterSurface extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _GrowthStampChop extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final double angle;
+
+  const _GrowthStampChop({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.angle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const stampColor = AppColors.primary;
+
+    return Transform.rotate(
+      angle: angle,
+      child: CustomPaint(
+        painter: const _StampChopPainter(color: stampColor),
+        child: Container(
+          width: 148,
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 9),
+          decoration: BoxDecoration(
+            color: stampColor.withOpacity(0.045),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: stampColor.withOpacity(0.9)),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.openSans(
+                        color: stampColor.withOpacity(0.76),
+                        fontSize: 8.5,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.openSans(
+                        color: GrowthLetterPage._ink,
+                        fontSize: AppFonts.badge,
+                        height: 1.08,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StampChopPainter extends CustomPainter {
+  final Color color;
+
+  const _StampChopPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outerPaint = Paint()
+      ..color = color.withOpacity(0.78)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.35;
+    final innerPaint = Paint()
+      ..color = color.withOpacity(0.36)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9;
+
+    final outer = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(7),
+    );
+    final inner = RRect.fromRectAndRadius(
+      Offset(3.5, 3.5) & Size(size.width - 7, size.height - 7),
+      const Radius.circular(4),
+    );
+
+    canvas.drawRRect(outer, outerPaint);
+    canvas.drawRRect(inner, innerPaint);
+
+    final markPaint = Paint()
+      ..color = color.withOpacity(0.22)
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    const markLength = 8.0;
+    canvas.drawLine(
+      const Offset(8, 5),
+      Offset(8 + markLength, 5),
+      markPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width - 8 - markLength, size.height - 5),
+      Offset(size.width - 8, size.height - 5),
+      markPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StampChopPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 
