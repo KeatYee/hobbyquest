@@ -10,6 +10,12 @@ import '../models/category_model.dart';
 import '../services/imgbb_service.dart';
 import 'home_controller.dart';
 
+enum GuildFeedFilter {
+  forYou,
+  sameHobby,
+  sameCharacter,
+}
+
 class GuildController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -26,6 +32,7 @@ class GuildController extends GetxController {
   final userNicknames = <String, String>{}.obs;
   final userPostStatsVisible = <String, bool>{}.obs;
   final selectedCategoryId = Rx<String?>(null);
+  final selectedFeedFilter = GuildFeedFilter.forYou.obs;
   final userReactions = <String, Set<String>>{}.obs;
   final userPeerReviews = <String, Set<String>>{}.obs;
   final currentUserId = Rx<String?>(null);
@@ -231,6 +238,53 @@ class GuildController extends GetxController {
     return '';
   }
 
+  String get currentHobbyName {
+    if (!Get.isRegistered<HomeController>()) return '';
+
+    try {
+      return Get.find<HomeController>().hobby.value.trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String get currentCharacterClass {
+    if (!Get.isRegistered<HomeController>()) return '';
+
+    try {
+      return extractCharacterClass(Get.find<HomeController>().avatarSvg.value);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void setFeedFilter(GuildFeedFilter filter) {
+    selectedFeedFilter.value = filter;
+  }
+
+  List<GuildPostModel> get visiblePosts {
+    switch (selectedFeedFilter.value) {
+      case GuildFeedFilter.forYou:
+        return sortedByRelevance;
+      case GuildFeedFilter.sameHobby:
+        final hobby = currentHobbyName.toLowerCase();
+        if (hobby.isEmpty) return const [];
+        return _sortByDateDesc(
+          posts.where((post) => post.hobby.toLowerCase() == hobby),
+        );
+      case GuildFeedFilter.sameCharacter:
+        final characterClass = currentCharacterClass;
+        if (characterClass.isEmpty) return const [];
+        return _sortByDateDesc(
+          posts.where((post) {
+            final authorClass =
+                extractCharacterClass(userAvatars[post.userId] ?? '');
+            return authorClass == characterClass;
+          }),
+        );
+    }
+  }
+
   /// Posts sorted by relevance to the current user:
   ///   3 pts — same hobby
   ///   2 pts — same category (when hobby differs)
@@ -307,6 +361,12 @@ class GuildController extends GetxController {
       });
 
     return _withFocusedPostFirst(sorted.map((e) => e.key).toList());
+  }
+
+  List<GuildPostModel> _sortByDateDesc(Iterable<GuildPostModel> source) {
+    final sorted = List<GuildPostModel>.from(source)
+      ..sort((a, b) => _compareDesc(a.createdAt, b.createdAt));
+    return _withFocusedPostFirst(sorted);
   }
 
   void focusPost(String? postId) {
@@ -566,7 +626,7 @@ class GuildController extends GetxController {
             'hobby': profile['hobby'],
             'level': 'Novice',
             'goal': '',
-            'frequency': '15 mins/day',
+            'learningPace': 'Steady Learner',
             'progress': 0,
             'currentMilestoneIndex': 0,
             'milestones': <dynamic>[],

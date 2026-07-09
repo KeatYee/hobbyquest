@@ -25,6 +25,10 @@ class _Step1ProfileState extends State<Step1Profile> {
     super.dispose();
   }
 
+  bool get _hasSingleAvatarCarouselClient =>
+      _avatarCarouselController.hasClients &&
+      _avatarCarouselController.positions.length == 1;
+
   @override
   Widget build(BuildContext context) {
     final OnboardingController controller = Get.find();
@@ -49,10 +53,31 @@ class _Step1ProfileState extends State<Step1Profile> {
               controller: controller.nickname,
               textCapitalization: TextCapitalization.words,
               maxLength: 12,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Hero Name (Nickname)",
                 hintText: "e.g. DragonSlayer",
-                prefixIcon: Icon(Icons.person_outline_rounded),
+                prefixIcon: const Icon(Icons.person_outline_rounded),
+                counterText: "",
+                suffixIconConstraints: const BoxConstraints(minWidth: 54),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller.nickname,
+                  builder: (_, value, __) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text(
+                          "${value.text.length}/12",
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: AppFonts.micro,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
               validator: Validators.validateName,
             ),
@@ -206,7 +231,7 @@ class _Step1ProfileState extends State<Step1Profile> {
       // Reset carousel when avatar list changes (gender switch)
       if (_prevAvatarCount != -1 && _prevAvatarCount != avatars.length) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_avatarCarouselController.hasClients) {
+          if (_hasSingleAvatarCarouselClient) {
             _avatarCarouselController.jumpToPage(0);
           }
         });
@@ -221,7 +246,16 @@ class _Step1ProfileState extends State<Step1Profile> {
             fontSize: AppFonts.title,
             letterSpacing: 1.0,
           )),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          Text(
+            "Pick the adventurer that feels like your learning style.",
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: AppFonts.caption,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
           SizedBox(
             height: 210,
             child: PageView.builder(
@@ -240,14 +274,13 @@ class _Step1ProfileState extends State<Step1Profile> {
                 final avatar = avatars[index];
                 final path = avatar['assetPath']!;
                 final name = avatar['name']!;
-                final description = avatar['description']!;
                 final isSelected = selectedPath == path;
 
                 return AnimatedBuilder(
                   animation: _avatarCarouselController,
                   builder: (context, child) {
-                    double scale = 1.0;
-                    if (_avatarCarouselController.hasClients) {
+                    double scale = isSelected ? 1.0 : 0.82;
+                    if (_hasSingleAvatarCarouselClient) {
                       final page = _avatarCarouselController.page ?? index.toDouble();
                       final offset = (page - index).abs();
                       scale = (1 - offset * 0.3).clamp(0.65, 1.0);
@@ -337,18 +370,9 @@ class _Step1ProfileState extends State<Step1Profile> {
                               ),
                               const SizedBox(width: 4),
                               GestureDetector(
-                                onTap: () => showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: Text(name),
-                                    content: Text(description),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text("OK"),
-                                      ),
-                                    ],
-                                  ),
+                                onTap: () => _showAvatarMeaningDialog(
+                                  context,
+                                  avatar,
                                 ),
                                 child: Icon(
                                   Icons.info_outline_rounded,
@@ -366,6 +390,10 @@ class _Step1ProfileState extends State<Step1Profile> {
               },
             ),
           ),
+          _buildSelectedAvatarMeaning(
+            _findAvatarByPath(avatars, selectedPath),
+            textTheme,
+          ),
           if (showAvatarError && controller.avatarSvg.value.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
@@ -382,5 +410,177 @@ class _Step1ProfileState extends State<Step1Profile> {
         ],
       );
     });
+  }
+
+  Map<String, String>? _findAvatarByPath(
+    List<Map<String, String>> avatars,
+    String selectedPath,
+  ) {
+    if (selectedPath.isEmpty) return null;
+    for (final avatar in avatars) {
+      if (avatar['assetPath'] == selectedPath) {
+        return avatar;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildSelectedAvatarMeaning(
+    Map<String, String>? avatar,
+    TextTheme textTheme,
+  ) {
+    if (avatar == null) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          "Select a character to see what their learning style means.",
+          style: textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: AppFonts.caption,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    final traits = avatar['traits']!.split('|');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primaryLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textShadow.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  avatar['name']!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontSize: AppFonts.bodyLg,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: AppColors.secondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            avatar['description']!,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: AppFonts.caption,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: traits.map(_buildTraitChip).toList(),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "This shapes your profile identity only. Your quests still adapt to your hobby and goal.",
+            style: textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary.withValues(alpha: 0.82),
+              fontSize: AppFonts.micro,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTraitChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.primaryDark,
+          fontSize: AppFonts.micro,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  void _showAvatarMeaningDialog(
+    BuildContext context,
+    Map<String, String> avatar,
+  ) {
+    final traits = avatar['traits']!.split('|');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(avatar['name']!),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(avatar['description']!),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: traits.map(_buildTraitChip).toList(),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              "This choice is your profile identity, not your quest difficulty.",
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: AppFonts.caption,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
   }
 }

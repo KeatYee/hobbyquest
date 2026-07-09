@@ -15,12 +15,12 @@ class _Step4GoalsState extends State<Step4Goals> {
   // GlobalKey for Form Validation (Text Input)
   final _formKey = GlobalKey<FormState>();
 
-  // Local state to track Frequency validation error
-  bool showFrequencyError = false;
+  // Local state to track learning pace validation error.
+  bool showLearningPaceError = false;
 
   String? selectedPredefinedGoal;
 
-  final List<String> frequencyOptions = [
+  final List<String> learningPaceOptions = [
     "Casual Explorer",
     "Steady Learner",
     "Hardcore Grinder",
@@ -174,7 +174,7 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             const SizedBox(height: 30),
 
-            // Section 2: Frequency
+            // Section 2: Learning Pace
             Text(
               "LEARNING PACE",
               style: textTheme.headlineSmall?.copyWith(
@@ -184,8 +184,8 @@ class _Step4GoalsState extends State<Step4Goals> {
               ),
             ),
 
-            // Inline Error for Frequency
-            if (showFrequencyError && controller.frequency.value.isEmpty)
+            // Inline Error for Learning Pace
+            if (showLearningPaceError && controller.learningPace.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
@@ -209,13 +209,13 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             const SizedBox(height: 15),
 
-            // Frequency Chips (Wrap Widget handles multiple rows automatically)
+            // Learning pace chips
             Obx(
               () => Wrap(
                 spacing: 12, // Horizontal gap
                 runSpacing: 12, // Vertical gap
-                children: frequencyOptions.map((option) {
-                  return _buildFrequencyChip(controller, option, textTheme);
+                children: learningPaceOptions.map((option) {
+                  return _buildLearningPaceChip(controller, option, textTheme);
                 }).toList(),
               ),
             ),
@@ -238,17 +238,17 @@ class _Step4GoalsState extends State<Step4Goals> {
                           // 1. Validate Text Input
                           bool isTextValid = _formKey.currentState!.validate();
 
-                          // 2. Validate Frequency Selection
-                          bool isFrequencyValid =
-                              controller.frequency.value.isNotEmpty;
+                          // 2. Validate learning pace selection
+                          bool isLearningPaceValid =
+                              controller.learningPace.value.isNotEmpty;
 
-                          if (!isFrequencyValid) {
-                            print("--- ERROR: Frequency not selected ---");
-                            setState(() => showFrequencyError = true);
+                          if (!isLearningPaceValid) {
+                            print("--- ERROR: Learning pace not selected ---");
+                            setState(() => showLearningPaceError = true);
                           }
 
                           // 3. Execute
-                          if (isTextValid && isFrequencyValid) {
+                          if (isTextValid && isLearningPaceValid) {
                             print(
                               "--- SUCCESS: All Steps Complete. Generating Plan... ---",
                             );
@@ -296,22 +296,21 @@ class _Step4GoalsState extends State<Step4Goals> {
     );
   }
 
-  // Helper Widget for Frequency Chips
-  Widget _buildFrequencyChip(
+  Widget _buildLearningPaceChip(
     OnboardingController controller,
     String label,
     TextTheme textTheme,
   ) {
-    bool isSelected = controller.frequency.value == label;
-    bool isError = showFrequencyError && controller.frequency.value.isEmpty;
+    bool isSelected = controller.learningPace.value == label;
+    bool isError = showLearningPaceError && controller.learningPace.value.isEmpty;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          controller.frequency.value = label;
-          print("--- DATA: Frequency Selected: $label ---");
-          if (showFrequencyError) setState(() => showFrequencyError = false);
+          controller.learningPace.value = label;
+          print("--- DATA: Learning pace selected: $label ---");
+          if (showLearningPaceError) setState(() => showLearningPaceError = false);
         },
         borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(

@@ -61,7 +61,7 @@ class GeminiService {
     required String hobby,
     required String level,
     required String goal,
-    required String frequency,
+    required String learningPace,
   }) {
     switch (step) {
       case 0:
@@ -92,8 +92,8 @@ class GeminiService {
         if (goal.trim().isEmpty && hobby.trim().isEmpty) {
           return const ValidationResult.invalid('Goal is required');
         }
-        if (frequency.trim().isEmpty) {
-          return const ValidationResult.invalid('Daily frequency is required');
+        if (learningPace.trim().isEmpty) {
+          return const ValidationResult.invalid('Learning pace is required');
         }
         return const ValidationResult.valid();
       default:
@@ -105,7 +105,7 @@ class GeminiService {
     required String hobby,
     required String level,
     required String goal,
-    required String frequency,
+    required String learningPace,
   }) async {
     final normalizedGoal = goal.trim().isEmpty ? 'Master $hobby' : goal.trim();
 
@@ -114,7 +114,7 @@ class GeminiService {
         hobby: hobby,
         level: level,
         goal: normalizedGoal,
-        frequency: frequency,
+        learningPace: learningPace,
       );
     }
 
@@ -124,13 +124,13 @@ class GeminiService {
           '''
 You are an expert tutor and quest planner for a gamified hobby app.
 The user wants to learn $hobby. Their main goal is $normalizedGoal.
-They consider themselves $level level and can commit $frequency daily. 
+They consider themselves $level level and prefer a "$learningPace" learning pace.
 
 User Profile:
 - Hobby: $hobby
 - Skill Level: $level
 - Goal: $normalizedGoal
-- Daily Time Commitment: $frequency
+- Learning Pace: $learningPace
 
 Instructions:
 1. Generate exactly 4 major Milestones that break this goal into logical phases.
@@ -190,9 +190,13 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
             : ((jsonMap['customGoal']?.toString().trim().isNotEmpty ?? false)
                   ? jsonMap['customGoal'].toString().trim()
                   : normalizedGoal),
-        frequency: (jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
-            ? jsonMap['frequency'].toString().trim()
-            : frequency,
+        learningPace:
+            (jsonMap['learningPace']?.toString().trim().isNotEmpty ?? false)
+                ? jsonMap['learningPace'].toString().trim()
+                : ((jsonMap['frequency']?.toString().trim().isNotEmpty ??
+                          false)
+                      ? jsonMap['frequency'].toString().trim()
+                      : learningPace),
         progress: (jsonMap['progress'] as int?) ?? 0,
         milestones: milestones.take(4).toList(),
         quests: const [],
@@ -203,7 +207,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
         hobby: hobby,
         level: level,
         goal: normalizedGoal,
-        frequency: frequency,
+        learningPace: learningPace,
       );
     }
   }
@@ -273,7 +277,7 @@ Use this exact schema:
     required String hobby,
     required String level,
     required String goal,
-    required String frequency,
+    required String learningPace,
     required String milestoneTitle,
     required String milestoneNumber,
   }) async {
@@ -285,7 +289,7 @@ Use this exact schema:
       return _buildFallbackPhaseDag(
         hobby: hobby,
         milestoneNumber: milestoneNumber,
-        frequency: frequency,
+        learningPace: learningPace,
       );
     }
 
@@ -303,7 +307,7 @@ User Context:
 - Hobby: $hobby
 - Skill Level: $level
 - Goal: $normalizedGoal
-- Preferred Learning Pace: $frequency
+- Preferred Learning Pace: $learningPace
 - Current Milestone Focus: $milestoneTitle
 
 Instructions:
@@ -477,7 +481,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       return _buildFallbackPhaseDag(
         hobby: hobby,
         milestoneNumber: milestoneNumber,
-        frequency: frequency,
+        learningPace: learningPace,
       );
     }
   }
@@ -488,7 +492,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     required String hobby,
     required String nodeTitle,
     required String nodeDesc,
-    required String frequency,
+    required String learningPace,
     required String milestoneTitle,
     required String questType,
     required int durationMinutes,
@@ -512,6 +516,7 @@ Your job is to generate EXACTLY ONE alternative quest that teaches a similar und
 
 User Context:
 - Hobby: $hobby
+- Preferred Learning Pace: $learningPace
 - Current Milestone Focus: $milestoneTitle
 
 The REJECTED Quest (DO NOT DUPLICATE THIS):
@@ -594,14 +599,14 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     required String nodeDesc,
     required String milestoneTitle,
     required String questType,
-    required String frequency,
+    required String learningPace,
     required int durationMinutes,
   }) async {
     final alternative = await generateAlternativeQuest(
       hobby: hobby,
       nodeTitle: nodeTitle,
       nodeDesc: nodeDesc,
-      frequency: frequency,
+      learningPace: learningPace,
       milestoneTitle: milestoneTitle,
       questType: questType,
       durationMinutes: durationMinutes,
@@ -885,13 +890,13 @@ Instructions:
     required String hobby,
     required String level,
     required String goal,
-    required String frequency,
+    required String learningPace,
   }) {
     return QuestPlanModel(
       hobby: hobby,
       level: level,
       goal: goal,
-      frequency: frequency,
+      learningPace: learningPace,
       currentMilestoneIndex: 0,
       progress: 0,
       milestones: _buildMilestones(
@@ -902,7 +907,7 @@ Instructions:
       quests: _buildFallbackPhaseDag(
         hobby: hobby,
         milestoneNumber: '1',
-        frequency: frequency,
+        learningPace: learningPace,
       ),
     );
   }
@@ -1196,12 +1201,12 @@ Instructions:
   List<QuestNodeModel> _buildFallbackPhaseDag({
     required String hobby,
     required String milestoneNumber,
-    required String frequency,
+    required String learningPace,
   }) {
     final variants = _questTemplatesForHobby(hobby);
     final nodes = <QuestNodeModel>[];
     const laneCount = 3;
-    final baseDurationMinutes = _durationFromFrequency(frequency);
+    final baseDurationMinutes = _durationFromLearningPace(learningPace);
 
     for (var i = 0; i < 20; i++) {
       final variant = variants[i % variants.length];
@@ -1274,8 +1279,13 @@ Instructions:
     return '${text.substring(0, maxLength - 3)}...';
   }
 
-  int _durationFromFrequency(String frequency) {
-    final match = RegExp(r'(\d+)').firstMatch(frequency);
+  int _durationFromLearningPace(String learningPace) {
+    final normalized = learningPace.toLowerCase();
+    if (normalized.contains('casual')) return 10;
+    if (normalized.contains('steady')) return 20;
+    if (normalized.contains('hardcore')) return 35;
+
+    final match = RegExp(r'(\d+)').firstMatch(learningPace);
     if (match == null) {
       return 15;
     }

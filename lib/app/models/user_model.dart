@@ -227,7 +227,9 @@ class UserModel {
       hobby: json['hobby'] as String? ?? (json['hobbyName'] as String? ?? 'Learning'),
       level: json['level'] as String? ?? (json['skillLevel'] as String? ?? 'Novice'),
       goal: json['goal'] as String? ?? (json['customGoal'] as String? ?? ''),
-      frequency: json['frequency'] as String? ?? '15 mins/day',
+      learningPace: json['learningPace'] as String? ??
+          (json['frequency'] as String? ??
+              (json['dailyCommitment'] as String? ?? 'Steady Learner')),
       progress: json['progress'] as int? ?? 0,
       currentMilestoneIndex: json['currentMilestoneIndex'] as int? ?? (json['progress'] as int? ?? 0),
       milestones: const [],

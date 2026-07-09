@@ -28,12 +28,11 @@ class GuildPage extends StatelessWidget {
           Obx(() {
             if (controller.isLoading.value) {
               return _buildLoadingView(context);
-            } else if (controller.categories.isEmpty) {
-              return _buildEmptyState(context, controller, 'No categories found in Firestore.');
             }
 
             return Column(
               children: [
+                _buildFeedFilterHeader(controller),
                 Expanded(child: _buildFilteredFeed(context, controller)),
               ],
             );
@@ -83,18 +82,23 @@ class GuildPage extends StatelessWidget {
   }
 
   Widget _buildFilteredFeed(BuildContext context, GuildController controller) {
-    final sortedPosts = controller.sortedByRelevance;
-    if (sortedPosts.isEmpty) {
-      return _buildEmptyState(context, controller, 'No posts yet in the guild.');
+    final visiblePosts = controller.visiblePosts;
+
+    if (visiblePosts.isEmpty) {
+      return _buildEmptyState(
+        context,
+        controller,
+        _emptyMessageForFilter(controller.selectedFeedFilter.value),
+      );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
       physics: const BouncingScrollPhysics(),
-      itemCount: sortedPosts.length,
+      itemCount: visiblePosts.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final post = sortedPosts[index];
+        final post = visiblePosts[index];
         final isFocused = controller.focusedPostId.value == post.id;
         return _GuildPostCard(
           key: ValueKey(post.id),
@@ -105,6 +109,121 @@ class GuildPage extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildFeedFilterHeader(GuildController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Guild Feed',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: AppFonts.caption,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                _buildFeedFilterChip(
+                  controller: controller,
+                  filter: GuildFeedFilter.forYou,
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'For You',
+                ),
+                const SizedBox(width: 8),
+                _buildFeedFilterChip(
+                  controller: controller,
+                  filter: GuildFeedFilter.sameHobby,
+                  icon: Icons.local_florist_rounded,
+                  label: 'Same Hobby',
+                ),
+                const SizedBox(width: 8),
+                _buildFeedFilterChip(
+                  controller: controller,
+                  filter: GuildFeedFilter.sameCharacter,
+                  icon: Icons.person_rounded,
+                  label: 'Same Character',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedFilterChip({
+    required GuildController controller,
+    required GuildFeedFilter filter,
+    required IconData icon,
+    required String label,
+  }) {
+    final isSelected = controller.selectedFeedFilter.value == filter;
+
+    return InkWell(
+      onTap: () => controller.setFeedFilter(filter),
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.18),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color:
+                  isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? AppColors.textOnPrimary
+                    : AppColors.textSecondary,
+                fontSize: AppFonts.badge,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _emptyMessageForFilter(GuildFeedFilter filter) {
+    switch (filter) {
+      case GuildFeedFilter.forYou:
+        return 'No posts yet in the guild.';
+      case GuildFeedFilter.sameHobby:
+        return 'No posts from your hobby yet.';
+      case GuildFeedFilter.sameCharacter:
+        return 'No posts from your character type yet.';
+    }
   }
 
   Widget _buildLoadingView(BuildContext context) {

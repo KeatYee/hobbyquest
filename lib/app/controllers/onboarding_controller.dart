@@ -39,32 +39,44 @@ class OnboardingController extends GetxController {
     {
       'name': 'Cultivator',
       'asset': 'cultivator',
-      'description': 'I love mastering skills step-by-step and watching my knowledge grow.',
+      'traits': 'Steady|Reflective|Step-by-step',
+      'description':
+          'For learners who like calm progress, reflection, and improving through small daily steps.',
     },
     {
       'name': 'Earthbreaker',
       'asset': 'earthbreaker',
-      'description': 'I thrive by innovating, challenging the system, and trying unconventional approaches.',
+      'traits': 'Inventive|Independent|Experimental',
+      'description':
+          'For learners who enjoy challenging the obvious path and trying unconventional approaches.',
     },
     {
       'name': 'Grovekeeper',
       'asset': 'grovekeeper',
-      'description': 'I learn best by connecting with others and sharing our forest of progress.',
+      'traits': 'Grounded|Social|Consistent',
+      'description':
+          'For learners who stay motivated through balance, shared progress, and steady routines.',
     },
     {
       'name': 'Harvester',
       'asset': 'harvester',
-      'description': 'I am driven by collecting rewards, badges, and tangible proof of my hard work.',
+      'traits': 'Goal-driven|Focused|Progress-minded',
+      'description':
+          'For learners who feel energized by milestones, badges, and visible proof of effort.',
     },
     {
       'name': 'Nurturer',
       'asset': 'nurturer',
-      'description': 'I gain motivation by helping fellow learners and contributing to our community.',
+      'traits': 'Helpful|Empathetic|Community',
+      'description':
+          'For learners who grow by encouraging others, sharing feedback, and building community.',
     },
     {
       'name': 'Wildseed',
       'asset': 'wildseed',
-      'description': 'I enjoy exploring new hobbies and forging my own unique learning path.',
+      'traits': 'Adventurous|Flexible|Self-led',
+      'description':
+          'For learners who like exploring, experimenting, and forging their own learning path.',
     },
   ];
 
@@ -76,6 +88,7 @@ class OnboardingController extends GetxController {
         result.add({
           'name': avatar['name']!,
           'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
       }
@@ -84,6 +97,7 @@ class OnboardingController extends GetxController {
         result.add({
           'name': avatar['name']!,
           'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
       }
@@ -93,11 +107,13 @@ class OnboardingController extends GetxController {
         result.add({
           'name': avatar['name']!,
           'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
         result.add({
           'name': avatar['name']!,
           'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
       }
@@ -140,7 +156,7 @@ class OnboardingController extends GetxController {
   var level = "Novice".obs;
 
   // --- STEP 4: GOALS ---
-  var frequency = "".obs;
+  var learningPace = "".obs;
   final goalController = TextEditingController();
   var isGoalValidating = false.obs;
   var goalValidationError = ''.obs;
@@ -152,7 +168,7 @@ class OnboardingController extends GetxController {
       hobby: "",
       level: "",
       goal: "",
-      frequency: "",
+      learningPace: "",
       progress: 0,
       currentMilestoneIndex: 0,
       milestones: [],
@@ -277,7 +293,7 @@ class OnboardingController extends GetxController {
         hobby: hobby.value,
         level: level.value,
         goal: goalController.text,
-        frequency: frequency.value,
+        learningPace: learningPace.value,
       );
     } catch (e) {
       print("--- ERROR: Failed to generate plan: $e ---");
@@ -285,7 +301,7 @@ class OnboardingController extends GetxController {
         hobby: hobby.value,
         level: level.value,
         goal: goalController.text.isNotEmpty ? goalController.text : "Master ${hobby.value}",
-        frequency: frequency.value,
+        learningPace: learningPace.value,
         progress: 0,
         currentMilestoneIndex: 0,
         milestones: [
@@ -315,7 +331,7 @@ class OnboardingController extends GetxController {
       hobby: hobby.value,
       level: level.value,
       goal: goalController.text,
-      frequency: frequency.value,
+      learningPace: learningPace.value,
     );
 
     if (!result.isValid) {
@@ -442,7 +458,7 @@ class OnboardingController extends GetxController {
         hobby: planWithData.hobby,
         level: planWithData.level,
         goal: planWithData.goal,
-        frequency: planWithData.frequency,
+        learningPace: planWithData.learningPace,
         category: category.value,
         createdAt: DateTime.now(),
       ));
@@ -469,7 +485,7 @@ class OnboardingController extends GetxController {
       hobby: basePlan.hobby,
       level: basePlan.level,
       goal: basePlan.goal,
-      frequency: basePlan.frequency,
+      learningPace: basePlan.learningPace,
       milestoneTitle: firstMilestone.title,
       milestoneNumber: '1',
     );

@@ -3,7 +3,7 @@ class GoalHistoryModel {
   final String hobby;
   final String level;
   final String goal;
-  final String frequency;
+  final String learningPace;
   final String category;
   final DateTime? createdAt;
 
@@ -12,7 +12,7 @@ class GoalHistoryModel {
     required this.hobby,
     required this.level,
     required this.goal,
-    required this.frequency,
+    required this.learningPace,
     required this.category,
     this.createdAt,
   });
@@ -23,7 +23,9 @@ class GoalHistoryModel {
       hobby: json['hobby'] as String? ?? '',
       level: json['level'] as String? ?? '',
       goal: json['goal'] as String? ?? '',
-      frequency: json['frequency'] as String? ?? '',
+      learningPace:
+          json['learningPace'] as String? ??
+          (json['frequency'] as String? ?? 'Steady Learner'),
       category: json['category'] as String? ?? '',
       createdAt: _readDateTime(json['createdAt']),
     );
@@ -34,7 +36,7 @@ class GoalHistoryModel {
       'hobby': hobby,
       'level': level,
       'goal': goal,
-      'frequency': frequency,
+      'learningPace': learningPace,
       'category': category,
       'createdAt': createdAt,
     };
@@ -45,7 +47,7 @@ class GoalHistoryModel {
     String? hobby,
     String? level,
     String? goal,
-    String? frequency,
+    String? learningPace,
     String? category,
     DateTime? createdAt,
   }) {
@@ -54,7 +56,7 @@ class GoalHistoryModel {
       hobby: hobby ?? this.hobby,
       level: level ?? this.level,
       goal: goal ?? this.goal,
-      frequency: frequency ?? this.frequency,
+      learningPace: learningPace ?? this.learningPace,
       category: category ?? this.category,
       createdAt: createdAt ?? this.createdAt,
     );

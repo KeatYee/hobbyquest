@@ -24,7 +24,7 @@ class HomeController extends GetxController {
   var avatarSvg = "".obs;
   var hobby = "".obs;
   var goal = "".obs;
-  var frequency = "15 mins/day".obs;
+  var learningPace = "Steady Learner".obs;
   var level = "Novice".obs;
 
   // Loading state
@@ -212,7 +212,7 @@ class HomeController extends GetxController {
         avatarSvg.value = loadedUser.avatarSvg;
         hobby.value = currentPlan.hobby;
         goal.value = currentPlan.goal;
-        frequency.value = currentPlan.frequency;
+        learningPace.value = currentPlan.learningPace;
         level.value = currentPlan.level;
         dailyQuests.value = getAllQuestNodes(currentPlan.quests);
         _watchGrowthLetterAvailability(uid);
@@ -331,7 +331,7 @@ class HomeController extends GetxController {
     user.value = updatedUser;
     hobby.value = updatedPlan.hobby;
     goal.value = updatedPlan.goal;
-    frequency.value = updatedPlan.frequency;
+    learningPace.value = updatedPlan.learningPace;
     level.value = updatedPlan.level;
     
     dailyQuests.value = getAllQuestNodes(updatedPlan.quests);
@@ -368,7 +368,7 @@ class HomeController extends GetxController {
         avatarSvg.value = loadedUser.avatarSvg;
         hobby.value = loadedUser.currentPlan.hobby;
         goal.value = loadedUser.currentPlan.goal;
-        frequency.value = loadedUser.currentPlan.frequency;
+        learningPace.value = loadedUser.currentPlan.learningPace;
         level.value = loadedUser.currentPlan.level;
         dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
         return;
@@ -401,7 +401,7 @@ class HomeController extends GetxController {
       avatarSvg.value = loadedUser.avatarSvg;
       hobby.value = loadedUser.currentPlan.hobby;
       goal.value = loadedUser.currentPlan.goal;
-      frequency.value = loadedUser.currentPlan.frequency;
+      learningPace.value = loadedUser.currentPlan.learningPace;
       level.value = loadedUser.currentPlan.level;
       dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
     } catch (e) {
@@ -423,7 +423,7 @@ class HomeController extends GetxController {
           hobby: hobby.value,
           nodeTitle: quest.title,
           nodeDesc: quest.desc,
-          frequency: frequency.value,
+          learningPace: learningPace.value,
           milestoneTitle: _currentMilestoneTitle(),
           questType: quest.type,
           durationMinutes: quest.durationMinutes,
@@ -472,7 +472,7 @@ class HomeController extends GetxController {
                 .firstWhereOrNull((quest) => quest.nodeId == questId)
                 ?.desc ??
             '',
-        frequency: frequency.value,
+        learningPace: learningPace.value,
         milestoneTitle: _currentMilestoneTitle(),
         questType: dailyQuests
             .firstWhereOrNull((quest) => quest.nodeId == questId)
@@ -547,7 +547,7 @@ class HomeController extends GetxController {
       avatarSvg.value = updatedUser.avatarSvg;
       hobby.value = updatedUser.currentPlan.hobby;
       goal.value = updatedUser.currentPlan.goal;
-      frequency.value = updatedUser.currentPlan.frequency;
+      learningPace.value = updatedUser.currentPlan.learningPace;
       level.value = updatedUser.currentPlan.level;
       dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
 
@@ -705,7 +705,7 @@ class HomeController extends GetxController {
         hobby: hobby.value,
         level: level.value,
         goal: goal.value,
-        frequency: frequency.value,
+        learningPace: learningPace.value,
         milestoneTitle: nextMilestone.title,
         milestoneNumber: milestoneNumber,
       );

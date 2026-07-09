@@ -183,14 +183,14 @@ class _GoalHistoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Tags row: hobby, level, frequency
+            // Tags row: hobby, level, learning pace
             Wrap(
               spacing: 8,
               runSpacing: 6,
               children: [
                 _TagChip(icon: Icons.sports_esports_outlined, label: entry.hobby),
                 _TagChip(icon: Icons.bar_chart_rounded, label: entry.level),
-                _TagChip(icon: Icons.speed_rounded, label: entry.frequency),
+                _TagChip(icon: Icons.speed_rounded, label: entry.learningPace),
               ],
             ),
           ],

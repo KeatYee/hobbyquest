@@ -48,6 +48,7 @@ class HomePage extends StatelessWidget {
                   // MISSION LOG HEADER
                   _buildSectionHeader(
                     "QUESTS",
+                    onInfoTap: _showQuestInfoDialog,
                     trailing: _buildGrowthLetterButton(controller),
                   ),
                   const SizedBox(height: 14),
@@ -504,8 +505,8 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _infoChip(
-                Icons.schedule_rounded,
-                plan.frequency,
+                Icons.speed_rounded,
+                'Learning Pace: ${plan.learningPace}',
               ),
               const SizedBox(height: 20),
               // Milestones header
@@ -996,7 +997,100 @@ class HomePage extends StatelessWidget {
   // ─────────────────────────────────────────────────────────────
   //  SECTION HEADER
   // ─────────────────────────────────────────────────────────────
-  Widget _buildSectionHeader(String label, {Widget? trailing}) {
+  void _showQuestInfoDialog() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'How quests work',
+                style: TextStyle(
+                  fontSize: AppFonts.title,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _questInfoRow(
+                Icons.flag_rounded,
+                'Active quests are ready now. Tap one to see the task, steps, and reflection.',
+              ),
+              _questInfoRow(
+                Icons.lock_rounded,
+                'Locked quests stay hidden here until earlier quests are completed.',
+              ),
+              _questInfoRow(
+                Icons.map_rounded,
+                'Use View Full Milestone Map to preview the full path, including locked quests.',
+              ),
+              _questInfoRow(
+                Icons.check_circle_rounded,
+                'Completed quests move into the Completed section below.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _questInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: AppColors.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: AppFonts.caption,
+                height: 1.4,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(
+    String label, {
+    VoidCallback? onInfoTap,
+    Widget? trailing,
+  }) {
     return Row(
       children: [
         Container(
@@ -1017,6 +1111,25 @@ class HomePage extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
+        if (onInfoTap != null) ...[
+          const SizedBox(width: 6),
+          Tooltip(
+            message: 'How quests work',
+            child: InkWell(
+              onTap: onInfoTap,
+              borderRadius: BorderRadius.circular(999),
+              child: const SizedBox(
+                width: 28,
+                height: 28,
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
         if (trailing != null) ...[
           const Spacer(),
           trailing,
