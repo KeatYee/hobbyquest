@@ -105,185 +105,50 @@ class HomePage extends StatelessWidget {
     final progressionController = Get.find<ProgressionController>();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 42, 20, 22),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.accent],
-        ),
+        color: AppColors.primary,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Main content
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // ── AVATAR + LEVEL BADGE ──────────────────────
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.textOnPrimary,
-                        width: 2.5,
-                      ),
-                    ),
-                      child: Obx(() {
-                      final avatarPath = controller.avatarSvg.value;
-                      return CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppColors.primaryLight,
-                        child: avatarPath.isNotEmpty
-                            ? ClipOval(
-                                child: Image.asset(
-                                  avatarPath,
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment.topCenter,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.person_rounded,
-                                color: AppColors.textOnPrimary,
-                                size: 30,
-                              ),
-                      );
-                    }),
-                  ),
-                  // Level badge — uses secondary (gold) so it pops on orange
-                  Obx(
-                    () => Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.textOnPrimary,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Text(
-                        "${progressionController.currentLevel}",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w900,
-                          fontSize: AppFonts.micro,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
+              _buildHeaderAvatar(controller, progressionController),
+              const SizedBox(width: 14),
 
               // ── STATS COLUMN ──────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Nickname + streak pill
-                    Row(
+                    Obx(
+                      () => Text(
+                        controller.nickname.value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: AppFonts.title,
+                          color: AppColors.textOnPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
-                        Expanded(
-                          child: Obx(
-                            () => Text(
-                              controller.nickname.value,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: AppFonts.title,
-                                color: AppColors.textOnPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.textOnPrimary.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.local_fire_department_rounded,
-                                color: AppColors.secondary,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 4),
-                              Obx(
-                                () => Text(
-                                  "${progressionController.streak.value} day${progressionController.streak.value == 1 ? '' : 's'}",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: AppFonts.caption,
-                                    color: AppColors.textOnPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildCharacterTypeChip(controller),
+                        _buildHobbyChip(controller),
                       ],
-                    ),
-                    const SizedBox(height: 5),
-
-                    // Hobby label
-                    Obx(
-                      () => Text(
-                        controller.hobby.value,
-                        style: TextStyle(
-                          color: AppColors.textOnPrimary.withOpacity(0.85),
-                          fontSize: AppFonts.badge,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // XP BAR — uses secondary (gold) fill on semi-transparent track
-                    Obx(
-                      () => ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progressionController.levelProgress,
-                          minHeight: 8,
-                          backgroundColor:
-                              AppColors.textOnPrimary.withOpacity(0.25),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.secondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-
-                    // XP TEXT
-                    Obx(
-                      () => Text(
-                        "${progressionController.currentXpInLevel} / 1000 XP",
-                        style: TextStyle(
-                          color: AppColors.textOnPrimary.withOpacity(0.78),
-                          fontSize: AppFonts.micro,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -296,8 +161,163 @@ class HomePage extends StatelessWidget {
   }
 
   // ─────────────────────────────────────────────────────────────
-  //  MILESTONE PROGRESS
+  //  HEADER HELPERS
   // ─────────────────────────────────────────────────────────────
+  Widget _buildHeaderAvatar(
+    HomeController controller,
+    ProgressionController progressionController,
+  ) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomRight,
+      children: [
+        Container(
+          width: 76,
+          height: 76,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.textOnPrimary.withOpacity(0.18),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.textOnPrimary.withOpacity(0.85),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.textPrimary.withOpacity(0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Obx(() {
+            final avatarPath = controller.avatarSvg.value;
+            return CircleAvatar(
+              radius: 34,
+              backgroundColor: AppColors.primaryLight,
+              child: avatarPath.isNotEmpty
+                  ? ClipOval(
+                      child: Image.asset(
+                        avatarPath,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.primaryDark,
+                      size: 32,
+                    ),
+            );
+          }),
+        ),
+        Positioned(
+          right: -3,
+          bottom: -2,
+          child: Obx(
+            () => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: AppColors.textOnPrimary,
+                  width: 1.5,
+                ),
+              ),
+              child: Text(
+                'LV ${progressionController.currentLevel}',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: AppFonts.micro,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCharacterTypeChip(HomeController controller) {
+    return Obx(() {
+      final characterType = _characterTypeFromAvatar(controller.avatarSvg.value);
+      if (characterType.isEmpty) return const SizedBox.shrink();
+
+      return _buildHeaderInfoChip(
+        icon: Icons.person_rounded,
+        label: characterType,
+        backgroundColor: AppColors.textOnPrimary.withOpacity(0.18),
+        foregroundColor: AppColors.textOnPrimary,
+      );
+    });
+  }
+
+  Widget _buildHobbyChip(HomeController controller) {
+    return Obx(() {
+      final hobby = controller.hobby.value.trim();
+      if (hobby.isEmpty) return const SizedBox.shrink();
+
+      return _buildHeaderInfoChip(
+        icon: Icons.local_florist_rounded,
+        label: hobby,
+        backgroundColor: AppColors.textOnPrimary.withOpacity(0.12),
+        foregroundColor: AppColors.textOnPrimary.withOpacity(0.92),
+      );
+    });
+  }
+
+  Widget _buildHeaderInfoChip({
+    required IconData icon,
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.textOnPrimary.withOpacity(0.18),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: foregroundColor, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: foregroundColor,
+              fontSize: AppFonts.badge,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _characterTypeFromAvatar(String avatarPath) {
+    if (avatarPath.trim().isEmpty) return '';
+
+    final filename = avatarPath.split('/').last;
+    final parts = filename.split('_');
+    if (parts.length < 3) return '';
+
+    final rawName = parts[1].trim();
+    if (rawName.isEmpty) return '';
+    return rawName[0].toUpperCase() + rawName.substring(1);
+  }
+
   Widget _buildGrowthLetterButton(HomeController controller) {
     return Obx(
       () => ShakingMailboxButton(
@@ -335,6 +355,9 @@ class HomePage extends StatelessWidget {
     });
   }
 
+  // -------------------------------------------------------------
+  //  MILESTONE PROGRESS
+  // -------------------------------------------------------------
   Widget _buildMilestoneProgress(HomeController controller) {
     return Obx(() {
       final plan = controller.user.value?.currentPlan;

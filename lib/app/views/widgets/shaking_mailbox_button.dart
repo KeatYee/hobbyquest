@@ -62,13 +62,13 @@ class _ShakingMailboxButtonState extends State<ShakingMailboxButton>
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         child: SizedBox(
-          width: 44,
-          height: 44,
+          width: 56,
+          height: 56,
           child: Center(
             child: Image.asset(
               'assets/images/fox_mailbox.png',
-              width: 39,
-              height: 39,
+              width: 52,
+              height: 52,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.high,
             ),
