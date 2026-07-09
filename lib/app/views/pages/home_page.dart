@@ -8,6 +8,7 @@ import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../models/quest_plan_model.dart';
 import '../../models/milestone_model.dart';
+import '../../models/quest_node_model.dart';
 import '../widgets/shaking_mailbox_button.dart';
 
 class HomePage extends StatelessWidget {
@@ -46,42 +47,44 @@ class HomePage extends StatelessWidget {
 
                   // MISSION LOG HEADER
                   _buildSectionHeader(
-                    "MISSION LOG",
+                    "QUESTS",
                     trailing: _buildGrowthLetterButton(controller),
                   ),
                   const SizedBox(height: 14),
 
-                  // ACTIVE / LOCKED QUESTS (non-completed)
+                  // ACTIVE QUESTS (locked quests live in the full milestone map)
                   Obx(
-                    () => Column(
-                      children: controller.dailyQuests
-                          .where((q) => !q.isCompleted)
-                          .map((quest) {
-                        final isLocked = !quest.isActive && !quest.isCompleted;
-                        final isCompleted = quest.isCompleted;
-                        return _buildQuestCard(
-                          context,
-                          controller: controller,
-                          title: quest.title,
-                          desc: quest.desc,
-                          xp: quest.xpReward,
-                          durationMinutes: quest.durationMinutes,
-                          type: quest.type,
-                          questId: quest.nodeId,
-                          isActive: quest.isActive,
-                          isCompleted: quest.isCompleted,
-                          onTap: isLocked || isCompleted
-                              ? null
-                              : () {
-                                  Get.toNamed(
-                                    AppRoutes.QUEST_DETAIL,
-                                    arguments: quest,
-                                  );
-                                },
-                        );
-                      }).toList(),
-                    ),
+                    () {
+                      final activeQuests = controller.dailyQuests
+                          .where((q) => q.isActive && !q.isCompleted)
+                          .toList();
+
+                      return Column(
+                        children: activeQuests.map((quest) {
+                          return _buildQuestCard(
+                            context,
+                            controller: controller,
+                            title: quest.title,
+                            desc: quest.desc,
+                            xp: quest.xpReward,
+                            durationMinutes: quest.durationMinutes,
+                            type: quest.type,
+                            questId: quest.nodeId,
+                            isActive: quest.isActive,
+                            isCompleted: quest.isCompleted,
+                            onTap: () {
+                              Get.toNamed(
+                                AppRoutes.QUEST_DETAIL,
+                                arguments: quest,
+                              );
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
+
+                  _buildViewFullMilestoneMapButton(controller),
 
                   // COMPLETED QUESTS (collapsible)
                   _buildCompletedSection(context, controller),
@@ -304,6 +307,34 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Widget _buildViewFullMilestoneMapButton(HomeController controller) {
+    return Obx(() {
+      final plan = controller.user.value?.currentPlan;
+      if (plan == null || plan.quests.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _showFullMilestoneMap(controller, plan),
+            icon: const Icon(Icons.map_rounded, size: 18),
+            label: const Text('View Full Milestone Map'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
   Widget _buildMilestoneProgress(HomeController controller) {
     return Obx(() {
       final plan = controller.user.value?.currentPlan;
@@ -320,7 +351,7 @@ class HomePage extends StatelessWidget {
       final totalQuests = quests.length;
 
       return InkWell(
-        onTap: () => _showGoalInfo(plan),
+        onTap: () => _showGoalInfo(controller, plan),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -405,7 +436,7 @@ class HomePage extends StatelessWidget {
     });
   }
 
-  void _showGoalInfo(QuestPlanModel plan) {
+  void _showGoalInfo(HomeController controller, QuestPlanModel plan) {
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -465,7 +496,26 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               ...plan.milestones.map((m) => _milestoneRow(m, plan)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Get.back();
+                    _showFullMilestoneMap(controller, plan);
+                  },
+                  icon: const Icon(Icons.map_rounded, size: 18),
+                  label: const Text('View Full Milestone Map'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -579,8 +629,271 @@ class HomePage extends StatelessWidget {
   }
 
   // ─────────────────────────────────────────────────────────────
-  //  COMPLETED QUESTS SECTION (collapsible)
+  //  FULL MILESTONE MAP
   // ─────────────────────────────────────────────────────────────
+  void _showFullMilestoneMap(
+    HomeController controller,
+    QuestPlanModel plan,
+  ) {
+    final currentIndex = plan.currentMilestoneIndex;
+    final currentMilestone =
+        currentIndex >= 0 && currentIndex < plan.milestones.length
+            ? plan.milestones[currentIndex]
+            : null;
+
+    Get.bottomSheet(
+      SafeArea(
+        top: false,
+        child: Container(
+          height: Get.height * 0.86,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Full Milestone Map',
+                      style: TextStyle(
+                        fontSize: AppFonts.title,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: AppColors.textSecondary,
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+              if (currentMilestone != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Phase ${currentIndex + 1}: ${currentMilestone.title}',
+                  style: const TextStyle(
+                    fontSize: AppFonts.caption,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: plan.milestones
+                      .map((milestone) => _milestoneRow(milestone, plan))
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Quest Path',
+                style: TextStyle(
+                  fontSize: AppFonts.bodyLg,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: Obx(() {
+                  final quests = controller.dailyQuests.isNotEmpty
+                      ? controller.dailyQuests.toList()
+                      : controller.getAllQuestNodes(plan.quests);
+
+                  if (quests.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No quests yet.',
+                        style: TextStyle(
+                          fontSize: AppFonts.caption,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: quests.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, index) => _buildMilestoneQuestRow(
+                      quests[index],
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Widget _buildMilestoneQuestRow(QuestNodeModel quest) {
+    final isCompleted = quest.isCompleted;
+    final isLocked = !quest.isActive && !isCompleted;
+    final statusColor = isCompleted
+        ? AppColors.success
+        : (isLocked ? AppColors.textSecondary : AppColors.primary);
+    final statusIcon = isCompleted
+        ? Icons.check_rounded
+        : (isLocked ? Icons.lock_rounded : Icons.flag_rounded);
+    final statusLabel = isCompleted ? 'Done' : (isLocked ? 'Locked' : 'Active');
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: isLocked || isCompleted
+            ? null
+            : () {
+                Get.back();
+                Get.toNamed(
+                  AppRoutes.QUEST_DETAIL,
+                  arguments: quest,
+                );
+              },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(statusIcon, size: 18, color: statusColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      quest.title,
+                      style: TextStyle(
+                        fontSize: AppFonts.caption,
+                        fontWeight: FontWeight.w800,
+                        color: isLocked
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    if (quest.desc.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        quest.desc,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: AppFonts.badge,
+                          height: 1.35,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _mapMetaChip(
+                          Icons.access_time_rounded,
+                          '${quest.durationMinutes} min',
+                        ),
+                        _mapMetaChip(
+                          Icons.flash_on_rounded,
+                          '${quest.xpReward} XP',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: AppFonts.micro,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mapMetaChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: AppFonts.micro,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------
+  //  COMPLETED QUESTS SECTION (collapsible)
+  // -------------------------------------------------------------
   Widget _buildCompletedSection(BuildContext context, HomeController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/color_constants.dart';
-
 class ShakingMailboxButton extends StatefulWidget {
   final bool isShaking;
   final VoidCallback onTap;
@@ -60,24 +58,19 @@ class _ShakingMailboxButtonState extends State<ShakingMailboxButton>
   Widget build(BuildContext context) {
     final button = Tooltip(
       message: 'Growth Letter',
-      child: Material(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Icon(
-              Icons.markunread_mailbox,
-              color: AppColors.primary,
-              size: 19,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: Image.asset(
+              'assets/images/fox_mailbox.png',
+              width: 39,
+              height: 39,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
             ),
           ),
         ),
