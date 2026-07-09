@@ -4,6 +4,7 @@ import 'progression_controller.dart';
 
 class DashboardController extends GetxController {
   static const int maxVisibleQuestSlots = 3;
+  static const int forestTabIndex = 1;
   static const int guildTabIndex = 2;
 
   var tabIndex = 0.obs;
@@ -11,6 +12,11 @@ class DashboardController extends GetxController {
   String? _lastAppliedArgumentsKey;
 
   void changeTabIndex(int index) {
+    if (tabIndex.value == index) {
+      tabIndex.refresh();
+      return;
+    }
+
     tabIndex.value = index;
   }
 

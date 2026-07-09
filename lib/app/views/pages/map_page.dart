@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../controllers/dashboard_controller.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
 import '../../services/category_service.dart';
@@ -21,9 +22,12 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   final CategoryService _categoryService = CategoryService();
+  List<CategoryModel> _allCategories = [];
   List<CategoryModel> _categories = [];
   int? _selectedIndex;
   bool _isLoading = true;
+  Worker? _hobbyWorker;
+  Worker? _tabWorker;
   int _speechIndex = -1;
   AnimationController? _floatController;
   Animation<double>? _floatAnimation;
@@ -77,6 +81,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       TweenSequenceItem(tween: Tween(begin: 2.0, end: 0.0), weight: 1),
     ]).animate(_shakeController!);
     _checkTutorialStatus();
+    _bindCurrentHobbySelection();
     _loadCategories();
   }
 
@@ -86,7 +91,29 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.stop();
     _floatController?.dispose();
     _shakeController?.dispose();
+    _hobbyWorker?.dispose();
+    _tabWorker?.dispose();
     super.dispose();
+  }
+
+  void _bindCurrentHobbySelection() {
+    if (Get.isRegistered<HomeController>()) {
+      _hobbyWorker = ever<String>(
+        Get.find<HomeController>().hobby,
+        (_) => _selectCurrentHobbyCategory(),
+      );
+    }
+
+    if (Get.isRegistered<DashboardController>()) {
+      _tabWorker = ever<int>(
+        Get.find<DashboardController>().tabIndex,
+        (index) {
+          if (index == DashboardController.forestTabIndex) {
+            _selectCurrentHobbyCategory();
+          }
+        },
+      );
+    }
   }
 
   Future<void> _checkTutorialStatus() async {
@@ -304,17 +331,83 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Future<void> _loadCategories() async {
     try {
       final cats = await _categoryService.getCategories();
-      final currentHobby = Get.find<HomeController>().hobby.value;
+      final currentHobby = _currentHobbyName();
+      final visibleCategories = _visibleCategoriesForHobby(cats, currentHobby);
+      final hobbyIndex = _findCategoryIndexForHobby(
+        visibleCategories,
+        currentHobby,
+      );
+      if (!mounted) return;
       setState(() {
-        _categories = cats.take(4).toList();
-        final hobbyIndex = _categories.indexWhere(
-            (c) => c.hobbyNames.any((h) => h.toLowerCase() == currentHobby.toLowerCase()));
+        _allCategories = cats.toList();
+        _categories = visibleCategories;
         _selectedIndex = hobbyIndex >= 0 ? hobbyIndex : 0;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
+  }
+
+  void _selectCurrentHobbyCategory() {
+    if (!mounted || _allCategories.isEmpty) return;
+
+    final currentHobby = _currentHobbyName();
+    if (currentHobby.isEmpty) return;
+
+    final visibleCategories = _visibleCategoriesForHobby(
+      _allCategories,
+      currentHobby,
+    );
+    final hobbyIndex = _findCategoryIndexForHobby(
+      visibleCategories,
+      currentHobby,
+    );
+    if (hobbyIndex < 0) return;
+
+    setState(() {
+      _categories = visibleCategories;
+      _selectedIndex = hobbyIndex;
+    });
+  }
+
+  String _currentHobbyName() {
+    if (!Get.isRegistered<HomeController>()) return '';
+
+    final homeController = Get.find<HomeController>();
+    final reactiveHobby = homeController.hobby.value.trim();
+    if (reactiveHobby.isNotEmpty) return reactiveHobby;
+
+    return homeController.user.value?.currentPlan.hobby.trim() ?? '';
+  }
+
+  List<CategoryModel> _visibleCategoriesForHobby(
+    List<CategoryModel> categories,
+    String hobby,
+  ) {
+    final visibleCategories = categories.toList();
+    final hobbyIndex = _findCategoryIndexForHobby(visibleCategories, hobby);
+    if (hobbyIndex >= 4) {
+      final hobbyCategory = visibleCategories.removeAt(hobbyIndex);
+      visibleCategories.insert(0, hobbyCategory);
+    }
+
+    return visibleCategories.take(4).toList();
+  }
+
+  int _findCategoryIndexForHobby(
+    List<CategoryModel> categories,
+    String hobby,
+  ) {
+    final normalizedHobby = hobby.trim().toLowerCase();
+    if (normalizedHobby.isEmpty) return -1;
+
+    return categories.indexWhere(
+      (category) => category.hobbyNames.any(
+        (name) => name.trim().toLowerCase() == normalizedHobby,
+      ),
+    );
   }
 
   void _previousCategory() {
