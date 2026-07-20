@@ -9,19 +9,18 @@ import '../models/category_model.dart';
 import '../models/user_model.dart';
 import '../services/category_service.dart';
 import '../services/gemini_service.dart';
-import '../services/quest_service.dart';
 import '../services/goal_history_service.dart';
 import '../services/push_notification_service.dart';
 import '../models/goal_history_model.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
 
 class OnboardingController extends GetxController {
-
   final CategoryService _categoryService = CategoryService();
   final GeminiService _geminiService = GeminiService();
 
   late PageController pageController; // Controller for PageView
   var currentPage = 0.obs; // Track current onboarding step
+  var minimumPage = 0;
   var isGenerating = false.obs; // Loading state for plan generation
 
   // --- CATEGORIES (Fetched from Firestore) ---
@@ -139,7 +138,9 @@ class OnboardingController extends GetxController {
   /// Extract the avatar class name from the asset path (e.g., "Cultivator", "Wildseed").
   String get avatarClassName {
     if (avatarSvg.value.isEmpty) return "";
-    final filename = avatarSvg.value.split('/').last; // e.g. "avatar_cultivator_m.png"
+    final filename = avatarSvg.value
+        .split('/')
+        .last; // e.g. "avatar_cultivator_m.png"
     final parts = filename.split('_');
     if (parts.length >= 3) {
       final name = parts[1]; // "cultivator"
@@ -172,14 +173,28 @@ class OnboardingController extends GetxController {
       progress: 0,
       currentMilestoneIndex: 0,
       milestones: [],
-      quests: []
-    )
+      quests: [],
+    ),
   );
 
   @override
   void onInit() {
     super.onInit();
-    pageController = PageController();
+    final arguments = Get.arguments;
+    final requestedPage = arguments is Map
+        ? int.tryParse(arguments['startPage']?.toString() ?? '') ?? 0
+        : 0;
+    final initialPage = requestedPage.clamp(0, 3).toInt();
+    minimumPage = initialPage;
+    currentPage.value = initialPage;
+    pageController = PageController(initialPage: initialPage);
+
+    if (arguments is Map && initialPage > 0) {
+      nickname.text = arguments['nickname']?.toString() ?? '';
+      age.text = arguments['birthDate']?.toString() ?? '';
+      gender.value = arguments['gender']?.toString() ?? '';
+      avatarSvg.value = arguments['avatarSvg']?.toString() ?? '';
+    }
     _initCategories();
   }
 
@@ -219,14 +234,14 @@ class OnboardingController extends GetxController {
 
     // If we are on final step (Goals), generate plan.
     if (currentPage.value == 3) {
-      await _generateAndShowPlan(); 
-      return; 
+      await _generateAndShowPlan();
+      return;
     }
 
     // Standard Navigation for Steps 1-3
     // Wait for keyboard to close before animating
     await Future.delayed(const Duration(milliseconds: 300));
-    
+
     try {
       await pageController.nextPage(
         duration: const Duration(milliseconds: 400),
@@ -239,10 +254,10 @@ class OnboardingController extends GetxController {
 
   Future<void> previousPage() async {
     if (!pageController.hasClients) return;
-    
+
     FocusManager.instance.primaryFocus?.unfocus();
-    
-    if (currentPage.value > 0) {
+
+    if (currentPage.value > minimumPage) {
       try {
         await pageController.previousPage(
           duration: const Duration(milliseconds: 400),
@@ -277,7 +292,8 @@ class OnboardingController extends GetxController {
         }
       } catch (e) {
         print("--- ERROR: Goal validation failed: $e ---");
-        goalValidationError.value = 'Unable to validate goal. Please try again.';
+        goalValidationError.value =
+            'Unable to validate goal. Please try again.';
         isGoalValidating.value = false;
         return;
       }
@@ -300,15 +316,23 @@ class OnboardingController extends GetxController {
       generatedPlan.value = QuestPlanModel(
         hobby: hobby.value,
         level: level.value,
-        goal: goalController.text.isNotEmpty ? goalController.text : "Master ${hobby.value}",
+        goal: goalController.text.isNotEmpty
+            ? goalController.text
+            : "Master ${hobby.value}",
         learningPace: learningPace.value,
         progress: 0,
         currentMilestoneIndex: 0,
         milestones: [
           const MilestoneModel(title: "Phase 1: Foundations", completed: false),
           const MilestoneModel(title: "Phase 2: Consistency", completed: false),
-          const MilestoneModel(title: "Phase 3: Advanced Skills", completed: false),
-          const MilestoneModel(title: "Phase 4: The Final Boss", completed: false),
+          const MilestoneModel(
+            title: "Phase 3: Advanced Skills",
+            completed: false,
+          ),
+          const MilestoneModel(
+            title: "Phase 4: The Final Boss",
+            completed: false,
+          ),
         ],
         quests: [],
       );
@@ -346,12 +370,12 @@ class OnboardingController extends GetxController {
   // This is called when user clicks "Accept & Start"
   Future<void> confirmAndStart() async {
     print("--- USER ACCEPTED PLAN. SAVING TO DB... ---");
-    
+
     try {
       isGenerating.value = true;
       await _saveUserDataToFirestore();
       isGenerating.value = false;
-      
+
       // ✅ Navigate to Dashboard (Main App)
       Get.offAllNamed(AppRoutes.DASHBOARD);
     } catch (e) {
@@ -368,10 +392,17 @@ class OnboardingController extends GetxController {
 
     try {
       final uid = user.uid;
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final existingUserSnapshot = await userRef.get();
+      final existingUserData = existingUserSnapshot.data();
+      final existingUser = existingUserData == null
+          ? null
+          : UserModel.fromJson(existingUserData, uid);
 
       // Build the initial plan with milestones and quests
       final planWithData = await _buildInitialPlanWithMilestoneQuests();
-      final planId = 'plan_001';
+      final planRef = userRef.collection('plans').doc();
+      final planId = planRef.id;
 
       // Build milestones with IDs
       final milestones = planWithData.milestones.asMap().entries.map((e) {
@@ -382,12 +413,19 @@ class OnboardingController extends GetxController {
       }).toList();
 
       // Prepare quests (set as active, not completed — preserve DAG)
-      final quests = planWithData.quests.map((q) => q.copyWith(
-        isActive: true,
-        isCompleted: false,
-      )).toList();
+      final quests = planWithData.quests
+          .map((q) => q.copyWith(isActive: true, isCompleted: false))
+          .toList();
 
       // Create UserModel WITHOUT milestones/quests in currentPlan
+      final existingCategoryXp =
+          existingUser?.categoryXp ?? const <String, int>{};
+      final categoryXp = <String, int>{
+        ...existingCategoryXp,
+        for (final cat in categories.value)
+          cat.name: existingCategoryXp[cat.name] ?? 0,
+      };
+
       final userModel = UserModel(
         id: uid,
         nickname: nickname.text.trim(),
@@ -395,73 +433,77 @@ class OnboardingController extends GetxController {
         gender: gender.value,
         avatarSvg: avatarSvg.value,
         isOnboardingComplete: true,
-        totalXP: 0,
+        totalXP: existingUser?.totalXP ?? 0,
         activePlanId: planId,
         currentPlan: planWithData.copyWith(
           id: planId,
           milestones: milestones,
           quests: quests,
         ),
-        currentStreak: 0,
-        categoryXp: {
-          for (final cat in categories.value)
-            cat.name: 0,
-        },
-        mapTutorialDone: false,
-        createdAt: DateTime.now(),
+        currentStreak: existingUser?.currentStreak ?? 0,
+        dailyQuestCompletionCount: existingUser?.dailyQuestCompletionCount ?? 0,
+        categoryXp: categoryXp,
+        mapTutorialDone: existingUser?.mapTutorialDone ?? false,
+        notificationsEnabled: existingUser?.notificationsEnabled ?? true,
+        profileVisible: existingUser?.profileVisible ?? true,
+        postStatsVisible: existingUser?.postStatsVisible ?? true,
+        createdAt: existingUser?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
+        lastRerollDate: existingUser?.lastRerollDate,
+        lastStreakDate: existingUser?.lastStreakDate,
+        lastQuestCompletionDate: existingUser?.lastQuestCompletionDate,
       );
 
       // Save user profile to user doc (currentPlan not serialized)
       final userData = userModel.toJson();
-      userData['createdAt'] = FieldValue.serverTimestamp();
+      if (existingUser?.createdAt == null) {
+        userData['createdAt'] = FieldValue.serverTimestamp();
+      }
       userData['updatedAt'] = FieldValue.serverTimestamp();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .set(userData, SetOptions(merge: true));
+      await userRef.set(userData, SetOptions(merge: true));
 
       // Write plan metadata to subcollection
-      await QuestService.savePlan(uid, planId, planWithData.copyWith(
-        id: planId,
-        currentMilestoneIndex: 0,
-        isActive: true,
-      ));
+      await planRef.set(
+        planWithData
+            .copyWith(
+              id: planId,
+              category: category.value,
+              currentMilestoneIndex: 0,
+              isActive: true,
+              startingXP: existingUser?.totalXP ?? 0,
+            )
+            .toJson(),
+      );
 
       // Write milestones to subcollection
       for (final ms in milestones) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('plans')
-            .doc(planId)
-            .collection('milestones')
-            .doc(ms.id)
-            .set(ms.toJson());
+        await planRef.collection('milestones').doc(ms.id).set(ms.toJson());
       }
 
       // Write quests to subcollection
       for (final quest in quests) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('plans')
-            .doc(planId)
+        await planRef
             .collection('quests')
             .doc(quest.nodeId)
             .set(quest.toJson());
       }
 
       // Save initial goal history
-      await GoalHistoryService.saveGoalHistory(uid, GoalHistoryModel(
-        hobby: planWithData.hobby,
-        level: planWithData.level,
-        goal: planWithData.goal,
-        learningPace: planWithData.learningPace,
-        category: category.value,
-        createdAt: DateTime.now(),
-      ));
+      await GoalHistoryService.saveGoalHistory(
+        uid,
+        GoalHistoryModel(
+          planId: planId,
+          status: 'active',
+          hobby: planWithData.hobby,
+          level: planWithData.level,
+          goal: planWithData.goal,
+          learningPace: planWithData.learningPace,
+          category: category.value,
+          createdAt: DateTime.now(),
+        ),
+        historyId: planId,
+      );
 
       if (Get.isRegistered<PushNotificationService>()) {
         await Get.find<PushNotificationService>().registerCurrentDevice();
@@ -504,7 +546,9 @@ class OnboardingController extends GetxController {
     final collection = FirebaseFirestore.instance.collection('categories');
     final existingSnapshot = await collection.limit(1).get();
     if (existingSnapshot.docs.isNotEmpty) {
-      print("--- SEEDING SKIPPED: 'categories' collection already populated ---");
+      print(
+        "--- SEEDING SKIPPED: 'categories' collection already populated ---",
+      );
       return;
     }
 
@@ -516,26 +560,74 @@ class OnboardingController extends GetxController {
         description: "Express yourself visually",
         iconCodePoint: Icons.palette.codePoint,
         hobbies: [
-          HobbyEntry(name: "Painting", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Creativity', icon: Icons.lightbulb_outline),
-            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.brush),
-            PeerReviewAxisModel.fromIconData(label: 'Color Theory', icon: Icons.palette_outlined),
-          ]),
-          HobbyEntry(name: "Drawing", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Composition', icon: Icons.grid_view),
-            PeerReviewAxisModel.fromIconData(label: 'Line Work', icon: Icons.gesture),
-            PeerReviewAxisModel.fromIconData(label: 'Shading', icon: Icons.gradient),
-          ]),
-          HobbyEntry(name: "Photography", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Composition', icon: Icons.center_focus_strong),
-            PeerReviewAxisModel.fromIconData(label: 'Lighting', icon: Icons.wb_sunny),
-            PeerReviewAxisModel.fromIconData(label: 'Editing', icon: Icons.tune),
-          ]),
-          HobbyEntry(name: "Calligraphy", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Letter Form', icon: Icons.text_fields),
-            PeerReviewAxisModel.fromIconData(label: 'Consistency', icon: Icons.compare_arrows),
-            PeerReviewAxisModel.fromIconData(label: 'Ink Control', icon: Icons.edit),
-          ]),
+          HobbyEntry(
+            name: "Painting",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Creativity',
+                icon: Icons.lightbulb_outline,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Technique',
+                icon: Icons.brush,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Color Theory',
+                icon: Icons.palette_outlined,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Drawing",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Composition',
+                icon: Icons.grid_view,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Line Work',
+                icon: Icons.gesture,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Shading',
+                icon: Icons.gradient,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Photography",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Composition',
+                icon: Icons.center_focus_strong,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Lighting',
+                icon: Icons.wb_sunny,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Editing',
+                icon: Icons.tune,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Calligraphy",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Letter Form',
+                icon: Icons.text_fields,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Consistency',
+                icon: Icons.compare_arrows,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Ink Control',
+                icon: Icons.edit,
+              ),
+            ],
+          ),
         ],
       ),
       CategoryModel(
@@ -544,26 +636,71 @@ class OnboardingController extends GetxController {
         description: "Play, sing, and perform",
         iconCodePoint: Icons.music_note.codePoint,
         hobbies: [
-          HobbyEntry(name: "Guitar", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Rhythm', icon: Icons.music_note),
-            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.touch_app),
-            PeerReviewAxisModel.fromIconData(label: 'Musicality', icon: Icons.hearing),
-          ]),
-          HobbyEntry(name: "Piano", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.piano),
-            PeerReviewAxisModel.fromIconData(label: 'Expression', icon: Icons.sentiment_satisfied_alt),
-            PeerReviewAxisModel.fromIconData(label: 'Sight Reading', icon: Icons.visibility),
-          ]),
-          HobbyEntry(name: "Singing", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Pitch', icon: Icons.graphic_eq),
-            PeerReviewAxisModel.fromIconData(label: 'Tone', icon: Icons.mic),
-            PeerReviewAxisModel.fromIconData(label: 'Breath Control', icon: Icons.air),
-          ]),
-          HobbyEntry(name: "Dance", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Choreography', icon: Icons.directions_run),
-            PeerReviewAxisModel.fromIconData(label: 'Expression', icon: Icons.mood),
-            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.accessibility_new),
-          ]),
+          HobbyEntry(
+            name: "Guitar",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Rhythm',
+                icon: Icons.music_note,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Technique',
+                icon: Icons.touch_app,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Musicality',
+                icon: Icons.hearing,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Piano",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Technique',
+                icon: Icons.piano,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Expression',
+                icon: Icons.sentiment_satisfied_alt,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Sight Reading',
+                icon: Icons.visibility,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Singing",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Pitch',
+                icon: Icons.graphic_eq,
+              ),
+              PeerReviewAxisModel.fromIconData(label: 'Tone', icon: Icons.mic),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Breath Control',
+                icon: Icons.air,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Dance",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Choreography',
+                icon: Icons.directions_run,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Expression',
+                icon: Icons.mood,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Technique',
+                icon: Icons.accessibility_new,
+              ),
+            ],
+          ),
         ],
       ),
       CategoryModel(
@@ -572,26 +709,74 @@ class OnboardingController extends GetxController {
         description: "Heal your body and mind",
         iconCodePoint: Icons.self_improvement.codePoint,
         hobbies: [
-          HobbyEntry(name: "Yoga", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Alignment', icon: Icons.straighten),
-            PeerReviewAxisModel.fromIconData(label: 'Flexibility', icon: Icons.accessibility),
-            PeerReviewAxisModel.fromIconData(label: 'Mindfulness', icon: Icons.self_improvement),
-          ]),
-          HobbyEntry(name: "Fitness/Gym", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Form', icon: Icons.fitness_center),
-            PeerReviewAxisModel.fromIconData(label: 'Intensity', icon: Icons.trending_up),
-            PeerReviewAxisModel.fromIconData(label: 'Consistency', icon: Icons.loop),
-          ]),
-          HobbyEntry(name: "Meditation", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Focus', icon: Icons.center_focus_strong),
-            PeerReviewAxisModel.fromIconData(label: 'Duration', icon: Icons.timer),
-            PeerReviewAxisModel.fromIconData(label: 'Mindfulness', icon: Icons.spa),
-          ]),
-          HobbyEntry(name: "Cooking", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Taste', icon: Icons.restaurant),
-            PeerReviewAxisModel.fromIconData(label: 'Presentation', icon: Icons.dinner_dining),
-            PeerReviewAxisModel.fromIconData(label: 'Technique', icon: Icons.kitchen),
-          ]),
+          HobbyEntry(
+            name: "Yoga",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Alignment',
+                icon: Icons.straighten,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Flexibility',
+                icon: Icons.accessibility,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Mindfulness',
+                icon: Icons.self_improvement,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Fitness/Gym",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Form',
+                icon: Icons.fitness_center,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Intensity',
+                icon: Icons.trending_up,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Consistency',
+                icon: Icons.loop,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Meditation",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Focus',
+                icon: Icons.center_focus_strong,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Duration',
+                icon: Icons.timer,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Mindfulness',
+                icon: Icons.spa,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Cooking",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Taste',
+                icon: Icons.restaurant,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Presentation',
+                icon: Icons.dinner_dining,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Technique',
+                icon: Icons.kitchen,
+              ),
+            ],
+          ),
         ],
       ),
       CategoryModel(
@@ -600,26 +785,74 @@ class OnboardingController extends GetxController {
         description: "Sharpen your mind",
         iconCodePoint: Icons.psychology.codePoint,
         hobbies: [
-          HobbyEntry(name: "Coding", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Code Quality', icon: Icons.code),
-            PeerReviewAxisModel.fromIconData(label: 'Efficiency', icon: Icons.speed),
-            PeerReviewAxisModel.fromIconData(label: 'Readability', icon: Icons.article),
-          ]),
-          HobbyEntry(name: "Chess", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Strategy', icon: Icons.psychology),
-            PeerReviewAxisModel.fromIconData(label: 'Tactics', icon: Icons.bolt),
-            PeerReviewAxisModel.fromIconData(label: 'Endgame', icon: Icons.flag),
-          ]),
-          HobbyEntry(name: "Language", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Vocabulary', icon: Icons.menu_book),
-            PeerReviewAxisModel.fromIconData(label: 'Grammar', icon: Icons.checklist),
-            PeerReviewAxisModel.fromIconData(label: 'Pronunciation', icon: Icons.record_voice_over),
-          ]),
-          HobbyEntry(name: "Public Speaking", axes: [
-            PeerReviewAxisModel.fromIconData(label: 'Clarity', icon: Icons.record_voice_over),
-            PeerReviewAxisModel.fromIconData(label: 'Engagement', icon: Icons.group),
-            PeerReviewAxisModel.fromIconData(label: 'Structure', icon: Icons.account_tree),
-          ]),
+          HobbyEntry(
+            name: "Coding",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Code Quality',
+                icon: Icons.code,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Efficiency',
+                icon: Icons.speed,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Readability',
+                icon: Icons.article,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Chess",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Strategy',
+                icon: Icons.psychology,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Tactics',
+                icon: Icons.bolt,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Endgame',
+                icon: Icons.flag,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Language",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Vocabulary',
+                icon: Icons.menu_book,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Grammar',
+                icon: Icons.checklist,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Pronunciation',
+                icon: Icons.record_voice_over,
+              ),
+            ],
+          ),
+          HobbyEntry(
+            name: "Public Speaking",
+            axes: [
+              PeerReviewAxisModel.fromIconData(
+                label: 'Clarity',
+                icon: Icons.record_voice_over,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Engagement',
+                icon: Icons.group,
+              ),
+              PeerReviewAxisModel.fromIconData(
+                label: 'Structure',
+                icon: Icons.account_tree,
+              ),
+            ],
+          ),
         ],
       ),
     ];
@@ -627,7 +860,9 @@ class OnboardingController extends GetxController {
     // 2. Upload Loop
     for (var category in initialData) {
       // Check if exists to prevent duplicates
-      var snapshot = await collection.where('name', isEqualTo: category.name).get();
+      var snapshot = await collection
+          .where('name', isEqualTo: category.name)
+          .get();
       if (snapshot.docs.isEmpty) {
         final data = Map<String, dynamic>.from(category.toJson());
         await collection.add(data);

@@ -4,6 +4,7 @@ class TreeModel {
   final String id;
   final String treeName;
   final String categoryId;
+  final String planId;
   final int xpRequired;
   final int treeIndex;
   final int questsCompleted;
@@ -15,6 +16,7 @@ class TreeModel {
     this.id = '',
     required this.treeName,
     required this.categoryId,
+    this.planId = '',
     this.xpRequired = 0,
     this.treeIndex = 0,
     this.questsCompleted = 0,
@@ -28,6 +30,7 @@ class TreeModel {
       id: docId ?? (json['id'] as String? ?? ''),
       treeName: json['treeName'] as String? ?? (json['name'] as String? ?? ''),
       categoryId: json['categoryId'] as String? ?? '',
+      planId: json['planId'] as String? ?? '',
       xpRequired: json['xpRequired'] as int? ?? 0,
       treeIndex: json['treeIndex'] as int? ?? 0,
       questsCompleted: json['questsCompleted'] as int? ?? 0,
@@ -41,6 +44,7 @@ class TreeModel {
     return {
       'treeName': treeName,
       'categoryId': categoryId,
+      'planId': planId,
       'xpRequired': xpRequired,
       'treeIndex': treeIndex,
       'questsCompleted': questsCompleted,
@@ -61,6 +65,7 @@ class TreeModel {
     String? id,
     String? treeName,
     String? categoryId,
+    String? planId,
     int? xpRequired,
     int? treeIndex,
     int? questsCompleted,
@@ -72,6 +77,7 @@ class TreeModel {
       id: id ?? this.id,
       treeName: treeName ?? this.treeName,
       categoryId: categoryId ?? this.categoryId,
+      planId: planId ?? this.planId,
       xpRequired: xpRequired ?? this.xpRequired,
       treeIndex: treeIndex ?? this.treeIndex,
       questsCompleted: questsCompleted ?? this.questsCompleted,

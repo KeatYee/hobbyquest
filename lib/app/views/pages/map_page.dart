@@ -204,6 +204,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       final tree = TreeModel(
         treeName: treeName,
         categoryId: category.id,
+        planId: Get.find<HomeController>().user.value?.activePlanId ?? '',
         xpRequired: 800,
         treeIndex: firstFree,
         questsCompleted: completedCount,

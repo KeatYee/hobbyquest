@@ -176,6 +176,8 @@ class QuestDetailController extends GetxController {
         print('--- DEBUG: No image file provided ---');
       }
 
+      final int totalXpReward = currentQuest.value.xpReward +
+          (imageUrl != null ? reflectionImageBonusXp : 0);
       print('--- DEBUG: Starting quest completion transaction for $questId ---');
       
       final updatedUser = await questService.completeQuestTransaction(
@@ -187,6 +189,7 @@ class QuestDetailController extends GetxController {
         greeting: greeting,
         observation: observation,
         tip: tip,
+        awardedXP: totalXpReward,
       );
 
       print('--- DEBUG: completeQuestTransaction returned. updatedUser is ${updatedUser == null ? 'NULL' : 'NOT NULL'} ---');
@@ -197,8 +200,6 @@ class QuestDetailController extends GetxController {
         return false;
       }
 
-      final int totalXpReward = currentQuest.value.xpReward +
-          (imageUrl != null ? reflectionImageBonusXp : 0);
       print('--- DEBUG: Calling progressionController.completeQuest with xpReward=$totalXpReward (base: ${currentQuest.value.xpReward}, bonus: ${imageUrl != null ? reflectionImageBonusXp : 0}) ---');
       await progressionController.completeQuest(
         questId: questId,

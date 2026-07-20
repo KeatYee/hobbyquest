@@ -46,6 +46,26 @@ class GrowthLetterService {
     return GrowthLetterModel.fromJson(doc.data(), docId: doc.id);
   }
 
+  Future<GrowthLetterModel?> _loadGrowthLetterForWeek({
+    required String uid,
+    required DateTime periodStart,
+  }) async {
+    final doc = await _lettersCol(uid).doc(_weekDocumentId(periodStart)).get();
+    if (doc.exists && doc.data() != null) {
+      return GrowthLetterModel.fromJson(doc.data()!, docId: doc.id);
+    }
+
+    // Preserve compatibility with letters created before week-based IDs were
+    // introduced.
+    final legacy = await _lettersCol(uid)
+        .where('periodStart', isEqualTo: Timestamp.fromDate(periodStart))
+        .limit(1)
+        .get();
+    if (legacy.docs.isEmpty) return null;
+    final legacyDoc = legacy.docs.first;
+    return GrowthLetterModel.fromJson(legacyDoc.data(), docId: legacyDoc.id);
+  }
+
   Stream<GrowthLetterModel?> watchLatestGrowthLetter(String uid) {
     if (uid.isEmpty) return Stream.value(null);
 
@@ -68,31 +88,29 @@ class GrowthLetterService {
       return const GrowthLetterAvailability(isAvailable: false);
     }
 
-    final latest = await loadLatestGrowthLetter(uid);
-    if (latest != null && latest.readAt == null) {
-      return const GrowthLetterAvailability(isAvailable: true);
-    }
-
     final now = DateTime.now();
-    final latestAnchorDate = latest?.createdAt ?? latest?.periodEnd;
-    if (latestAnchorDate != null) {
-      final nextAllowed = latestAnchorDate.add(const Duration(days: 7));
-      if (now.isBefore(nextAllowed)) {
-        return GrowthLetterAvailability(
-          isAvailable: false,
-          nextCheckAt: nextAllowed,
-        );
-      }
+    final week = _mostRecentlyCompletedWeek(now);
+    final existing = await _loadGrowthLetterForWeek(
+      uid: uid,
+      periodStart: week.start,
+    );
+    if (existing != null) {
+      return GrowthLetterAvailability(isAvailable: existing.readAt == null);
     }
 
     final hasCompletedQuests = await _hasCompletedQuestsForPeriod(
       uid: uid,
       planId: planId,
-      periodStart: now.subtract(const Duration(days: 7)),
-      periodEnd: now,
+      periodStart: week.start,
+      periodEndExclusive: week.endExclusive,
     );
 
-    return GrowthLetterAvailability(isAvailable: hasCompletedQuests);
+    return GrowthLetterAvailability(
+      isAvailable: hasCompletedQuests,
+      nextCheckAt: hasCompletedQuests
+          ? null
+          : _startOfCurrentWeek(now).add(const Duration(days: 7)),
+    );
   }
 
   Future<void> markGrowthLetterRead({
@@ -113,46 +131,20 @@ class GrowthLetterService {
     final planId = user.activePlanId;
     if (uid.isEmpty || planId.isEmpty) return null;
 
-    final now = DateTime.now();
-    final periodEnd = now;
-    final periodStart = now.subtract(const Duration(days: 7));
-
-    final latest = await loadLatestGrowthLetter(uid);
-    var shouldReuseLatest = false;
-    final latestAnchorDate = latest?.createdAt ?? latest?.periodEnd;
-    if (latestAnchorDate != null) {
-      final nextAllowed = latestAnchorDate.add(const Duration(days: 7));
-      if (now.isBefore(nextAllowed)) {
-        shouldReuseLatest = true;
-      }
-    }
-
-    if (shouldReuseLatest &&
-        latest != null &&
-        latest.hasPersonalizedInsights &&
-        latest.hasWeeklyStats) {
-      return latest;
-    }
-
-    final needsInsightBackfill =
-        shouldReuseLatest && latest != null && !latest.hasPersonalizedInsights;
-    final needsStatsBackfill =
-        shouldReuseLatest && latest != null && !latest.hasWeeklyStats;
-
-    final questPeriodStart = shouldReuseLatest && latest != null
-        ? latest.periodStart
-        : periodStart;
-    final questPeriodEnd = shouldReuseLatest && latest != null
-        ? latest.periodEnd
-        : periodEnd;
+    final week = _mostRecentlyCompletedWeek(DateTime.now());
+    final existing = await _loadGrowthLetterForWeek(
+      uid: uid,
+      periodStart: week.start,
+    );
+    if (existing != null) return existing;
 
     final quests = await _loadCompletedQuestsForPeriod(
       uid: uid,
       planId: planId,
-      periodStart: questPeriodStart,
-      periodEnd: questPeriodEnd,
+      periodStart: week.start,
+      periodEndExclusive: week.endExclusive,
     );
-    if (quests.isEmpty) return latest;
+    if (quests.isEmpty) return loadLatestGrowthLetter(uid);
 
     final weeklyStreakDays = _calculateWeeklyStreakDays(quests);
 
@@ -162,19 +154,6 @@ class GrowthLetterService {
         .take(8)
         .toList();
 
-    if (needsStatsBackfill && !needsInsightBackfill) {
-      final letterRef = _lettersCol(uid).doc(latest!.id);
-      await letterRef.update({
-        'questCount': quests.length,
-        'reflectionCount': reflections.length,
-        'weeklyStreakDays': weeklyStreakDays,
-        'questIds': quests.map((quest) => quest.nodeId).toList(),
-      });
-
-      final saved = await letterRef.get();
-      return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
-    }
-
     final draft = await _geminiService.generateGrowthLetter(
       nickname: user.nickname,
       hobby: user.currentPlan.hobby,
@@ -183,25 +162,8 @@ class GrowthLetterService {
       reflections: reflections,
     );
 
-    if (needsInsightBackfill) {
-      final letterRef = _lettersCol(uid).doc(latest!.id);
-      await letterRef.update({
-        'questCount': quests.length,
-        'reflectionCount': reflections.length,
-        'weeklyStreakDays': weeklyStreakDays,
-        'questIds': quests.map((quest) => quest.nodeId).toList(),
-        'strongestGrowth': draft.strongestGrowth,
-        'focusArea': draft.focusArea,
-        'nextWeekFocus': draft.nextWeekFocus,
-        'hasPersonalizedInsights': true,
-      });
-
-      final saved = await letterRef.get();
-      return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
-    }
-
-    final docRef = await _lettersCol(uid).add(
-      GrowthLetterModel(
+    final docRef = _lettersCol(uid).doc(_weekDocumentId(week.start));
+    final letterData = GrowthLetterModel(
         uid: uid,
         planId: planId,
         hobby: user.currentPlan.hobby,
@@ -214,10 +176,16 @@ class GrowthLetterService {
         strongestGrowth: draft.strongestGrowth,
         focusArea: draft.focusArea,
         nextWeekFocus: draft.nextWeekFocus,
-        periodStart: periodStart,
-        periodEnd: periodEnd,
-      ).toJson(),
-    );
+        periodStart: week.start,
+        periodEnd: week.endExclusive.subtract(const Duration(microseconds: 1)),
+      ).toJson();
+
+    // A transaction makes the saved letter idempotent across multiple devices.
+    // It never replaces an existing week's content.
+    await _firestore.runTransaction((transaction) async {
+      final current = await transaction.get(docRef);
+      if (!current.exists) transaction.set(docRef, letterData);
+    });
 
     final saved = await docRef.get();
     return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
@@ -227,7 +195,7 @@ class GrowthLetterService {
     required String uid,
     required String planId,
     required DateTime periodStart,
-    required DateTime periodEnd,
+    required DateTime periodEndExclusive,
   }) async {
     final query = _questsCol(uid, planId)
         .where(
@@ -236,7 +204,7 @@ class GrowthLetterService {
         )
         .where(
           'completedAt',
-          isLessThanOrEqualTo: Timestamp.fromDate(periodEnd),
+          isLessThan: Timestamp.fromDate(periodEndExclusive),
         )
         .orderBy('completedAt', descending: true);
 
@@ -258,13 +226,13 @@ class GrowthLetterService {
     required String uid,
     required String planId,
     required DateTime periodStart,
-    required DateTime periodEnd,
+    required DateTime periodEndExclusive,
   }) async {
     final quests = await _loadCompletedQuestsForPeriod(
       uid: uid,
       planId: planId,
       periodStart: periodStart,
-      periodEnd: periodEnd,
+      periodEndExclusive: periodEndExclusive,
     );
     return quests.isNotEmpty;
   }
@@ -302,6 +270,25 @@ class GrowthLetterService {
     return longestStreak;
   }
 
+  static DateTime _startOfCurrentWeek(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    return day.subtract(Duration(days: day.weekday - DateTime.monday));
+  }
+
+  static _CalendarWeek _mostRecentlyCompletedWeek(DateTime now) {
+    final endExclusive = _startOfCurrentWeek(now);
+    return _CalendarWeek(
+      start: endExclusive.subtract(const Duration(days: 7)),
+      endExclusive: endExclusive,
+    );
+  }
+
+  static String _weekDocumentId(DateTime periodStart) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    return 'week_${periodStart.year}-${twoDigits(periodStart.month)}-'
+        '${twoDigits(periodStart.day)}';
+  }
+
   static Future<void> deleteAllGrowthLetters(String uid) async {
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -316,4 +303,11 @@ class GrowthLetterService {
     }
     await batch.commit();
   }
+}
+
+class _CalendarWeek {
+  final DateTime start;
+  final DateTime endExclusive;
+
+  const _CalendarWeek({required this.start, required this.endExclusive});
 }

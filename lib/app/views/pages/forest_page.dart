@@ -70,62 +70,6 @@ class _ForestPageState extends State<ForestPage> {
     );
   }
 
-  Widget _buildNoTreesMessage() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(32, 0, 32, 20),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.surface.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: 0.22),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.park_outlined,
-              color: AppColors.surface.withValues(alpha: 0.9),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'No trees yet',
-                  style: TextStyle(
-                    color: AppColors.surface.withValues(alpha: 0.98),
-                    fontSize: AppFonts.body,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Complete quests and grow a tree from the map to start your forest.',
-                  style: TextStyle(
-                    color: AppColors.surface.withValues(alpha: 0.86),
-                    fontSize: AppFonts.caption,
-                    fontWeight: FontWeight.w600,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTreeWithInfo(TreeModel tree) {
     return GestureDetector(
       onTap: () => _showTreeInfo(tree),
@@ -441,7 +385,6 @@ class _ForestPageState extends State<ForestPage> {
                           ),
                         ),
                         // Grid
-                        if (items.isEmpty) _buildNoTreesMessage(),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),

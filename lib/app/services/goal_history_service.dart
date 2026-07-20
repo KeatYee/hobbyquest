@@ -25,9 +25,46 @@ class GoalHistoryService {
 
   /// Saves a new goal history entry. Returns the generated document ID.
   static Future<String> saveGoalHistory(
-      String uid, GoalHistoryModel entry) async {
+      String uid, GoalHistoryModel entry, {String? historyId}) async {
+    if (historyId != null && historyId.isNotEmpty) {
+      final docRef = _historyCol(uid).doc(historyId);
+      await docRef.set(entry.toJson(), SetOptions(merge: true));
+      return docRef.id;
+    }
     final docRef = await _historyCol(uid).add(entry.toJson());
     return docRef.id;
+  }
+
+  static Future<void> markGoalCompleted(
+    String uid,
+    GoalHistoryModel completedEntry,
+  ) async {
+    final snapshot = await _historyCol(uid).get();
+    QueryDocumentSnapshot<Map<String, dynamic>>? matchingDoc;
+    final completedPlanId = completedEntry.planId?.trim() ?? '';
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final savedPlanId = data['planId']?.toString().trim() ?? '';
+      if (completedPlanId.isNotEmpty && savedPlanId == completedPlanId) {
+        matchingDoc = doc;
+        break;
+      }
+      if (savedPlanId.isEmpty &&
+          data['goal'] == completedEntry.goal &&
+          data['hobby'] == completedEntry.hobby &&
+          data['completedAt'] == null) {
+        matchingDoc = doc;
+      }
+    }
+
+    final historyRef = matchingDoc?.reference ??
+        _historyCol(uid).doc(
+          completedPlanId.isEmpty
+              ? _historyCol(uid).doc().id
+              : completedPlanId,
+        );
+    await historyRef.set(completedEntry.toJson(), SetOptions(merge: true));
   }
 
   // ──────────────────────────────────────────────
@@ -44,11 +81,16 @@ class GoalHistoryService {
 
   /// Loads all goal history entries for a user, sorted by createdAt descending.
   static Future<List<GoalHistoryModel>> loadAllGoalHistory(String uid) async {
-    final snapshot =
-        await _historyCol(uid).orderBy('createdAt', descending: true).get();
-    return snapshot.docs
+    final snapshot = await _historyCol(uid).get();
+    final entries = snapshot.docs
         .map((doc) => GoalHistoryModel.fromJson(doc.data(), doc.id))
         .toList();
+    entries.sort((a, b) {
+      final aDate = a.completedAt ?? a.createdAt ?? DateTime(1970);
+      final bDate = b.completedAt ?? b.createdAt ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
+    return entries;
   }
 
   // ──────────────────────────────────────────────

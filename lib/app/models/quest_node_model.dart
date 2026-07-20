@@ -16,6 +16,7 @@ class QuestNodeModel {
   final String? observation;
   final String? tip;
   final String? youtubeSearchQuery;
+  final int? awardedXP;
 
   const QuestNodeModel({
     required this.nodeId,
@@ -35,6 +36,7 @@ class QuestNodeModel {
     this.observation,
     this.tip,
     this.youtubeSearchQuery,
+    this.awardedXP,
   });
 
   factory QuestNodeModel.fromJson(Map<String, dynamic> json) {
@@ -82,6 +84,7 @@ class QuestNodeModel {
       tip: json['tip'] as String?,
       youtubeSearchQuery:
           json['youtube_search_query'] as String? ?? json['youtubeSearchQuery'] as String?,
+      awardedXP: (json['awardedXP'] as num?)?.toInt(),
     );
   }
 
@@ -104,6 +107,7 @@ class QuestNodeModel {
       'observation': observation,
       'tip': tip,
       'youtube_search_query': youtubeSearchQuery,
+      'awardedXP': awardedXP,
     };
   }
 
@@ -125,6 +129,7 @@ class QuestNodeModel {
     String? observation,
     String? tip,
     String? youtubeSearchQuery,
+    int? awardedXP,
   }) {
     return QuestNodeModel(
       nodeId: nodeId ?? this.nodeId,
@@ -144,6 +149,7 @@ class QuestNodeModel {
       observation: observation ?? this.observation,
       tip: tip ?? this.tip,
       youtubeSearchQuery: youtubeSearchQuery ?? this.youtubeSearchQuery,
+      awardedXP: awardedXP ?? this.awardedXP,
     );
   }
 

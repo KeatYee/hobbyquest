@@ -9,6 +9,9 @@ import '../services/gemini_service.dart';
 import '../services/growth_letter_service.dart';
 import '../services/quest_service.dart';
 import '../models/user_model.dart';
+import '../models/goal_history_model.dart';
+import '../services/goal_history_service.dart';
+import 'progression_controller.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
@@ -30,6 +33,7 @@ class HomeController extends GetxController {
   // Loading state
   var isLoadingProfile = true.obs;
   var hasAvailableGrowthLetter = false.obs;
+  var isSeedingGoalCompletionTest = false.obs;
 
   // Quest List (Backed by the user's saved current plan)
   var dailyQuests = <QuestNodeModel>[].obs;
@@ -85,8 +89,10 @@ class HomeController extends GetxController {
   /// Legacy method: returns only up to 3 ready quests.
   /// Used by QuestDetailController after quest completion for backward compat.
   List<QuestNodeModel> getVisibleQuestWindow(List<QuestNodeModel> quests) {
-    print('--- DEBUG: getVisibleQuestWindow called with ${quests.length} total quests ---');
-    
+    print(
+      '--- DEBUG: getVisibleQuestWindow called with ${quests.length} total quests ---',
+    );
+
     // Situation 1: No quests at all
     if (quests.isEmpty) {
       print('--- WARN: No quests available at all! ---');
@@ -94,65 +100,94 @@ class HomeController extends GetxController {
     }
 
     final normalized = _buildNormalizedQuestGraph(quests);
-    print('--- DEBUG: After normalization: ${normalized.length} quests, isActive flags computed ---');
-    
+    print(
+      '--- DEBUG: After normalization: ${normalized.length} quests, isActive flags computed ---',
+    );
+
     // Situation 2: Check completed vs incomplete
     final completed = normalized.where((q) => q.isCompleted).length;
     final incomplete = normalized.where((q) => !q.isCompleted).length;
     print('--- DEBUG: Completed: $completed, Incomplete: $incomplete ---');
-    
+
     // Situation 3: Check for root quests (no dependencies)
-    final rootQuests = normalized.where((q) => !q.isCompleted && q.dependsOn.isEmpty).toList();
-    print('--- DEBUG: Root quests available (no deps): ${rootQuests.length} ---');
-    
+    final rootQuests = normalized
+        .where((q) => !q.isCompleted && q.dependsOn.isEmpty)
+        .toList();
+    print(
+      '--- DEBUG: Root quests available (no deps): ${rootQuests.length} ---',
+    );
+
     // Get ALL ready quests (not just the first 3)
     final readyQuests = normalized
-        .where((quest) => !quest.isCompleted && _isQuestReady(quest, normalized))
+        .where(
+          (quest) => !quest.isCompleted && _isQuestReady(quest, normalized),
+        )
         .toList();
-    
-    print('--- DEBUG: Total ready quests (dependencies satisfied): ${readyQuests.length} ---');
+
+    print(
+      '--- DEBUG: Total ready quests (dependencies satisfied): ${readyQuests.length} ---',
+    );
     for (int i = 0; i < readyQuests.length; i++) {
       final q = readyQuests[i];
-      print('  [$i] ${q.nodeId}: ${q.title} (deps: ${q.dependsOn.isEmpty ? "none" : q.dependsOn.join(", ")})');
+      print(
+        '  [$i] ${q.nodeId}: ${q.title} (deps: ${q.dependsOn.isEmpty ? "none" : q.dependsOn.join(", ")})',
+      );
     }
-    
+
     // Fill up to 3 active quests
     const maxVisibleQuests = 3;
     final visibleWindow = readyQuests.take(maxVisibleQuests).toList();
-    
+
     print('--- DEBUG: Filling active quests (max $maxVisibleQuests) ---');
-    print('--- DEBUG: Total ready available: ${readyQuests.length}, Taking: ${visibleWindow.length} ---');
-    
+    print(
+      '--- DEBUG: Total ready available: ${readyQuests.length}, Taking: ${visibleWindow.length} ---',
+    );
+
     if (visibleWindow.isEmpty) {
       print('--- ALERT: NO NEW QUESTS TO SHOW! Reasons: ---');
       if (incomplete == 0) {
         print('  → All quests are completed! Milestone finished!');
       }
       if (rootQuests.isEmpty && incomplete > 0) {
-        print('  → No root quests available (all remaining quests have dependencies)');
+        print(
+          '  → No root quests available (all remaining quests have dependencies)',
+        );
       }
       if (readyQuests.isEmpty && incomplete > 0 && rootQuests.isNotEmpty) {
-        print('  → All incomplete quests have missing or circular dependencies');
+        print(
+          '  → All incomplete quests have missing or circular dependencies',
+        );
       }
       // List all incomplete quests and their dependencies
       final incompleteQuests = normalized.where((q) => !q.isCompleted).toList();
       print('  → Incomplete quests status:');
       for (final q in incompleteQuests) {
-        final depsReady = q.dependsOn.every((dep) => normalized.any((n) => n.nodeId == dep && n.isCompleted));
-        print('    • ${q.nodeId}: deps=${q.dependsOn.isEmpty ? "[]" : q.dependsOn}, allDepsReady=$depsReady');
+        final depsReady = q.dependsOn.every(
+          (dep) => normalized.any((n) => n.nodeId == dep && n.isCompleted),
+        );
+        print(
+          '    • ${q.nodeId}: deps=${q.dependsOn.isEmpty ? "[]" : q.dependsOn}, allDepsReady=$depsReady',
+        );
       }
     } else {
-      print('--- SUCCESS: Found ${visibleWindow.length} active quest(s) to display ---');
+      print(
+        '--- SUCCESS: Found ${visibleWindow.length} active quest(s) to display ---',
+      );
       for (int i = 0; i < visibleWindow.length; i++) {
-        print('  [${i + 1}] ${visibleWindow[i].nodeId}: ${visibleWindow[i].title}');
+        print(
+          '  [${i + 1}] ${visibleWindow[i].nodeId}: ${visibleWindow[i].title}',
+        );
       }
-      
+
       // Show if we could add more
-      if (visibleWindow.length < maxVisibleQuests && readyQuests.length > visibleWindow.length) {
-        print('--- INFO: More quests available! Could add ${readyQuests.length - visibleWindow.length} more to reach $maxVisibleQuests ---');
+      if (visibleWindow.length < maxVisibleQuests &&
+          readyQuests.length > visibleWindow.length) {
+        print(
+          '--- INFO: More quests available! Could add ${readyQuests.length - visibleWindow.length} more to reach $maxVisibleQuests ---',
+        );
       }
     }
-    
+
     return visibleWindow;
   }
 
@@ -200,7 +235,9 @@ class HomeController extends GetxController {
               currentPlan: fullPlan,
             );
           } catch (e) {
-            print('--- WARNING: Failed to load plan data from subcollections: $e ---');
+            print(
+              '--- WARNING: Failed to load plan data from subcollections: $e ---',
+            );
           }
         }
 
@@ -259,17 +296,20 @@ class HomeController extends GetxController {
       return;
     }
 
-    _growthLetterSubscription =
-        _growthLetterService.watchLatestGrowthLetter(uid).listen(
-      (_) {
-        unawaited(refreshGrowthLetterAvailability());
-      },
-      onError: (error) {
-        print('--- WARNING: Failed to watch growth letter availability: $error ---');
-        hasAvailableGrowthLetter.value = false;
-        _scheduleGrowthLetterAvailabilityRefresh(null);
-      },
-    );
+    _growthLetterSubscription = _growthLetterService
+        .watchLatestGrowthLetter(uid)
+        .listen(
+          (_) {
+            unawaited(refreshGrowthLetterAvailability());
+          },
+          onError: (error) {
+            print(
+              '--- WARNING: Failed to watch growth letter availability: $error ---',
+            );
+            hasAvailableGrowthLetter.value = false;
+            _scheduleGrowthLetterAvailabilityRefresh(null);
+          },
+        );
     unawaited(refreshGrowthLetterAvailability());
   }
 
@@ -292,8 +332,32 @@ class HomeController extends GetxController {
 
   // --- ACTIONS ---
 
+  Future<GoalCompletionTestSeedResult> seedGoalCompletionTestState() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) throw Exception('User not logged in.');
+    if (isSeedingGoalCompletionTest.value) {
+      throw Exception('The test plan is already being prepared.');
+    }
+
+    try {
+      isSeedingGoalCompletionTest.value = true;
+      final result = await QuestService.seedGoalCompletionTestState(
+        currentUser.uid,
+      );
+      await _loadUserProfile();
+      if (Get.isRegistered<ProgressionController>()) {
+        await Get.find<ProgressionController>().loadProgress();
+      }
+      return result;
+    } finally {
+      isSeedingGoalCompletionTest.value = false;
+    }
+  }
+
   void rerollDailyQuests() {
-    print("--- LOGIC: Refreshing visible quest window from current plan... ---");
+    print(
+      "--- LOGIC: Refreshing visible quest window from current plan... ---",
+    );
     _reloadCurrentPlanQuests();
   }
 
@@ -333,10 +397,10 @@ class HomeController extends GetxController {
     goal.value = updatedPlan.goal;
     learningPace.value = updatedPlan.learningPace;
     level.value = updatedPlan.level;
-    
+
     dailyQuests.value = getAllQuestNodes(updatedPlan.quests);
     await refreshGrowthLetterAvailability();
-    
+
     print('--- INFO: Quest $questId completed via HomeController ---');
 
     return true;
@@ -379,10 +443,7 @@ class HomeController extends GetxController {
       final milestones = await QuestService.loadMilestones(uid, planId);
       final quests = await QuestService.loadQuests(uid, planId);
 
-      final fullPlan = plan.copyWith(
-        milestones: milestones,
-        quests: quests,
-      );
+      final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
 
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -391,10 +452,10 @@ class HomeController extends GetxController {
       final data = userDoc.data();
       if (data == null) return;
 
-      final loadedUser = UserModel.fromJson(data, uid).copyWith(
-        activePlanId: planId,
-        currentPlan: fullPlan,
-      );
+      final loadedUser = UserModel.fromJson(
+        data,
+        uid,
+      ).copyWith(activePlanId: planId, currentPlan: fullPlan);
       user.value = loadedUser;
 
       nickname.value = loadedUser.nickname;
@@ -432,9 +493,16 @@ class HomeController extends GetxController {
         final altSteps = (alternative['steps'] is List)
             ? (alternative['steps'] as List).map((e) => e.toString()).toList()
             : null;
-        final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+        final altYoutube =
+            (alternative['youtube_search_query']
+                    ?.toString()
+                    .trim()
+                    .isNotEmpty ??
+                false)
             ? alternative['youtube_search_query'].toString().trim()
-            : (alternative['youtubeSearchQuery']?.toString().trim() ?? quest.youtubeSearchQuery ?? '');
+            : (alternative['youtubeSearchQuery']?.toString().trim() ??
+                  quest.youtubeSearchQuery ??
+                  '');
 
         refreshed.add(
           quest.copyWith(
@@ -447,7 +515,9 @@ class HomeController extends GetxController {
       }
 
       dailyQuests.value = refreshed;
-      print('--- INFO: Ephemeral reroll applied (${dailyQuests.length} quests) ---');
+      print(
+        '--- INFO: Ephemeral reroll applied (${dailyQuests.length} quests) ---',
+      );
     } catch (e) {
       print('--- ERROR: Gemini reroll failed: $e ---');
     }
@@ -464,24 +534,28 @@ class HomeController extends GetxController {
     try {
       final alternative = await _geminiService.generateAlternativeQuest(
         hobby: hobby.value,
-        nodeTitle: dailyQuests
+        nodeTitle:
+            dailyQuests
                 .firstWhereOrNull((quest) => quest.nodeId == questId)
                 ?.title ??
             '',
-        nodeDesc: dailyQuests
+        nodeDesc:
+            dailyQuests
                 .firstWhereOrNull((quest) => quest.nodeId == questId)
                 ?.desc ??
             '',
         learningPace: learningPace.value,
         milestoneTitle: _currentMilestoneTitle(),
-        questType: dailyQuests
-            .firstWhereOrNull((quest) => quest.nodeId == questId)
-            ?.type ??
-          'practice',
-        durationMinutes: dailyQuests
-            .firstWhereOrNull((quest) => quest.nodeId == questId)
-            ?.durationMinutes ??
-          15,
+        questType:
+            dailyQuests
+                .firstWhereOrNull((quest) => quest.nodeId == questId)
+                ?.type ??
+            'practice',
+        durationMinutes:
+            dailyQuests
+                .firstWhereOrNull((quest) => quest.nodeId == questId)
+                ?.durationMinutes ??
+            15,
       );
 
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -500,7 +574,9 @@ class HomeController extends GetxController {
       final altSteps = (alternative['steps'] is List)
           ? (alternative['steps'] as List).map((e) => e.toString()).toList()
           : null;
-      final altYoutube = (alternative['youtube_search_query']?.toString().trim().isNotEmpty ?? false)
+      final altYoutube =
+          (alternative['youtube_search_query']?.toString().trim().isNotEmpty ??
+              false)
           ? alternative['youtube_search_query'].toString().trim()
           : (alternative['youtubeSearchQuery']?.toString().trim() ?? '');
 
@@ -525,10 +601,7 @@ class HomeController extends GetxController {
       final plan = await QuestService.loadPlan(uid, planId);
       final milestones = await QuestService.loadMilestones(uid, planId);
 
-      final fullPlan = plan.copyWith(
-        milestones: milestones,
-        quests: quests,
-      );
+      final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
 
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -537,10 +610,10 @@ class HomeController extends GetxController {
       final data = userDoc.data();
       if (data == null) return false;
 
-      final updatedUser = UserModel.fromJson(data, uid).copyWith(
-        activePlanId: planId,
-        currentPlan: fullPlan,
-      );
+      final updatedUser = UserModel.fromJson(
+        data,
+        uid,
+      ).copyWith(activePlanId: planId, currentPlan: fullPlan);
 
       user.value = updatedUser;
       nickname.value = updatedUser.nickname;
@@ -552,10 +625,9 @@ class HomeController extends GetxController {
       dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
 
       // Update lastRerollDate in user doc
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'lastRerollDate': DateTime.now()});
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'lastRerollDate': DateTime.now(),
+      });
 
       print('--- INFO: Quest $questId rerolled successfully ---');
       return true;
@@ -565,9 +637,7 @@ class HomeController extends GetxController {
     }
   }
 
-  List<QuestNodeModel> _buildNormalizedQuestGraph(
-    List<QuestNodeModel> quests,
-  ) {
+  List<QuestNodeModel> _buildNormalizedQuestGraph(List<QuestNodeModel> quests) {
     final completedIds = quests
         .where((quest) => quest.isCompleted)
         .map((quest) => quest.nodeId)
@@ -576,7 +646,8 @@ class HomeController extends GetxController {
     final visibleIds = _computeVisibleQuestIds(quests, completedIds);
 
     return quests.map((quest) {
-      final shouldBeActive = visibleIds.contains(quest.nodeId) && !quest.isCompleted;
+      final shouldBeActive =
+          visibleIds.contains(quest.nodeId) && !quest.isCompleted;
       return quest.copyWith(isActive: shouldBeActive);
     }).toList();
   }
@@ -628,7 +699,8 @@ class HomeController extends GetxController {
     List<QuestNodeModel> quests, {
     Set<String>? completedIds,
   }) {
-    final completed = completedIds ??
+    final completed =
+        completedIds ??
         quests
             .where((item) => item.isCompleted)
             .map((item) => item.nodeId)
@@ -669,6 +741,95 @@ class HomeController extends GetxController {
     return nextIndex < plan.milestones.length;
   }
 
+  /// Returns `true` when all quests in the final milestone are complete.
+  /// This is the terminal state for the current learning goal.
+  bool hasCompletedFinalMilestone() {
+    final plan = user.value?.currentPlan;
+    if (plan == null || plan.milestones.isEmpty) return false;
+    if (!plan.quests.every((q) => q.isCompleted)) return false;
+    return plan.currentMilestoneIndex >= plan.milestones.length - 1;
+  }
+
+  /// Marks the active learning goal as complete without creating another phase.
+  Future<void> completeCurrentGoal() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final current = user.value;
+    final plan = current?.currentPlan;
+    final uid = currentUser.uid;
+    final planId = current?.activePlanId ?? '';
+    if (current == null || plan == null || planId.isEmpty) return;
+    if (plan.milestones.isEmpty) return;
+
+    final currentIndex = plan.currentMilestoneIndex;
+    if (currentIndex < 0 || currentIndex >= plan.milestones.length) return;
+
+    final completedMilestones = plan.milestones.asMap().entries.map((entry) {
+      final shouldBeComplete = entry.key <= currentIndex;
+      return shouldBeComplete
+          ? entry.value.copyWith(completed: true)
+          : entry.value;
+    }).toList();
+
+    final completedPlan = plan.copyWith(
+      isActive: false,
+      progress: completedMilestones.length,
+      milestones: completedMilestones,
+    );
+
+    final firestore = FirebaseFirestore.instance;
+    final userRef = firestore.collection('users').doc(uid);
+    final planRef = userRef.collection('plans').doc(planId);
+    final batch = firestore.batch();
+
+    batch.set(planRef, completedPlan.toJson(), SetOptions(merge: true));
+    for (final milestone in completedMilestones) {
+      if (milestone.id.isEmpty) continue;
+      batch.set(
+        planRef.collection('milestones').doc(milestone.id),
+        milestone.toJson(),
+        SetOptions(merge: true),
+      );
+    }
+    batch.set(userRef, {
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+
+    final completionDates = completedPlan.quests
+        .map((quest) => quest.completedAt)
+        .whereType<DateTime>()
+        .toList()
+      ..sort();
+    await GoalHistoryService.markGoalCompleted(
+      uid,
+      GoalHistoryModel(
+        planId: planId,
+        status: 'completed',
+        hobby: completedPlan.hobby,
+        level: completedPlan.level,
+        goal: completedPlan.goal,
+        learningPace: completedPlan.learningPace,
+        category: completedPlan.category?.trim().isNotEmpty == true
+            ? completedPlan.category!.trim()
+            : completedPlan.hobby,
+        createdAt:
+            completionDates.isEmpty ? DateTime.now() : completionDates.first,
+        completedAt:
+            completionDates.isEmpty ? DateTime.now() : completionDates.last,
+      ),
+    );
+
+    final updatedUser = current.copyWith(
+      currentPlan: completedPlan,
+      updatedAt: DateTime.now(),
+    );
+    user.value = updatedUser;
+    dailyQuests.value = getAllQuestNodes(completedPlan.quests);
+  }
+
   /// Generates the next milestone's quests, replaces the old quests in Firestore,
   /// and refreshes the local state. Should be called after the user confirms on
   /// the milestone-complete screen.
@@ -687,16 +848,22 @@ class HomeController extends GetxController {
     final milestoneNumber = (nextIndex + 1).toString();
 
     // Mark current milestone as completed
-    final updatedMilestones = plan.milestones.asMap().map((i, m) {
-      if (i == plan.currentMilestoneIndex) {
-        return MapEntry(i, m.copyWith(completed: true));
-      }
-      return MapEntry(i, m);
-    }).values.toList();
+    final updatedMilestones = plan.milestones
+        .asMap()
+        .map((i, m) {
+          if (i == plan.currentMilestoneIndex) {
+            return MapEntry(i, m.copyWith(completed: true));
+          }
+          return MapEntry(i, m);
+        })
+        .values
+        .toList();
 
     // Check API key before calling Gemini
     if (!_geminiService.hasApiKey) {
-      print('--- WARNING: No Gemini API key configured — using fallback quests ---');
+      print(
+        '--- WARNING: No Gemini API key configured — using fallback quests ---',
+      );
     }
 
     List<QuestNodeModel> newQuests;
@@ -710,7 +877,9 @@ class HomeController extends GetxController {
         milestoneNumber: milestoneNumber,
       );
     } catch (e) {
-      print('--- ERROR: Gemini API failed during milestone advancement: $e ---');
+      print(
+        '--- ERROR: Gemini API failed during milestone advancement: $e ---',
+      );
       print('--- WARNING: Using fallback quests ---');
       // generatePhaseDAG already returns fallback internally on failure,
       // but if an unexpected exception escapes, rethrow to abort

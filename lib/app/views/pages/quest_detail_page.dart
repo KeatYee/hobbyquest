@@ -9,6 +9,7 @@ import '../../controllers/progression_controller.dart';
 import '../../models/quest_node_model.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/widgets/goal_complete_screen.dart';
 import '../../../core/widgets/milestone_complete_screen.dart';
 
 class QuestDetailPage extends StatefulWidget {
@@ -64,28 +65,40 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   // ──────────────────────────────────────────────
   Color getTypeColor() {
     switch (currentQuest.type) {
-      case 'knowledge': return AppColors.accent;
-      case 'practice':  return AppColors.success;
-      case 'challenge': return AppColors.info;
-      default:          return AppColors.textSecondary;
+      case 'knowledge':
+        return AppColors.accent;
+      case 'practice':
+        return AppColors.success;
+      case 'challenge':
+        return AppColors.info;
+      default:
+        return AppColors.textSecondary;
     }
   }
 
   IconData getTypeIcon() {
     switch (currentQuest.type) {
-      case 'knowledge': return Icons.menu_book_rounded;
-      case 'practice':  return Icons.timer_rounded;
-      case 'challenge': return Icons.camera_alt_rounded;
-      default:          return Icons.task_alt_rounded;
+      case 'knowledge':
+        return Icons.menu_book_rounded;
+      case 'practice':
+        return Icons.timer_rounded;
+      case 'challenge':
+        return Icons.camera_alt_rounded;
+      default:
+        return Icons.task_alt_rounded;
     }
   }
 
   String getTypeLabel() {
     switch (currentQuest.type) {
-      case 'knowledge': return 'Knowledge Quest';
-      case 'practice':  return 'Practice Quest';
-      case 'challenge': return 'Challenge Quest';
-      default:          return 'Quest';
+      case 'knowledge':
+        return 'Knowledge Quest';
+      case 'practice':
+        return 'Practice Quest';
+      case 'challenge':
+        return 'Challenge Quest';
+      default:
+        return 'Quest';
     }
   }
 
@@ -93,13 +106,25 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   //  Actions
   // ──────────────────────────────────────────────
   Future<void> _completeQuest() async {
-    if (currentQuest.isCompleted) { Get.back(); return; }
-    await _controller.completeQuest(
+    if (currentQuest.isCompleted) {
+      Get.back();
+      return;
+    }
+    final completed = await _controller.completeQuest(
       reflectionController.text.trim(),
       imageFile: selectedImage,
     );
+    if (!completed) return;
+
     // Check milestone BEFORE popping (mounted is still true here)
-    final hasCompletedMilestone = Get.find<HomeController>().hasCompletedMilestone();
+    final homeController = Get.find<HomeController>();
+    final hasCompletedMilestone = homeController.hasCompletedMilestone();
+    final hasCompletedFinalMilestone = homeController
+        .hasCompletedFinalMilestone();
+    if (hasCompletedFinalMilestone) {
+      await homeController.completeCurrentGoal();
+    }
+
     // Navigate back, then show level-up if triggered
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) Navigator.of(context).pop();
@@ -114,45 +139,71 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         barrierDismissible: false,
         barrierLabel: 'Milestone Complete',
       );
+    } else if (hasCompletedFinalMilestone) {
+      await Get.generalDialog(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const GoalCompleteScreen(),
+        barrierDismissible: false,
+        barrierLabel: 'Goal Complete',
+      );
     }
   }
 
   Future<void> _pickImage() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery, imageQuality: 80);
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
       if (image != null) setState(() => selectedImage = image);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to pick image: $e',
-          backgroundColor: AppColors.error, colorText: AppColors.textOnPrimary);
+      Get.snackbar(
+        'Error',
+        'Failed to pick image: $e',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.textOnPrimary,
+      );
     }
   }
 
   Future<void> _captureImage() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.camera, imageQuality: 80);
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
       if (image != null) setState(() => selectedImage = image);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to capture image: $e',
-          backgroundColor: AppColors.error, colorText: AppColors.textOnPrimary);
+      Get.snackbar(
+        'Error',
+        'Failed to capture image: $e',
+        backgroundColor: AppColors.error,
+        colorText: AppColors.textOnPrimary,
+      );
     }
   }
 
   Future<void> _watchTutorial() async {
-    final query = (currentQuest.youtubeSearchQuery ?? currentQuest.title).trim();
+    final query = (currentQuest.youtubeSearchQuery ?? currentQuest.title)
+        .trim();
     if (query.isEmpty) {
-      Get.snackbar('Tutorial unavailable',
-          'No YouTube search query was generated for this quest.',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Tutorial unavailable',
+        'No YouTube search query was generated for this quest.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
-    final uri = Uri.https('www.youtube.com', '/results', {'search_query': query});
+    final uri = Uri.https('www.youtube.com', '/results', {
+      'search_query': query,
+    });
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      Get.snackbar('Could not open tutorial',
-          'Please try again or open the search manually.',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Could not open tutorial',
+        'Please try again or open the search manually.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -177,7 +228,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   _buildCompletedBanner(),
                   const SizedBox(height: 20),
                 ],
-                if ((currentQuest.youtubeSearchQuery ?? '').trim().isNotEmpty) ...[
+                if ((currentQuest.youtubeSearchQuery ?? '')
+                    .trim()
+                    .isNotEmpty) ...[
                   _buildTutorialButton(),
                   const SizedBox(height: 20),
                 ],
@@ -270,7 +323,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                       // Type chip — frosted glass style
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.textOnPrimary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(22),
@@ -282,8 +337,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(getTypeIcon(),
-                                color: AppColors.textOnPrimary, size: 14),
+                            Icon(
+                              getTypeIcon(),
+                              color: AppColors.textOnPrimary,
+                              size: 14,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               getTypeLabel(),
@@ -354,7 +412,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         color: AppColors.success.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppColors.success.withOpacity(0.3), width: 1.5),
+          color: AppColors.success.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
@@ -365,8 +425,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               color: AppColors.success.withOpacity(0.15),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: const Icon(Icons.verified_rounded,
-                color: AppColors.success, size: 20),
+            child: const Icon(
+              Icons.verified_rounded,
+              color: AppColors.success,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -446,7 +509,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               borderRadius: BorderRadius.circular(18),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 16),
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -455,8 +520,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         color: AppColors.textOnPrimary.withOpacity(0.16),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.play_circle_fill_rounded,
-                          color: AppColors.textOnPrimary, size: 26),
+                      child: const Icon(
+                        Icons.play_circle_fill_rounded,
+                        color: AppColors.textOnPrimary,
+                        size: 26,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -483,9 +551,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         ],
                       ),
                     ),
-                    Icon(Icons.open_in_new_rounded,
-                        color: AppColors.textOnPrimary.withOpacity(0.85),
-                        size: 20),
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      color: AppColors.textOnPrimary.withOpacity(0.85),
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -529,8 +599,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
         child: Column(
           children: currentQuest.steps.asMap().entries.map((entry) {
-            final index  = entry.key;
-            final step   = entry.value;
+            final index = entry.key;
+            final step = entry.value;
             final number = index + 1;
             final isLast = index == currentQuest.steps.length - 1;
 
@@ -596,10 +666,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   // ── Step text ────────────────────
                   Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(
-                        bottom: isLast ? 0 : 18,
-                        top: 5,
-                      ),
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 18, top: 5),
                       child: Text(
                         step,
                         style: TextStyle(
@@ -626,7 +693,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   // ──────────────────────────────────────────────
   Widget _buildReflectionCard() {
     final charCount = reflectionController.text.trim().length;
-    final isReady   = charCount >= 15;
+    final isReady = charCount >= 15;
 
     return _SectionCard(
       label: 'REFLECTION & EVIDENCE',
@@ -650,9 +717,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                 style: TextStyle(
                   fontSize: AppFonts.micro,
                   fontWeight: FontWeight.w700,
-                  color: isReady
-                      ? AppColors.success
-                      : AppColors.textSecondary,
+                  color: isReady ? AppColors.success : AppColors.textSecondary,
                 ),
               ),
             )
@@ -675,7 +740,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         ? 'No reflection note added.'
                         : 'What did you learn or notice? (15 chars minimum)',
                     hintStyle: TextStyle(
-                        color: AppColors.textSecondary, fontSize: AppFonts.caption),
+                      color: AppColors.textSecondary,
+                      fontSize: AppFonts.caption,
+                    ),
                     filled: false,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
@@ -724,8 +791,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                             shape: BoxShape.circle,
                           ),
                           padding: const EdgeInsets.all(6),
-                          child: const Icon(Icons.close_rounded,
-                              color: AppColors.textOnPrimary, size: 16),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textOnPrimary,
+                            size: 16,
+                          ),
                         ),
                       ),
                     ),
@@ -735,7 +805,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               const SizedBox(height: 12),
               // Bonus XP indicator shown below image
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -743,7 +816,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.flash_on_rounded, size: 14, color: AppColors.success),
+                    Icon(
+                      Icons.flash_on_rounded,
+                      size: 14,
+                      color: AppColors.success,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       '+${QuestDetailController.reflectionImageBonusXp} XP bonus for adding a photo!',
@@ -789,7 +866,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   child: Text(
                     'Photo is required for challenge quest',
                     style: TextStyle(
-                  fontSize: AppFonts.micro,
+                      fontSize: AppFonts.micro,
                       fontWeight: FontWeight.w500,
                       fontStyle: FontStyle.italic,
                       color: selectedImage == null ? AppColors.error : null,
@@ -802,7 +879,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   child: Text(
                     'Image is optional for this quest type',
                     style: TextStyle(
-                  fontSize: AppFonts.micro,
+                      fontSize: AppFonts.micro,
                       fontWeight: FontWeight.w500,
                       fontStyle: FontStyle.italic,
                     ),
@@ -816,7 +893,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 
   // ──────────────────────────────────────────────
-  //  ACTION BUTTON 
+  //  ACTION BUTTON
   // ──────────────────────────────────────────────
   Widget _buildActionButton(BuildContext context) {
     // State 1: active, not yet completed
@@ -832,54 +909,61 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                     height: 22,
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.textOnPrimary),
+                        AppColors.textOnPrimary,
+                      ),
                       strokeWidth: 2.5,
                     ),
                   ),
                 )
               : _canCompleteQuest
-                  ? _GradientButton(
-                      onTap: _completeQuest,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle_rounded,
-                              color: AppColors.textOnPrimary, size: 22),
-                          SizedBox(width: 10),
-                          Text(
-                            'Complete Quest',
-                            style: TextStyle(
-                              color: AppColors.textOnPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: AppFonts.button,
-                            ),
-                          ),
-                        ],
+              ? _GradientButton(
+                  onTap: _completeQuest,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.textOnPrimary,
+                        size: 22,
                       ),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(16),
+                      SizedBox(width: 10),
+                      Text(
+                        'Complete Quest',
+                        style: TextStyle(
+                          color: AppColors.textOnPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: AppFonts.button,
+                        ),
                       ),
-                      alignment: Alignment.center,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.lock_outline_rounded,
-                              color: AppColors.textSecondary, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Add a reflection to complete',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: AppFonts.caption,
-                            ),
-                          ),
-                        ],
+                    ],
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
                       ),
-                    ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Add a reflection to complete',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: AppFonts.caption,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
         ),
       );
     }
@@ -897,8 +981,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.lock_rounded,
-                color: AppColors.textSecondary.withOpacity(0.55), size: 18),
+            Icon(
+              Icons.lock_rounded,
+              color: AppColors.textSecondary.withOpacity(0.55),
+              size: 18,
+            ),
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
@@ -922,19 +1009,24 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       child: OutlinedButton.icon(
         onPressed: () => Get.back(),
         icon: const Icon(Icons.arrow_back_rounded, size: 20),
-        label: Text('Back to Quests',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: AppFonts.bodyLg)),
+        label: Text(
+          'Back to Quests',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: AppFonts.bodyLg,
+          ),
+        ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 2),
           backgroundColor: AppColors.primaryLight,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
     );
   }
-
 }
 
 // ═══════════════════════════════════════════════════════
@@ -947,11 +1039,7 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({
-    required this.label,
-    required this.child,
-    this.trailing,
-  });
+  const _SectionCard({required this.label, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -982,16 +1070,8 @@ class _SectionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  height: 1,
-                  color: AppColors.border,
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 10),
-                trailing!,
-              ],
+              Expanded(child: Container(height: 1, color: AppColors.border)),
+              if (trailing != null) ...[const SizedBox(width: 10), trailing!],
             ],
           ),
         ),

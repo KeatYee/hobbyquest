@@ -25,16 +25,19 @@ class _GoalHistoryPageState extends State<GoalHistoryPage> {
 
   Future<void> _loadHistory() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
       final entries = await GoalHistoryService.loadAllGoalHistory(uid);
-      setState(() => _entries = entries);
+      if (mounted) setState(() => _entries = entries);
     } catch (e) {
       print('--- ERROR: Failed to load goal history: $e ---');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -118,8 +121,14 @@ class _GoalHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = entry.createdAt != null
-        ? '${entry.createdAt!.year}-${entry.createdAt!.month.toString().padLeft(2, '0')}-${entry.createdAt!.day.toString().padLeft(2, '0')}'
+    final displayDate = entry.completedAt ?? entry.createdAt;
+    final category = entry.category.trim();
+    final hobby = entry.hobby.trim();
+    final goal = entry.goal.trim();
+    final level = entry.level.trim();
+    final learningPace = entry.learningPace.trim();
+    final formattedDate = displayDate != null
+        ? '${displayDate.year}-${displayDate.month.toString().padLeft(2, '0')}-${displayDate.day.toString().padLeft(2, '0')}'
         : 'Unknown date';
 
     return Container(
@@ -144,22 +153,55 @@ class _GoalHistoryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    entry.category,
-                    style: TextStyle(
-                      fontSize: AppFonts.micro,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                      letterSpacing: 0.5,
-                    ),
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          category.isNotEmpty
+                              ? category
+                              : (hobby.isNotEmpty ? hobby : 'Uncategorized'),
+                          style: TextStyle(
+                            fontSize: AppFonts.micro,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      if (entry.isCompleted)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'COMPLETED',
+                            style: TextStyle(
+                              fontSize: AppFonts.micro,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   formattedDate,
                   style: TextStyle(
@@ -174,7 +216,7 @@ class _GoalHistoryCard extends StatelessWidget {
 
             // Goal text
             Text(
-              entry.goal,
+              goal.isNotEmpty ? goal : 'Untitled goal',
               style: TextStyle(
                 fontSize: AppFonts.bodyLg,
                 fontWeight: FontWeight.w700,
@@ -188,9 +230,12 @@ class _GoalHistoryCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                _TagChip(icon: Icons.sports_esports_outlined, label: entry.hobby),
-                _TagChip(icon: Icons.bar_chart_rounded, label: entry.level),
-                _TagChip(icon: Icons.speed_rounded, label: entry.learningPace),
+                if (hobby.isNotEmpty)
+                  _TagChip(icon: Icons.sports_esports_outlined, label: hobby),
+                if (level.isNotEmpty)
+                  _TagChip(icon: Icons.bar_chart_rounded, label: level),
+                if (learningPace.isNotEmpty)
+                  _TagChip(icon: Icons.speed_rounded, label: learningPace),
               ],
             ),
           ],

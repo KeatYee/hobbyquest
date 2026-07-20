@@ -23,7 +23,7 @@ class OnboardingView extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: Obx(() {
-          if (controller.currentPage.value == 0) {
+          if (controller.currentPage.value <= controller.minimumPage) {
             return const SizedBox.shrink();
           }
 

@@ -287,7 +287,7 @@ class _EmptyLetterCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            'After you complete quests and write reflections, HobbyQuest can turn your last 7 days into a short growth letter.',
+            'After a Monday-to-Sunday week is complete, HobbyQuest can turn that week\'s completed quests and reflections into a growth letter.',
             style: GoogleFonts.openSans(
               height: 1.45,
               fontSize: AppFonts.body,
