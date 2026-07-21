@@ -1,32 +1,28 @@
 import 'quest_plan_model.dart';
 
 class UserModel {
-  final String id; // Firestore document ID
+  final String id;
   final String nickname;
   final String birthDate;
   final String gender;
   final String avatarSvg;
   final bool isOnboardingComplete;
 
-  // Flat progression source of truth
   final int totalXP;
-  final int currentStreak; // Consecutive days with at least one completed quest
+  final int currentStreak;
   final int dailyQuestCompletionCount;
 
-  // Per-category XP (tree progression)
   final Map<String, int> categoryXp;
 
-  // Tutorial flags
   final bool mapTutorialDone;
   final bool notificationsEnabled;
   final bool profileVisible;
   final bool postStatsVisible;
 
-  // Timestamps
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? lastRerollDate;
-  final DateTime? lastStreakDate; // Track when the last streak completion was recorded
+  final DateTime? lastStreakDate;
   final DateTime? lastQuestCompletionDate;
 
   final String activePlanId;
@@ -194,13 +190,11 @@ class UserModel {
 
   /// Parses per-category XP from Firestore data.
   static Map<String, int> _readCategoryXp(Map<String, dynamic> json) {
-    // New format: nested map categoryXp: {"Creative Arts": 100}
     final raw = json['categoryXp'];
     if (raw is Map) {
       return raw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
     }
 
-    // Legacy format: flattened fields like "categoryXp.Creative Arts" at top level
     final legacy = <String, int>{};
     for (final entry in json.entries) {
       if (entry.key.startsWith('categoryXp.') && entry.value is num) {

@@ -207,12 +207,10 @@ class QuestDetailController extends GetxController {
       );
       print('--- DEBUG: progressionController.completeQuest completed ---');
 
-      // Refresh local UI state from updated user
       print('--- DEBUG: Updating homeController.user ---');
       homeController.user.value = updatedUser;
       print('--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---');
       
-      // Rebuild all quest nodes with current state
       print('--- DEBUG: Calling getAllQuestNodes ---');
       final allNodes = homeController.getAllQuestNodes(updatedUser.currentPlan.quests);
       print('--- DEBUG: getAllQuestNodes returned ${allNodes.length} quests ---');
@@ -232,7 +230,6 @@ class QuestDetailController extends GetxController {
       );
       currentQuest.value = updated;
 
-      // Ask user if they want to share this achievement to the guild
       await _promptShareToGuild(
         questTitle: currentQuest.value.title,
         reflectionNote: reflectionNote,
@@ -263,7 +260,6 @@ class QuestDetailController extends GetxController {
     required String? imageUrl,
     required XFile? imageFile,
   }) async {
-    // Step 1: Ask if they want to share
     final shouldShare = await AppDialogs.custom<bool>(
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
@@ -332,7 +328,6 @@ class QuestDetailController extends GetxController {
 
     if (shouldShare != true) return;
 
-    // Step 2: Resolve category and hobby for pre-filling
     try {
       final guildController = Get.find<GuildController>();
 
@@ -344,7 +339,6 @@ class QuestDetailController extends GetxController {
         }
       }
 
-      // Step 3: Open the full AddGuildPostDialog with pre-filled data
       await Get.bottomSheet<void>(
         Padding(
           padding: EdgeInsets.only(

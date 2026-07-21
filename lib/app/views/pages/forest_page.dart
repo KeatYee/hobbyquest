@@ -295,7 +295,6 @@ class _ForestPageState extends State<ForestPage> {
           ? const Center(child: Text('Please sign in'))
           : Stack(
               children: [
-                // Forest background image
                 Positioned.fill(
                   child: Opacity(
                     opacity: 0.5,
@@ -305,7 +304,6 @@ class _ForestPageState extends State<ForestPage> {
                     ),
                   ),
                 ),
-                // Grid content
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
@@ -323,7 +321,6 @@ class _ForestPageState extends State<ForestPage> {
 
                     final docs = snapshot.data?.docs ?? [];
 
-                    // Pair each doc with its TreeModel and DocumentReference
                     final items = docs.map((doc) {
                       final tree = TreeModel.fromJson(
                         doc.data() as Map<String, dynamic>,
@@ -332,7 +329,6 @@ class _ForestPageState extends State<ForestPage> {
                       return (tree: tree, ref: doc.reference);
                     }).toList();
 
-                    // Map treeIndex → entry for quick lookup
                     final occupied =
                         <int, ({TreeModel tree, DocumentReference ref})>{};
                     for (final e in items) {
@@ -349,7 +345,6 @@ class _ForestPageState extends State<ForestPage> {
 
                     return Column(
                       children: [
-                        // Stats bar
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -384,7 +379,6 @@ class _ForestPageState extends State<ForestPage> {
                             ],
                           ),
                         ),
-                        // Grid
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),

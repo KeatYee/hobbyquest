@@ -18,25 +18,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // GlobalKey is needed to identify the Form and trigger validation
   final _formKey = GlobalKey<FormState>();
   
-  // Controllers to retrieve text from input fields
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  // Use GoogleSignIn instance singleton
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   
-  // Track the current Google user from authenticationEvents stream
   GoogleSignInAccount? _currentGoogleUser;
   
-  // Stream subscription to manage listener lifecycle
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventSubscription;
   
-  // Track initialization
   bool _isInitialized = false;
   
-  // State variables to manage UI mode and loading status
   late bool isRegisterMode;
   bool isLoading = false;
   bool isPasswordVisible = false; 
@@ -46,8 +39,6 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _initializeGoogleSignIn();
     
-    // Retrieve arguments passed from the Welcome Page
-    // Defaults to 'false' (Login mode) if no arguments are found
     final args = Get.arguments ?? {};
     isRegisterMode = args['isRegistering'] ?? false;
   }
@@ -55,14 +46,10 @@ class _LoginPageState extends State<LoginPage> {
   /// Initialize Google Sign-In and listen to authentication events
   Future<void> _initializeGoogleSignIn() async {
     try {
-      // Initialize Google Sign-In
       await _googleSignIn.initialize();
       
-      // Listen to authentication events (sign-in and sign-out)
-      // This is the modern recommended way to track the logged-in user
       _authEventSubscription = _googleSignIn.authenticationEvents.listen(
         (event) {
-          // Only update state if widget is still mounted
           if (!mounted) return;
           
           setState(() {
@@ -79,87 +66,71 @@ class _LoginPageState extends State<LoginPage> {
       print("--- GOOGLE SIGN-IN INITIALIZED ---");
     } catch (e) {
       print("--- ERROR: Failed to initialize Google Sign-In: $e ---");
-      _isInitialized = true; // Mark as initialized even if failed
+      _isInitialized = true;
     }
   }
 
   @override
   void dispose() {
-    // Cancel Google Sign-In event subscription to prevent setState after dispose
     _authEventSubscription?.cancel();
     
-    // Dispose controllers to free up memory when the widget is removed
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
-  // Main Authentication Function
   Future<void> handleAuth() async {
-    print("--- AUTH PROCESS STARTED ---"); // Debug: Start
+    print("--- AUTH PROCESS STARTED ---");
 
-    // Step 1: Run Validation
-    // This checks the rules in validators.dart (Email format, Password length)
     if (!_formKey.currentState!.validate()) {
-      print("--- ERROR: Validation Failed ---"); // Debug: Validation Error
+      print("--- ERROR: Validation Failed ---");
       return;
     }
 
-    // Step 2: Dismiss Keyboard
-    // This improves UX by allowing the user to see the loading state/messages
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // Step 3: Update State to Loading
-    // This disables the button and shows the spinner
     print("--- STATUS: Setting Loading State ---");
     setState(() => isLoading = true);
     
     try {
       if (isRegisterMode) {
-        // --- REGISTER FLOW ---
-        print("--- ACTION: Attempting Registration ---"); // Debug: Action Type
+        print("--- ACTION: Attempting Registration ---");
         
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
         
-        print("--- SUCCESS: User Registered ---"); // Debug: Success
+        print("--- SUCCESS: User Registered ---");
         
         if (mounted) {
           AppDialogs.success(
             "Success",
             "Character Created!",
           );
-          // Navigate to Onboarding (Removes previous routes to prevent back button issues)
           Get.offAllNamed(AppRoutes.ONBOARDING); 
         }
 
       } else {
-        // --- LOGIN FLOW ---
-        print("--- ACTION: Attempting Login ---"); // Debug: Action Type
+        print("--- ACTION: Attempting Login ---");
         
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
 
-        print("--- SUCCESS: User Logged In ---"); // Debug: Success
+        print("--- SUCCESS: User Logged In ---");
 
         if (mounted) {
           AppDialogs.info(
             "Welcome Back",
             "Resuming your quest...",
           );
-          // Use checkUserStatus() to verify profile exists (same as Google Sign-In)
-          // This ensures we don't send users to DASHBOARD if their profile is missing
           await Get.find<AuthController>().checkUserStatus();
         }
       }
     } on FirebaseAuthException catch (e) {
-      // Step 4: Handle Specific Firebase Errors
-      // This provides user-friendly messages based on the error code
-      print("--- FIREBASE EXCEPTION: ${e.code} ---"); // Debug: Firebase Error Code
+      print("--- FIREBASE EXCEPTION: ${e.code} ---");
       
       String message = "Authentication failed.";
       if (e.code == 'user-not-found') message = "No user found with that email.";
@@ -171,16 +142,12 @@ class _LoginPageState extends State<LoginPage> {
       AppDialogs.error("Error", message);
         
     } catch (e) {
-      // Step 5: Handle Generic Errors
-      // Catches unexpected crashes or system errors
-      print("--- UNKNOWN EXCEPTION: $e ---"); // Debug: Generic Error
+      print("--- UNKNOWN EXCEPTION: $e ---");
       
       AppDialogs.error("Error", "Something unexpected happened: $e");
         
     } finally {
-      // Step 6: Reset Loading State
-      // This runs regardless of success or failure to ensure the button unlocks
-      print("--- STATUS: Resetting Loading State ---"); // Debug: Cleanup
+      print("--- STATUS: Resetting Loading State ---");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -192,14 +159,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = true);
 
     try {
-      // Ensure initialization is complete before attempting sign-in
       if (!_isInitialized) {
         await Future.delayed(const Duration(seconds: 1));
       }
 
-      // Check if platform supports authenticate (important for cross-platform support)
       if (_googleSignIn.supportsAuthenticate()) {
-        // Use the modern authenticate() method with scopeHint for email
         await _googleSignIn.authenticate(
           scopeHint: ['email', 'profile'],
         );
@@ -208,15 +172,12 @@ class _LoginPageState extends State<LoginPage> {
         throw Exception('This platform does not support Google Sign-In authenticate()');
       }
 
-      // Wait for the authenticationEvents listener to process and update _currentGoogleUser
-      // The event listener is the only source of truth for the signed-in user
       int attempts = 0;
       while (_currentGoogleUser == null && attempts < 5) {
         await Future.delayed(const Duration(milliseconds: 200));
         attempts++;
       }
 
-      // Get the signed-in user from the tracked authenticationEvents stream
       final googleUser = _currentGoogleUser;
       
       if (googleUser == null) {
@@ -226,13 +187,11 @@ class _LoginPageState extends State<LoginPage> {
 
       print("--- GOOGLE USER: ${googleUser.email} ---");
 
-      // Get authentication tokens
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      // Sign in with Firebase using the Google credential
       await FirebaseAuth.instance.signInWithCredential(credential);
       print("--- FIREBASE SIGN-IN SUCCESS ---");
 
@@ -280,14 +239,11 @@ class _LoginPageState extends State<LoginPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
-            key: _formKey, // Connects the Form validation logic
+            key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Mascot Widget
-                // Note: Emotion is hardcoded to 'happy' to prevent Rive asset crashes
                 MascotWidget(
-                  //emotion: isLoading ? 'thinking' : 'happy',
                   emotion: 'happy', 
                   message: isRegisterMode 
                     ? "Let's set up your profile! I need an email to save your game." 
@@ -295,7 +251,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 30),
                 
-                // Email Input Field
                 TextFormField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -303,36 +258,30 @@ class _LoginPageState extends State<LoginPage> {
                     labelText: 'Email Address',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  // Using external validator from validators.dart
                   validator: Validators.validateEmail, 
                 ),
                 const SizedBox(height: 20),
                 
-                // Password Input Field
                 TextFormField(
                   controller: passwordController,
-                  obscureText: !isPasswordVisible, // Toggles text visibility
+                  obscureText: !isPasswordVisible,
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      // Toggle Eye Icon
                       icon: Icon(isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       onPressed: () => setState(() => isPasswordVisible = !isPasswordVisible),
                     ),
                   ),
-                  // Using external validator from validators.dart
                   validator: Validators.validatePassword, 
                 ),
                 
                 const SizedBox(height: 30),
 
-                // Main Action Button (Login / Register)
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    // Disable button if loading to prevent double-clicks
                     onPressed: isLoading ? null : handleAuth,
                     child: isLoading 
                       ? const SizedBox(
@@ -357,7 +306,6 @@ class _LoginPageState extends State<LoginPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Mode Toggle Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -367,7 +315,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Reset validation errors when switching modes
                         _formKey.currentState?.reset(); 
                         setState(() => isRegisterMode = !isRegisterMode);
                       },

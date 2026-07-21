@@ -12,16 +12,13 @@ class Step3Level extends StatefulWidget {
 }
 
 class _Step3LevelState extends State<Step3Level> {
-  // Local state to track validation error
   bool showError = false;
 
   @override
   Widget build(BuildContext context) {
-    // Debug: View Rebuilt
     print("--- STEP 4: Level View Rebuilt ---");
 
     final OnboardingController controller = Get.find();
-    // Access Global App Theme
     final textTheme = Theme.of(context).textTheme;
 
     final List<Map<String, dynamic>> levels = [
@@ -43,21 +40,18 @@ class _Step3LevelState extends State<Step3Level> {
     ];
 
     return SingleChildScrollView(
-      // Padding matches previous steps for consistency
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 30),
 
-          // Section Title using Theme
           Text("YOUR CURRENT LEVEL", style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900, 
               fontSize: AppFonts.title,
               letterSpacing: 1.0
           )),
 
-          // Inline Error Message
           if (showError && controller.level.value.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
@@ -74,8 +68,6 @@ class _Step3LevelState extends State<Step3Level> {
 
           const SizedBox(height: 15),
 
-          // Level Selection List
-          // Using ListView.separated for clean spacing
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -88,14 +80,12 @@ class _Step3LevelState extends State<Step3Level> {
 
           const SizedBox(height: 30),
 
-          // Next Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
                 print("--- ACTION: Next Button Clicked (Step 4) ---");
 
-                // Validation Logic
                 if (controller.level.value.isEmpty) {
                   print("--- ERROR: No Level Selected ---");
                   setState(() => showError = true);
@@ -119,13 +109,10 @@ class _Step3LevelState extends State<Step3Level> {
     );
   }
 
-  // Helper Widget for Level Cards
   Widget _buildLevelCard(OnboardingController controller, Map<String, dynamic> level, TextTheme textTheme) {
     return Obx(() {
       final isSelected = controller.level.value == level['label'];
       
-      // Error State: Show Red border if error is active and nothing selected
-      // Otherwise: Show Primary color if selected, Transparent if not
       final borderColor = (showError && controller.level.value.isEmpty) 
           ? AppColors.error 
           : (isSelected ? AppColors.primary : Colors.transparent);
@@ -137,7 +124,6 @@ class _Step3LevelState extends State<Step3Level> {
             controller.level.value = level['label'];
             print("--- DATA: Level Selected: ${level['label']} ---");
             
-            // Clear error on selection
             if (showError) setState(() => showError = false);
           },
           borderRadius: BorderRadius.circular(16),
@@ -161,7 +147,6 @@ class _Step3LevelState extends State<Step3Level> {
             ),
             child: Row(
               children: [
-                // Icon Box
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -176,7 +161,6 @@ class _Step3LevelState extends State<Step3Level> {
                 ),
                 const SizedBox(width: 16),
                 
-                // Text Content
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +183,6 @@ class _Step3LevelState extends State<Step3Level> {
                   ),
                 ),
                 
-                // Checkmark Indicator
                 if (isSelected)
                   const Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
               ],

@@ -45,7 +45,6 @@ class GeminiService {
     return _envValue(const ['GEMINI_API_KEY', 'API_KEY']);
   }
 
-  // Initialize the Gemini Model
   GenerativeModel get _model {
     return GenerativeModel(model: 'gemini-3.1-flash-lite', apiKey: _apiKey);
   }
@@ -358,7 +357,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       final listDynamic =
           jsonMap['nodes'] as List<dynamic>? ?? const <dynamic>[];
 
-      // Convert dynamic items into QuestNodeModel instances
       final parsed = <QuestNodeModel>[];
       for (final item in listDynamic) {
         try {
@@ -366,10 +364,8 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             final rawId = (item['node_id'] ?? item['id'] ?? '').toString().trim();
             final formattedNodeId = '${milestoneNumber}_node_$rawId';
             
-            // THE FIX: Override the integer with the formatted string BEFORE parsing
             item['node_id'] = formattedNodeId;
 
-            // ALSO reformat depends_on entries so they match the formatted node IDs
             final rawDependsOn = item['depends_on'] ?? item['dependsOn'];
             if (rawDependsOn is List) {
               item['depends_on'] = rawDependsOn
@@ -395,10 +391,8 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             final rawId = (rawMap['node_id'] ?? rawMap['id'] ?? '').toString().trim();
             final formattedNodeId = '${milestoneNumber}_node_$rawId';
             
-            // THE FIX: Override the integer with the formatted string BEFORE parsing
             rawMap['node_id'] = formattedNodeId;
 
-            // ALSO reformat depends_on entries so they match the formatted node IDs
             final rawDependsOn = rawMap['depends_on'] ?? rawMap['dependsOn'];
             if (rawDependsOn is List) {
               rawMap['depends_on'] = rawDependsOn
@@ -419,7 +413,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             continue;
           }
 
-          // Fallback for unexpected item shape
           parsed.add(
             QuestNodeModel(
               nodeId: '${milestoneNumber}_node_${parsed.length + 1}',
@@ -437,7 +430,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
             ),
           );
         } catch (e) {
-          // EXPOSE THE ERROR: Stop hiding the crash!
           debugPrint('[GeminiService] Failed to parse individual node: $e');
         }
       }
@@ -445,7 +437,6 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       final nodes = <QuestNodeModel>[];
       nodes.addAll(parsed);
 
-      // Pad to 20 nodes if needed
       if (nodes.length < 20) {
         final padCount = 20 - nodes.length;
         final variants = _questTemplatesForHobby(hobby);
@@ -1086,7 +1077,6 @@ Instructions:
     }
 
     final normalized = parsed.take(3).toList();
-    // Ensure at least one 'challenge' exists so UI can highlight a priority task.
     if (!normalized.any((quest) => quest.type == 'challenge')) {
       normalized[0] = normalized[0].copyWith(type: 'challenge');
     }

@@ -14,12 +14,8 @@ import '../widgets/shaking_mailbox_button.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  // ─────────────────────────────────────────────────────────────
-  //  ROOT
-  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // ── Controller injection — UNCHANGED ──────────────────────
     final HomeController controller = Get.put(HomeController());
     final ProgressionController progressionController = Get.put(
       ProgressionController(),
@@ -27,10 +23,8 @@ class HomePage extends StatelessWidget {
 
     return Column(
         children: [
-          // ZONE 1: HERO HUD (fixed at top)
           _buildHeroHud(context, controller),
 
-          // ZONE 2: SCROLLABLE CONTENT
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -40,7 +34,6 @@ class HomePage extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
 
-                  // MILESTONE PROGRESS
                   _buildMilestoneProgress(controller),
 
                   const SizedBox(height: 12),
@@ -48,7 +41,6 @@ class HomePage extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // MISSION LOG HEADER
                   _buildSectionHeader(
                     "QUESTS",
                     onInfoTap: _showQuestInfoDialog,
@@ -56,7 +48,6 @@ class HomePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // ACTIVE QUESTS (locked quests live in the full milestone map)
                   Obx(
                     () {
                       final activeQuests = controller.dailyQuests
@@ -90,7 +81,6 @@ class HomePage extends StatelessWidget {
 
                   _buildViewFullMilestoneMapButton(controller),
 
-                  // COMPLETED QUESTS (collapsible)
                   _buildCompletedSection(context, controller),
 
                   const SizedBox(height: 20),
@@ -102,7 +92,6 @@ class HomePage extends StatelessWidget {
       );
   }
 
-  // ─────────────────────────────────────────────────────────────
   Widget _buildGoalCompletionTestButton(HomeController controller) {
     return Obx(
       () => SizedBox(
@@ -194,8 +183,6 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  //  HERO HUD
-  // ─────────────────────────────────────────────────────────────
   Widget _buildHeroHud(BuildContext context, HomeController controller) {
     final progressionController = Get.find<ProgressionController>();
 
@@ -214,11 +201,9 @@ class HomePage extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── AVATAR + LEVEL BADGE ──────────────────────
               _buildHeaderAvatar(controller, progressionController),
               const SizedBox(width: 14),
 
-              // ── STATS COLUMN ──────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,9 +240,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  HEADER HELPERS
-  // ─────────────────────────────────────────────────────────────
   Widget _buildHeaderAvatar(
     HomeController controller,
     ProgressionController progressionController,
@@ -450,9 +432,6 @@ class HomePage extends StatelessWidget {
     });
   }
 
-  // -------------------------------------------------------------
-  //  MILESTONE PROGRESS
-  // -------------------------------------------------------------
   Widget _buildMilestoneProgress(HomeController controller) {
     return Obx(() {
       final plan = controller.user.value?.currentPlan;
@@ -463,7 +442,6 @@ class HomePage extends StatelessWidget {
       final milestone = plan.milestones[index];
       final progress = ((index + 1) / total);
 
-      // Calculate quest completion ratio for this milestone
       final quests = plan.quests;
       final completedQuests = quests.where((q) => q.isCompleted).length;
       final totalQuests = quests.length;
@@ -480,7 +458,6 @@ class HomePage extends StatelessWidget {
           ),
           child: Row(
           children: [
-            // Milestone icon
             Container(
               width: 40,
               height: 40,
@@ -499,7 +476,6 @@ class HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title row: milestone name + fraction
                   Row(
                     children: [
                       Expanded(
@@ -524,7 +500,6 @@ class HomePage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // Progress bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
@@ -564,7 +539,6 @@ class HomePage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Goal title
               const Text(
                 'My Goal',
                 style: TextStyle(
@@ -583,7 +557,6 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // Hobby & Level
               Row(
                 children: [
                   _infoChip(
@@ -603,7 +576,6 @@ class HomePage extends StatelessWidget {
                 'Learning Pace: ${plan.learningPace}',
               ),
               const SizedBox(height: 20),
-              // Milestones header
               const Text(
                 'Milestones',
                 style: TextStyle(
@@ -746,9 +718,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  FULL MILESTONE MAP
-  // ─────────────────────────────────────────────────────────────
   void _showFullMilestoneMap(
     HomeController controller,
     QuestPlanModel plan,
@@ -1009,14 +978,10 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // -------------------------------------------------------------
-  //  COMPLETED QUESTS SECTION (collapsible)
-  // -------------------------------------------------------------
   Widget _buildCompletedSection(BuildContext context, HomeController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tappable header
         InkWell(
           onTap: () => controller.isCompletedExpanded.toggle(),
           borderRadius: BorderRadius.circular(8),
@@ -1088,9 +1053,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  SECTION HEADER
-  // ─────────────────────────────────────────────────────────────
   void _showQuestInfoDialog() {
     Get.dialog(
       Dialog(
@@ -1232,9 +1194,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  QUEST CARD — UNCHANGED logic, redesigned layout
-  // ─────────────────────────────────────────────────────────────
   Widget _buildQuestCard(
     BuildContext context, {
     required HomeController controller,
@@ -1250,12 +1209,10 @@ class HomePage extends StatelessWidget {
   }) {
     final isLocked = !isActive && !isCompleted;
 
-    // Consistent card accent color regardless of quest type
     Color getTypeColor() {
       return AppColors.primary;
     }
 
-    // Helper to get icon based on type string — UNCHANGED
     IconData getTypeIcon() {
       switch (type) {
         case 'knowledge':
@@ -1312,14 +1269,12 @@ class HomePage extends StatelessWidget {
                       width: 1,
                     ),
                   ),
-                  // ClipRRect so the left accent bar respects rounded corners
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // ── Coloured left accent bar ───────────
                           Container(
                             width: 4,
                             color: isCompleted
@@ -1329,7 +1284,6 @@ class HomePage extends StatelessWidget {
                                     : color),
                           ),
 
-                          // ── Card body ─────────────────────────
                           Expanded(
                             child: Padding(
                               padding:
@@ -1337,11 +1291,9 @@ class HomePage extends StatelessWidget {
                               child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // TOP ROW: type chip + XP pill (or completed badge)
                             Row(
                               children: isCompleted
                                   ? [
-                                      // Completed badge
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -1373,7 +1325,6 @@ class HomePage extends StatelessWidget {
                                         ),
                                       ),
                                       const Spacer(),
-                                      // XP earned pill
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -1404,7 +1355,6 @@ class HomePage extends StatelessWidget {
                                       ),
                                     ]
                                   : [
-                                      // Type chip (normal or locked)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -1436,7 +1386,6 @@ class HomePage extends StatelessWidget {
                                   ),
                                 ),
                                 const Spacer(),
-                                // XP reward pill
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -1469,7 +1418,6 @@ class HomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
 
-                            // TITLE
                             Text(
                               title,
                               style: TextStyle(
@@ -1481,7 +1429,6 @@ class HomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
 
-                            // DESCRIPTION
                             Text(
                               desc,
                               style: TextStyle(
@@ -1492,7 +1439,6 @@ class HomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
 
-                            // BOTTOM ROW: duration chip + reroll (or done badge)
                             Row(
                               children: isCompleted
                                   ? [
@@ -1558,7 +1504,6 @@ class HomePage extends StatelessWidget {
                                         ),
                                       ),
                                       const Spacer(),
-                                      // REROLL BUTTON — unchanged except hidden when locked
                                       TextButton.icon(
                                   onPressed: () async {
                                     final confirmed = await AppDialogs.confirm(
@@ -1622,6 +1567,3 @@ class HomePage extends StatelessWidget {
 );
   }
 }
-
-// ═══════════════════════════════════════════════
-// ═══════════════════════════════════════════════

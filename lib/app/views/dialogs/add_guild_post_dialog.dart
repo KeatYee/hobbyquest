@@ -41,7 +41,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
     super.initState();
     _guildController = Get.find<GuildController>();
 
-    // Pre-fill from initial values (e.g. quest completion share)
     if (widget.initialTitle != null) {
       _titleController.text = widget.initialTitle!;
     }
@@ -134,7 +133,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
           Container(
             margin: const EdgeInsets.only(top: 12),
             width: 40,
@@ -144,7 +142,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
             child: Row(
@@ -163,14 +160,12 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
               ],
             ),
           ),
-          // Scrollable form content
           Flexible(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + MediaQuery.of(context).padding.bottom),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hobby chip (read-only, from user's current hobby)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
@@ -194,7 +189,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Title Input
                   _buildLabel('Title'),
                   const SizedBox(height: 8),
                   TextField(
@@ -210,7 +204,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Content Input
                   _buildLabel('Content'),
                   const SizedBox(height: 8),
                   TextField(
@@ -226,7 +219,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Image Picker
                   _buildLabel('Image (optional)'),
                   const SizedBox(height: 8),
                   if (_selectedImage != null)
@@ -284,7 +276,6 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                     ),
                   const SizedBox(height: 24),
 
-                  // Action Buttons
                   Row(
                     children: [
                       Expanded(

@@ -15,7 +15,6 @@ void main() async {
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await RiveNative.init();
-  // Safe loading for .env
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -33,17 +32,13 @@ class HobbyQuestApp extends StatelessWidget {
       title: 'HobbyQuest',
       debugShowCheckedModeBanner: false,
 
-      // 1. Apply the Theme
       theme: AppTheme.lightTheme,
 
-      // 2. Set up Named Routes
       initialRoute: AppRoutes.WELCOME,
       getPages: AppPages.routes,
 
-      // 3. Global Dependencies
       initialBinding: InitialBinding(),
 
-      // 4. Smooth Transitions
       defaultTransition: Transition.cupertino,
     );
   }

@@ -39,7 +39,6 @@ class OnboardingView extends StatelessWidget {
         children: [
           Column(
             children: [
-              // 📊 PROGRESS BAR
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
                 child: Column(
@@ -80,7 +79,6 @@ class OnboardingView extends StatelessWidget {
                 ),
               ),
 
-              // 📖 PAGES
               Expanded(
                 child: PageView(
                   controller: controller.pageController,
@@ -96,7 +94,6 @@ class OnboardingView extends StatelessWidget {
               ),
             ],
           ),
-          // Loading overlay during AI generation
           Obx(() => controller.isGenerating.value
               ? const LoadingScreen()
               : const SizedBox.shrink()

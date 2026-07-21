@@ -15,10 +15,10 @@ class LevelUpScreen extends StatefulWidget {
 }
 
 class _LevelUpScreenState extends State<LevelUpScreen> {
-  late final ConfettiController _ctrTL; // top-left
-  late final ConfettiController _ctrTR; // top-right
-  late final ConfettiController _ctrBL; // bottom-left
-  late final ConfettiController _ctrBR; // bottom-right
+  late final ConfettiController _ctrTL;
+  late final ConfettiController _ctrTR;
+  late final ConfettiController _ctrBL;
+  late final ConfettiController _ctrBR;
 
   @override
   void initState() {
@@ -119,7 +119,6 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
             const Expanded(child: SizedBox.shrink()),
           ],
         ),
-        // Four corners confetti
         _buildConfetti(Alignment.topLeft, _ctrTL),
         _buildConfetti(Alignment.topRight, _ctrTR),
         _buildConfetti(Alignment.bottomLeft, _ctrBL),

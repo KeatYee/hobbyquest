@@ -12,32 +12,29 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Initialize the controller
     final DashboardController controller = Get.put(DashboardController());
     controller.applyRouteArguments(Get.arguments);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       
-      // ✅ IndexedStack preserves the state of pages (scrolling, text inputs)
       body: Obx(() => IndexedStack(
         index: controller.tabIndex.value,
         children: const [
-          HomePage(),                      // Index 0: Your detailed Home Page
-          MapPage(),                       // Index 1: Map
-          GuildPage(), // Index 2: Guild
-          ProfilePage(),                        // Index 3: Profile with Logout
+          HomePage(),
+          MapPage(),
+          GuildPage(),
+          ProfilePage(),
         ],
       )),
 
-      // ✅ Bottom Navigation Bar with your Theme Colors
       bottomNavigationBar: Obx(() => BottomNavigationBar(
           currentIndex: controller.tabIndex.value,
           onTap: controller.changeTabIndex,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface, // Pure White
-          selectedItemColor: AppColors.primary, // Orange
-          unselectedItemColor: AppColors.textSecondary, // Grey
+          backgroundColor: AppColors.surface,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textSecondary,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           showUnselectedLabels: true,

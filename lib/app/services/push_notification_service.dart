@@ -289,7 +289,6 @@ class PushNotificationService extends GetxService {
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
-      // The profile may not exist yet, or it may already be deleted.
     } finally {
       if (_lastUid == uid && _lastToken == token) {
         _lastUid = null;
@@ -322,7 +321,6 @@ class PushNotificationService extends GetxService {
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
-      // The profile may not exist yet, or it may already be deleted.
     } finally {
       if (_lastUid == uid && tokens.contains(_lastToken)) {
         _lastUid = null;
@@ -342,7 +340,6 @@ class PushNotificationService extends GetxService {
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
-      // The profile may not exist yet, or it may already be deleted.
     } finally {
       _lastUid = null;
       _lastToken = null;

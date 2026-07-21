@@ -18,22 +18,19 @@ class OnboardingController extends GetxController {
   final CategoryService _categoryService = CategoryService();
   final GeminiService _geminiService = GeminiService();
 
-  late PageController pageController; // Controller for PageView
-  var currentPage = 0.obs; // Track current onboarding step
+  late PageController pageController;
+  var currentPage = 0.obs;
   var minimumPage = 0;
-  var isGenerating = false.obs; // Loading state for plan generation
+  var isGenerating = false.obs;
 
-  // --- CATEGORIES (Fetched from Firestore) ---
   var categories = Rx<List<CategoryModel>>([]);
   var isLoadingCategories = true.obs;
 
-  // --- STEP 1: IDENTITY ---
   final nickname = TextEditingController();
   final age = TextEditingController();
   var gender = "".obs;
   var avatarSvg = "".obs;
 
-  // --- AVATAR SELECTION ---
   static const List<Map<String, String>> _avatarClasses = [
     {
       'name': 'Cultivator',
@@ -101,7 +98,6 @@ class OnboardingController extends GetxController {
         });
       }
     } else {
-      // No gender or "Other": show all 12 avatars
       for (final avatar in _avatarClasses) {
         result.add({
           'name': avatar['name']!,
@@ -128,7 +124,6 @@ class OnboardingController extends GetxController {
     } else if (newGender == "Female" && !avatarSvg.value.contains('_f.')) {
       avatarSvg.value = "";
     }
-    // For "Other", keep any avatar
   }
 
   void updateAvatar(String svg) {
@@ -140,30 +135,26 @@ class OnboardingController extends GetxController {
     if (avatarSvg.value.isEmpty) return "";
     final filename = avatarSvg.value
         .split('/')
-        .last; // e.g. "avatar_cultivator_m.png"
+        .last;
     final parts = filename.split('_');
     if (parts.length >= 3) {
-      final name = parts[1]; // "cultivator"
+      final name = parts[1];
       return name[0].toUpperCase() + name.substring(1);
     }
     return "";
   }
 
-  // --- STEP 2: CATEGORY + HOBBY ---
   var category = "".obs;
   var hobby = "".obs;
 
-  // --- STEP 3: LEVEL ---
   var level = "Novice".obs;
 
-  // --- STEP 4: GOALS ---
   var learningPace = "".obs;
   final goalController = TextEditingController();
   var isGoalValidating = false.obs;
   var goalValidationError = ''.obs;
   var isPredefinedGoal = false.obs;
 
-  // --- THE GENERATED PLAN (For Summary View) ---
   var generatedPlan = Rx<QuestPlanModel>(
     QuestPlanModel(
       hobby: "",
@@ -217,29 +208,23 @@ class OnboardingController extends GetxController {
     }
   }
 
-  // --- NAVIGATION LOGIC ---
   Future<void> nextPage() async {
     if (!pageController.hasClients) {
       print("--- ERROR: PageController has no clients ---");
       return;
     }
 
-    // Validate current step before advancing
     if (!_validateCurrentStep()) {
       return;
     }
 
-    // Close keyboard to prevent animation crashes
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // If we are on final step (Goals), generate plan.
     if (currentPage.value == 3) {
       await _generateAndShowPlan();
       return;
     }
 
-    // Standard Navigation for Steps 1-3
-    // Wait for keyboard to close before animating
     await Future.delayed(const Duration(milliseconds: 300));
 
     try {
@@ -271,9 +256,7 @@ class OnboardingController extends GetxController {
     }
   }
 
-  // --- 🧠 LOGIC: Generate Plan (Step 5 Action) ---
   Future<void> _generateAndShowPlan() async {
-    // 1. Validate the goal with AI first (skip for predefined goals)
     if (!isPredefinedGoal.value) {
       isGoalValidating.value = true;
       goalValidationError.value = '';
@@ -301,8 +284,7 @@ class OnboardingController extends GetxController {
       isGoalValidating.value = false;
     }
 
-    // 2. Generate the plan
-    isGenerating.value = true; // Start loading spinner
+    isGenerating.value = true;
 
     try {
       generatedPlan.value = await _geminiService.generateQuestPlan(
@@ -337,10 +319,9 @@ class OnboardingController extends GetxController {
         quests: [],
       );
     } finally {
-      isGenerating.value = false; // Stop loading
+      isGenerating.value = false;
     }
 
-    // 3. Navigate to Summary Page (Do NOT save to DB yet)
     Get.to(() => const PlanSummaryView());
   }
 
@@ -366,8 +347,6 @@ class OnboardingController extends GetxController {
     return true;
   }
 
-  // --- 💾 LOGIC: Confirm & Save (Summary Page Action) ---
-  // This is called when user clicks "Accept & Start"
   Future<void> confirmAndStart() async {
     print("--- USER ACCEPTED PLAN. SAVING TO DB... ---");
 
@@ -376,7 +355,6 @@ class OnboardingController extends GetxController {
       await _saveUserDataToFirestore();
       isGenerating.value = false;
 
-      // ✅ Navigate to Dashboard (Main App)
       Get.offAllNamed(AppRoutes.DASHBOARD);
     } catch (e) {
       isGenerating.value = false;
@@ -399,12 +377,10 @@ class OnboardingController extends GetxController {
           ? null
           : UserModel.fromJson(existingUserData, uid);
 
-      // Build the initial plan with milestones and quests
       final planWithData = await _buildInitialPlanWithMilestoneQuests();
       final planRef = userRef.collection('plans').doc();
       final planId = planRef.id;
 
-      // Build milestones with IDs
       final milestones = planWithData.milestones.asMap().entries.map((e) {
         return e.value.copyWith(
           id: e.value.id.isNotEmpty ? e.value.id : 'ms_${e.key}',
@@ -412,12 +388,10 @@ class OnboardingController extends GetxController {
         );
       }).toList();
 
-      // Prepare quests (set as active, not completed — preserve DAG)
       final quests = planWithData.quests
           .map((q) => q.copyWith(isActive: true, isCompleted: false))
           .toList();
 
-      // Create UserModel WITHOUT milestones/quests in currentPlan
       final existingCategoryXp =
           existingUser?.categoryXp ?? const <String, int>{};
       final categoryXp = <String, int>{
@@ -454,7 +428,6 @@ class OnboardingController extends GetxController {
         lastQuestCompletionDate: existingUser?.lastQuestCompletionDate,
       );
 
-      // Save user profile to user doc (currentPlan not serialized)
       final userData = userModel.toJson();
       if (existingUser?.createdAt == null) {
         userData['createdAt'] = FieldValue.serverTimestamp();
@@ -463,7 +436,6 @@ class OnboardingController extends GetxController {
 
       await userRef.set(userData, SetOptions(merge: true));
 
-      // Write plan metadata to subcollection
       await planRef.set(
         planWithData
             .copyWith(
@@ -476,12 +448,10 @@ class OnboardingController extends GetxController {
             .toJson(),
       );
 
-      // Write milestones to subcollection
       for (final ms in milestones) {
         await planRef.collection('milestones').doc(ms.id).set(ms.toJson());
       }
 
-      // Write quests to subcollection
       for (final quest in quests) {
         await planRef
             .collection('quests')
@@ -489,7 +459,6 @@ class OnboardingController extends GetxController {
             .set(quest.toJson());
       }
 
-      // Save initial goal history
       await GoalHistoryService.saveGoalHistory(
         uid,
         GoalHistoryModel(
@@ -539,10 +508,8 @@ class OnboardingController extends GetxController {
     );
   }
 
-  // --- FIRESTORE SEEDING (For Dev Only) ---
   Future<void> seedCategories() async {
     print("--- SEEDING FIRESTORE ---");
-    // Quick guard: if the collection already has documents, skip seeding.
     final collection = FirebaseFirestore.instance.collection('categories');
     final existingSnapshot = await collection.limit(1).get();
     if (existingSnapshot.docs.isNotEmpty) {
@@ -552,10 +519,9 @@ class OnboardingController extends GetxController {
       return;
     }
 
-    // 1. Define the Data
     List<CategoryModel> initialData = [
       CategoryModel(
-        id: '', // Firestore will generate this
+        id: '',
         name: "Creative Arts",
         description: "Express yourself visually",
         iconCodePoint: Icons.palette.codePoint,
@@ -857,9 +823,7 @@ class OnboardingController extends GetxController {
       ),
     ];
 
-    // 2. Upload Loop
     for (var category in initialData) {
-      // Check if exists to prevent duplicates
       var snapshot = await collection
           .where('name', isEqualTo: category.name)
           .get();
@@ -876,7 +840,6 @@ class OnboardingController extends GetxController {
 
   @override
   void onClose() {
-    // Properly dispose of resources
     pageController.dispose();
     nickname.dispose();
     age.dispose();

@@ -15,16 +15,12 @@ class AuthController extends GetxController {
   }
 
   Future<void> checkUserStatus() async {
-    // 1. Check if user is logged into Firebase Auth
     User? currentUser = _auth.currentUser;
 
     if (currentUser == null) {
-      // Case A: Not logged in at all -> Go to Welcome/Login
       Get.offAllNamed(AppRoutes.WELCOME);
     } else {
       try {
-        // Case B: Logged in! But did they finish onboarding?
-        // Check if their document exists in the 'users' collection
         final userDoc = await _db
             .collection('users')
             .doc(currentUser.uid)
@@ -35,14 +31,12 @@ class AuthController extends GetxController {
             await Get.find<PushNotificationService>().registerCurrentDevice();
           }
 
-          // Case B1: Profile exists -> Go to Dashboard
           Get.offAllNamed(AppRoutes.DASHBOARD);
           if (Get.isRegistered<PushNotificationService>()) {
             await Get.find<PushNotificationService>()
                 .openPendingInitialMessageIfAny();
           }
         } else {
-          // Case B2: Zombie User (Auth yes, Data no) -> Force back to Onboarding
           print(
             "User has account but no profile. Redirecting to Onboarding...",
           );

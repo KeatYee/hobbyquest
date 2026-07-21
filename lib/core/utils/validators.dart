@@ -1,7 +1,6 @@
 import 'package:get/get.dart'; 
 
 class Validators {
-  // Check Email
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
@@ -12,7 +11,6 @@ class Validators {
     return null; 
   }
 
-  // Check Password
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -23,7 +21,6 @@ class Validators {
     return null;
   }
 
-  // Check Name
   static String? validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';
@@ -34,7 +31,6 @@ class Validators {
     return null;
   }
 
-  // Check Date
   static String? validateDate(String? value) {
     if (value == null || value.isEmpty) {
       return 'Birth date is required';

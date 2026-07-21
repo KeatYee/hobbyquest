@@ -24,7 +24,6 @@ class GuildPage extends StatelessWidget {
     return SafeArea(
       child: Stack(
         children: [
-          // Main content — full screen
           Obx(() {
             if (controller.isLoading.value) {
               return _buildLoadingView(context);
@@ -46,7 +45,6 @@ class GuildPage extends StatelessWidget {
   void _showAddPostDialog(BuildContext context, GuildController controller) {
     if (controller.categories.isEmpty) return;
 
-    // Resolve hobby and categoryId from user's current plan
     String hobby = '';
     String categoryId = '';
     try {
@@ -54,7 +52,6 @@ class GuildPage extends StatelessWidget {
       hobby = homeController.hobby.value;
     } catch (_) {}
 
-    // Match hobby to a category
     for (final category in controller.categories) {
       if (category.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
         categoryId = category.id;
@@ -314,7 +311,6 @@ class GuildPage extends StatelessWidget {
     final sliderValues = <String, RxDouble>{};
     final isSubmitting = false.obs;
 
-    // Initialize slider values from axes
     for (final axis in axes) {
       sliderValues[axis.label] = 3.0.obs;
     }
@@ -334,7 +330,6 @@ class GuildPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Drag handle
             Container(
               margin: const EdgeInsets.only(top: 12),
               width: 40,
@@ -345,7 +340,6 @@ class GuildPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -368,7 +362,6 @@ class GuildPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -385,7 +378,6 @@ class GuildPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Dynamic sliders
                     ...axes.map((axis) => Padding(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: _buildRatingSlider(
@@ -395,7 +387,6 @@ class GuildPage extends StatelessWidget {
                       ),
                     )),
                     const SizedBox(height: 8),
-                    // Submit button
                     Center(
                       child: Obx(() => SizedBox(
                         width: double.infinity,
@@ -527,7 +518,6 @@ class GuildPage extends StatelessWidget {
   }
 }
 
-// ── Top-level helpers ──────────────────────────────────────
 
 String? _formatTime(DateTime? createdAt) {
   if (createdAt == null) return null;
@@ -554,9 +544,6 @@ Widget _buildPostImage(String imageUrl) {
   return const SizedBox.shrink();
 }
 
-// ═══════════════════════════════════════════════
-//  Stats Dialog
-// ═══════════════════════════════════════════════
 
 void _showStatsDialog(BuildContext context, GuildController controller, GuildPostModel post) {
   final avg = _averageRatingsFrom(post);
@@ -572,7 +559,6 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 const Text(
@@ -603,7 +589,6 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                 ),
               )
             else ...[
-              // Radar chart
               SizedBox(
                 height: 280,
                 child: RadarChart(
@@ -719,9 +704,6 @@ Map<String, double> _averageRatingsFrom(GuildPostModel post) {
   return totals.map((k, v) => MapEntry(k, v / counts[k]!));
 }
 
-// ═══════════════════════════════════════════════
-//  Post Card
-// ═══════════════════════════════════════════════
 
 class _GuildPostCard extends StatelessWidget {
   final GuildController controller;
@@ -770,7 +752,6 @@ class _GuildPostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -847,7 +828,6 @@ class _GuildPostCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // Title
           Text(
             post.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -856,7 +836,6 @@ class _GuildPostCard extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 6),
-          // Body
           Text(
             post.body,
             style: const TextStyle(
@@ -864,10 +843,8 @@ class _GuildPostCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          // Image
           if (hasImage) ...[const SizedBox(height: 12), _buildPostImage(post.imageUrl)],
           const SizedBox(height: 14),
-          // Metrics row
           Row(
             children: [
               ...GuildController.reactionEmojis.map((emoji) {
@@ -909,7 +886,6 @@ class _GuildPostCard extends StatelessWidget {
               }),
               const SizedBox(width: 8),
               const Spacer(),
-              // Peer Review button
               Obx(() {
                 final reviewed = controller.hasUserReviewed(post.id);
                 return GestureDetector(

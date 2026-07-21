@@ -10,7 +10,6 @@ class WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Helper to get text theme
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -22,8 +21,6 @@ class WelcomePage extends StatelessWidget {
             children: [
               const Spacer(flex: 1),
 
-              // 1. THE HERO TITLE
-              // Uses "displayLarge" which we set to Fredoka in app_theme.dart
               Text(
                 "HOBBY QUEST",
                 style: textTheme.displayLarge,
@@ -31,8 +28,6 @@ class WelcomePage extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               
-              // 2. THE SUBTITLE
-              // Uses "bodyLarge" which we set to OpenSans in app_theme.dart
               Text(
                 "Level up your real life.",
                 style: textTheme.bodyLarge?.copyWith(
@@ -43,7 +38,6 @@ class WelcomePage extends StatelessWidget {
 
               const Spacer(flex: 1), 
 
-              // 3. THE MASCOT
               RiveAnimationWidget(
                 assetPath: AppAssets.hobieRive,
                 height: 300,
@@ -52,7 +46,6 @@ class WelcomePage extends StatelessWidget {
 
               const Spacer(flex: 2),
 
-              // 4. BUTTON: GET STARTED
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -60,13 +53,11 @@ class WelcomePage extends StatelessWidget {
                   onPressed: () {
                     Get.toNamed(AppRoutes.LOGIN, arguments: {'isRegistering': true});
                   },
-                  // Style is already defined in app_theme.dart, so we don't need much here!
                   child: const Text("GET STARTED"),
                 ),
               ),
               const SizedBox(height: 15),
 
-              // 5. BUTTON: LOGIN
               SizedBox(
                 width: double.infinity,
                 height: 55,

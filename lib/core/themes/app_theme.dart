@@ -8,11 +8,9 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.light,
     
-    // 🎨 Global Colors
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: AppColors.background,
     
-    // 🌈 Color Scheme
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.secondary,
@@ -21,9 +19,7 @@ class AppTheme {
       background: AppColors.background,
     ),
 
-    // 🔤 GLOBAL TEXT THEME
     textTheme: TextTheme(
-      // ✅ ONLY FOR LOGO: "HOBBY QUEST" (Fredoka)
       displayLarge: GoogleFonts.fredoka(
         fontSize: AppFonts.logo,
         fontWeight: FontWeight.w900,
@@ -31,14 +27,12 @@ class AppTheme {
         letterSpacing: 2.0,
       ),
       
-      // All other headers: Open Sans (Clean & Modern)
       headlineLarge: GoogleFonts.openSans(
         fontSize: AppFonts.titlePage,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
       
-      // Body Text: Open Sans
       bodyLarge: GoogleFonts.openSans(
         fontSize: 16,
         color: AppColors.textPrimary,
@@ -48,7 +42,6 @@ class AppTheme {
         color: AppColors.textSecondary,
       ),
       
-      // Button Text: Open Sans (Readable)
       labelLarge: GoogleFonts.openSans(
         fontSize: 16,
         fontWeight: FontWeight.bold,
@@ -56,7 +49,6 @@ class AppTheme {
       ),
     ),
 
-    // 🔘 Buttons
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
@@ -65,15 +57,13 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        // Use Open Sans for Buttons
         textStyle: GoogleFonts.openSans(
           fontSize: AppFonts.title, 
-          fontWeight: FontWeight.w800, // Extra Bold
+          fontWeight: FontWeight.w800,
         ),
       ),
     ),
 
-    // ⭕ Outline Buttons
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primary,
@@ -82,15 +72,13 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        // Use Open Sans for Buttons
         textStyle: GoogleFonts.openSans(
           fontSize: 16,
-          fontWeight: FontWeight.w800, // Extra Bold
+          fontWeight: FontWeight.w800,
         ),
       ),
     ),
 
-    // ⬜ Input Fields
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surface,
@@ -103,17 +91,14 @@ class AppTheme {
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: AppColors.primary, width: 2),
       ),
-      // Use Open Sans for labels
       labelStyle: GoogleFonts.openSans(color: AppColors.textSecondary),
     ),
 
-    // 🧊 AppBar
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
       centerTitle: true,
       iconTheme: const IconThemeData(color: AppColors.textPrimary),
-      // Use Open Sans for page titles (Navigation)
       titleTextStyle: GoogleFonts.openSans(
         color: AppColors.textPrimary,
         fontSize: AppFonts.titleLg,

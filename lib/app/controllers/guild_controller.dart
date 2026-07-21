@@ -43,14 +43,11 @@ class GuildController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Listen for auth state changes (handles restore from persistence)
     _authSubscription = _auth.authStateChanges().listen((user) {
       currentUserId.value = user?.uid;
-      // Load current user's own profile so it shows in reviewer lists
       if (user != null) {
         _ensureProfileLoaded(user.uid);
       }
-      // Re-populate user state whenever auth changes (sign-in, restore, etc.)
       if (posts.isNotEmpty) {
         _populateCurrentUserState();
       }
@@ -138,13 +135,11 @@ class GuildController extends GetxController {
           .where((post) => post.title.trim().isNotEmpty)
           .toList();
 
-      // Load user profiles for avatars/nicknames (post authors + reviewers)
       final userIds = loadedPosts
           .map((post) => post.userId.trim())
           .where((userId) => userId.isNotEmpty)
           .toSet();
 
-      // Also include reviewer user IDs so their profiles are loaded
       for (final post in loadedPosts) {
         for (final reviewerId in post.peerReviews.keys) {
           if (reviewerId.trim().isNotEmpty) {
@@ -173,10 +168,8 @@ class GuildController extends GetxController {
       userNicknames.value = loadedUserNicknames;
       userPostStatsVisible.value = loadedUserPostStatsVisible;
 
-      // Populate reactions & peer reviews for the current user
       _populateCurrentUserState();
 
-      // Debug: log loaded peer review state
       for (final post in loadedPosts) {
         if (post.peerReviews.isNotEmpty) {
           print('--- Post ${post.id} has ${post.peerReviews.length} review(s): ${post.peerReviews.keys.toList()} ---');
@@ -291,7 +284,6 @@ class GuildController extends GetxController {
   ///   1 pt  — same character class (from avatar)
   ///   tiebreaker: createdAt descending
   List<GuildPostModel> get sortedByRelevance {
-    // Gather current user context from HomeController
     String? currentHobby;
     String? currentCategoryId;
     String? currentCharacterClass;
@@ -303,7 +295,6 @@ class GuildController extends GetxController {
         if (hobbyTrimmed.isNotEmpty) {
           currentHobby = hobbyTrimmed.toLowerCase();
           currentCharacterClass = extractCharacterClass(hc.avatarSvg.value);
-          // Resolve the category that contains the user's hobby
           for (final cat in categories) {
             if (cat.hobbyNames.any((h) => h.toLowerCase() == currentHobby)) {
               currentCategoryId = cat.id;
@@ -312,28 +303,23 @@ class GuildController extends GetxController {
           }
         }
       } catch (_) {
-        // HomeController not ready — fall through to default sort
       }
     }
 
-    // If no context available, fall back to chronological sort
     if (currentHobby == null) {
       final sorted = List<GuildPostModel>.from(posts)
         ..sort((a, b) => _compareDesc(a.createdAt, b.createdAt));
       return _withFocusedPostFirst(sorted);
     }
 
-    // Score each post
     final Map<GuildPostModel, int> scored = {};
     for (final post in posts) {
       int score = 0;
 
-      // Hobby match (strongest signal)
       if (post.hobby.toLowerCase() == currentHobby) {
         score += 5;
       }
 
-      // Category match when hobby differs (medium signal)
       if (currentCategoryId != null &&
           post.categoryId.isNotEmpty &&
           post.categoryId == currentCategoryId &&
@@ -341,7 +327,6 @@ class GuildController extends GetxController {
         score += 2;
       }
 
-      // Character class match (weakest signal)
       if (currentCharacterClass != null && currentCharacterClass.isNotEmpty) {
         final authorClass = extractCharacterClass(userAvatars[post.userId] ?? '');
         if (authorClass == currentCharacterClass) {
@@ -352,7 +337,6 @@ class GuildController extends GetxController {
       scored[post] = score;
     }
 
-    // Sort by score desc, then by createdAt desc
     final sorted = scored.entries.toList()
       ..sort((a, b) {
         final cmp = b.value.compareTo(a.value);
@@ -417,7 +401,6 @@ class GuildController extends GetxController {
         throw Exception('User not authenticated');
       }
 
-      // Upload image to ImgBB if provided
       String imageUrl = '';
       if (imageFile != null) {
         print('--- Uploading guild post image to ImgBB ---');
@@ -426,7 +409,7 @@ class GuildController extends GetxController {
       }
 
       final newPost = GuildPostModel(
-        id: '', // Firestore will generate ID
+        id: '',
         userId: uid,
         hobby: hobby,
         categoryId: categoryId,
@@ -437,14 +420,12 @@ class GuildController extends GetxController {
         createdAt: DateTime.now(),
       );
 
-      // Add to Firestore and get the document reference
       final docRef = await _firestore
           .collection(_guildPostsCollection)
           .add(newPost.toJson());
 
       print('--- SUCCESS: Guild post created with ID: ${docRef.id} ---');
 
-      // Reload posts to reflect the new post
       await loadAllData();
 
       return docRef.id;
@@ -469,7 +450,6 @@ class GuildController extends GetxController {
       final alreadyReacted = currentUserEmojis.contains(emoji);
 
       if (alreadyReacted) {
-        // Remove reaction
         await postRef.update({
           'reactions.$emoji': FieldValue.arrayRemove([uid]),
         });
@@ -496,7 +476,6 @@ class GuildController extends GetxController {
 
         print('--- SUCCESS: Removed reaction $emoji from post $postId ---');
       } else {
-        // Add reaction
         await postRef.update({
           'reactions.$emoji': FieldValue.arrayUnion([uid]),
         });
@@ -530,7 +509,6 @@ class GuildController extends GetxController {
         throw Exception('User not authenticated');
       }
 
-      // Verify user owns the post
       final postDoc = await _firestore
           .collection(_guildPostsCollection)
           .doc(postId)
@@ -543,7 +521,6 @@ class GuildController extends GetxController {
 
       await _firestore.collection(_guildPostsCollection).doc(postId).delete();
 
-      // Remove from local list
       posts.removeWhere((p) => p.id == postId);
 
       print('--- SUCCESS: Post deleted: $postId ---');
@@ -552,7 +529,6 @@ class GuildController extends GetxController {
     }
   }
 
-  // --- FIRESTORE SEEDING (For Dev Only) ---
 
   /// Demo user IDs used across seeded posts and peer reviews.
   /// Documents for these users are also created in Firestore
@@ -645,10 +621,8 @@ class GuildController extends GetxController {
     print("--- SEEDING GUILD POSTS ---");
     final collection = _firestore.collection(_guildPostsCollection);
 
-    // Seed demo user documents first so avatars/nicknames resolve
     await seedDemoUsers();
 
-    // Fetch categories so we can map by name to real category IDs
     final refreshedCategories = await _firestore.collection('categories').get();
     Map<String, String> categoryMap = {};
     for (var doc in refreshedCategories.docs) {
@@ -658,22 +632,12 @@ class GuildController extends GetxController {
       }
     }
 
-    // 1. Define the Data
-    // ──────────────────────────────────────────────
-    // Each post: userId, hobby, categoryId, title, body,
-    //            imageUrl (empty), reactions, peerReviews, createdAt
-    //
-    // peerReviews structure:
-    //   { reviewerUserId: { axisLabel1: rating1, axisLabel2: rating2, ... } }
-    // Axis labels MUST match the hobby's axes defined in CategoryModel.
-    // ──────────────────────────────────────────────
     final creativeArtsId = categoryMap['Creative Arts'] ?? '';
     final musicId = categoryMap['Music & Performing'] ?? '';
     final wellnessId = categoryMap['Lifestyle & Wellness'] ?? '';
     final strategyId = categoryMap['Skill & Strategy'] ?? '';
 
     List<Map<String, dynamic>> initialData = [
-      // ----- Creative Arts -----
       {
         'userId': _demoUsers[0],
         'hobby': 'Painting',
@@ -716,7 +680,6 @@ class GuildController extends GetxController {
         'createdAt': DateTime.now().subtract(const Duration(days: 6)),
       },
 
-      // ----- Music & Performing -----
       {
         'userId': _demoUsers[3],
         'hobby': 'Guitar',
@@ -745,7 +708,6 @@ class GuildController extends GetxController {
         'createdAt': DateTime.now().subtract(const Duration(days: 4)),
       },
 
-      // ----- Lifestyle & Wellness -----
       {
         'userId': _demoUsers[5],
         'hobby': 'Yoga',
@@ -772,7 +734,6 @@ class GuildController extends GetxController {
         'createdAt': DateTime.now().subtract(const Duration(days: 4)),
       },
 
-      // ----- Skill & Strategy -----
       {
         'userId': _demoUsers[1],
         'hobby': 'Coding',
@@ -815,9 +776,7 @@ class GuildController extends GetxController {
       },
     ];
 
-    // 2. Upload Loop
     for (var data in initialData) {
-      // Check if exists to prevent duplicates
       var snapshot = await collection.where('title', isEqualTo: data['title']).get();
       if (snapshot.docs.isEmpty) {
         await collection.add(data);
@@ -839,7 +798,6 @@ class GuildController extends GetxController {
     return posts.where((post) => post.categoryId == categoryId).toList();
   }
 
-  // --- Peer Review ---
 
   /// Whether the current user has already reviewed a given post.
   bool hasUserReviewed(String postId) {
@@ -869,7 +827,6 @@ class GuildController extends GetxController {
     final uid = currentUserId.value;
     if (uid == null) return false;
 
-    // Guard: one review per user per post
     final postIndex = posts.indexWhere((p) => p.id == postId);
     if (postIndex >= 0 && posts[postIndex].peerReviews.containsKey(uid)) {
       print('--- SKIP: User $uid already reviewed post $postId ---');
@@ -879,7 +836,6 @@ class GuildController extends GetxController {
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
 
-      // Read current document, update peerReviews explicitly, write back
       final snapshot = await postRef.get();
       final currentPeerReviews = Map<String, dynamic>.from(
         (snapshot.data()?['peerReviews'] as Map?) ?? {},
@@ -887,7 +843,6 @@ class GuildController extends GetxController {
       currentPeerReviews[uid] = ratings;
       await postRef.update({'peerReviews': currentPeerReviews});
 
-      // Update local state
       if (postIndex >= 0) {
         final existingReviews = Map<String, Map<String, double>>.from(
           posts[postIndex].peerReviews,
@@ -896,11 +851,9 @@ class GuildController extends GetxController {
         posts[postIndex] = posts[postIndex].copyWith(peerReviews: existingReviews);
         posts.refresh();
 
-        // Track which posts the current user has reviewed
         userPeerReviews[postId] = <String>{uid};
       }
 
-      // Ensure the reviewer's own profile is cached for the reviewer display
       _ensureProfileLoaded(uid);
 
       print('--- SUCCESS: Peer review submitted for post $postId ---');

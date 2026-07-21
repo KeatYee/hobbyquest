@@ -6,7 +6,6 @@ import '../constants/color_constants.dart';
 /// All dialogs share consistent styling: 16px rounded corners,
 /// AppColors buttons, and the same text/color hierarchy.
 class AppDialogs {
-  // ── Private: base dialog wrapper ──────────────────────────────
   static Widget _buildContainer({required Widget child}) {
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -16,7 +15,6 @@ class AppDialogs {
     );
   }
 
-  // ── Loading ──────────────────────────────────────────────────
 
   /// Shows a non-dismissible loading dialog with the given [message].
   static void showLoading({String message = 'Loading...'}) {
@@ -46,7 +44,6 @@ class AppDialogs {
     if (Get.isDialogOpen == true) Get.back();
   }
 
-  // ── Confirmation ─────────────────────────────────────────────
 
   /// Standard confirm/cancel dialog. Returns `true` when confirmed.
   static Future<bool?> confirm({
@@ -199,7 +196,6 @@ class AppDialogs {
     );
   }
 
-  // ── Single text field input ───────────────────────────────────
 
   /// Shows a dialog with a text field. Returns the entered text
   /// when confirmed, or `null` if cancelled.
@@ -221,7 +217,6 @@ class AppDialogs {
       _buildContainer(
         child: StatefulBuilder(
           builder: (context, setLocalState) {
-            // Re-validate on every render so inline error stays in sync
             final errorText = validator != null ? validator(textController.text) : null;
 
             return Padding(
@@ -287,7 +282,6 @@ class AppDialogs {
     );
   }
 
-  // ── Custom content wrapper ───────────────────────────────────
 
   /// Wraps custom [builder] content inside the standard dialog
   /// container. Use this for complex dialogs (feedback, share, etc.)
@@ -301,7 +295,6 @@ class AppDialogs {
     );
   }
 
-  // ── Date picker ────────────────────────────────────────────────
 
   /// Shows a dialog with a date picker button. Returns the selected
   /// date as `YYYY-MM-DD`, or `null` if cancelled.
@@ -321,7 +314,6 @@ class AppDialogs {
     } else {
       selectedDate = DateTime(now.year - 30, now.month, now.day);
     }
-    // Clamp to valid range
     final minDate = firstDate ?? DateTime(now.year - 150, 1, 1);
     final maxDate = lastDate ?? now;
     if (selectedDate.isBefore(minDate)) selectedDate = minDate;
@@ -350,7 +342,6 @@ class AppDialogs {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Tappable date field — styled to match the input dialog's TextField
                   TextField(
                     autofocus: true,
                     readOnly: true,
@@ -417,7 +408,6 @@ class AppDialogs {
     );
   }
 
-  // ── Snackbars / Toasts ───────────────────────────────────────
 
   /// Green success toast.
   static void success(

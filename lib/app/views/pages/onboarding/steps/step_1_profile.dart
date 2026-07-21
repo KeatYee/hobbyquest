@@ -43,12 +43,10 @@ class _Step1ProfileState extends State<Step1Profile> {
           children: [
             const SizedBox(height: 20),
 
-            // --- AVATAR SECTION (TOP) ---
             _buildAvatarSection(controller, textTheme),
 
             const SizedBox(height: 20),
 
-            // Nickname Input
             TextFormField(
               controller: controller.nickname,
               textCapitalization: TextCapitalization.words,
@@ -111,7 +109,6 @@ class _Step1ProfileState extends State<Step1Profile> {
 
             const SizedBox(height: 20),
 
-            // Birth Date Input
             TextFormField(
               controller: controller.age,
               readOnly: true,
@@ -228,7 +225,6 @@ class _Step1ProfileState extends State<Step1Profile> {
       final avatars = controller.getFilteredAvatars(controller.gender.value);
       final selectedPath = controller.avatarSvg.value;
 
-      // Reset carousel when avatar list changes (gender switch)
       if (_prevAvatarCount != -1 && _prevAvatarCount != avatars.length) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_hasSingleAvatarCarouselClient) {

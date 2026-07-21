@@ -55,8 +55,6 @@ class GrowthLetterService {
       return GrowthLetterModel.fromJson(doc.data()!, docId: doc.id);
     }
 
-    // Preserve compatibility with letters created before week-based IDs were
-    // introduced.
     final legacy = await _lettersCol(uid)
         .where('periodStart', isEqualTo: Timestamp.fromDate(periodStart))
         .limit(1)
@@ -180,8 +178,6 @@ class GrowthLetterService {
         periodEnd: week.endExclusive.subtract(const Duration(microseconds: 1)),
       ).toJson();
 
-    // A transaction makes the saved letter idempotent across multiple devices.
-    // It never replaces an existing week's content.
     await _firestore.runTransaction((transaction) async {
       final current = await transaction.get(docRef);
       if (!current.exists) transaction.set(docRef, letterData);

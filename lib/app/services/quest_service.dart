@@ -21,9 +21,6 @@ class GoalCompletionTestSeedResult {
 }
 
 class QuestService {
-  // ──────────────────────────────────────────────
-  //  Subcollection reference helpers
-  // ──────────────────────────────────────────────
 
   static String _planDocPath(String uid, String planId) =>
       'users/$uid/plans/$planId';
@@ -64,9 +61,6 @@ class QuestService {
           .doc(planId)
           .collection('quests');
 
-  // ──────────────────────────────────────────────
-  //  Read helpers
-  // ──────────────────────────────────────────────
 
   /// Loads plan metadata document from `users/{uid}/plans/{planId}`.
   static Future<QuestPlanModel> loadPlan(
@@ -99,9 +93,6 @@ class QuestService {
     }).toList();
   }
 
-  // ──────────────────────────────────────────────
-  //  Write helpers
-  // ──────────────────────────────────────────────
 
   /// Saves/replaces plan metadata document.
   static Future<void> savePlan(
@@ -292,9 +283,6 @@ class QuestService {
     return matches.isEmpty ? 0 : int.tryParse(matches.last.group(1)!) ?? 0;
   }
 
-  // ──────────────────────────────────────────────
-  //  addQuestsToPlan — writes to subcollections
-  // ──────────────────────────────────────────────
 
   /// Writes quests, milestones, and plan metadata to subcollections.
   /// Returns the updated [UserModel] with in-memory populated data, or null on failure.
@@ -322,7 +310,6 @@ class QuestService {
             ? loadedUser.currentPlan.copyWith(id: planId)
             : QuestPlanModel.fromJson(planSnapshot.data()!, docId: planId);
 
-        // Prepare quests: all start active, not completed (preserve DAG)
         final questsToWrite = newQuests
             .map((q) => q.copyWith(
                   isActive: true,
@@ -330,7 +317,6 @@ class QuestService {
                 ))
             .toList();
 
-        // Write each quest to the quests subcollection
         for (final quest in questsToWrite) {
           transaction.set(
             _questRef(uid, planId, quest.nodeId),
@@ -338,7 +324,6 @@ class QuestService {
           );
         }
 
-        // Write each milestone to the milestones subcollection
         for (final milestone in milestones) {
           transaction.set(
             _milestoneRef(uid, planId, milestone.id),
@@ -346,7 +331,6 @@ class QuestService {
           );
         }
 
-        // Write plan metadata
         final plan = storedPlan.copyWith(
           id: planId,
           currentMilestoneIndex: currentMilestoneIndex,
@@ -355,7 +339,6 @@ class QuestService {
         );
         transaction.set(_planRef(uid, planId), plan.toJson());
 
-        // Update user doc with activePlanId
         transaction.set(
           userRef,
           {
@@ -365,7 +348,6 @@ class QuestService {
           SetOptions(merge: true),
         );
 
-        // Build in-memory model
         final normalizedUser = loadedUser.copyWith(
           activePlanId: planId,
           currentPlan: plan,
@@ -380,9 +362,6 @@ class QuestService {
     return updatedUser;
   }
 
-  // ──────────────────────────────────────────────
-  //  completeQuestTransaction
-  // ──────────────────────────────────────────────
 
   /// Updates a single quest document in the subcollection + user doc timestamp.
   /// Returns the updated [UserModel] with in-memory data, or null on failure.
@@ -411,7 +390,6 @@ class QuestService {
         final resolvedPlanId = planId.isNotEmpty ? planId : loadedUser.activePlanId;
         if (resolvedPlanId.isEmpty) return;
 
-        // Update the quest document in subcollection
         final questRef = _questRef(uid, resolvedPlanId, questId);
         transaction.set(
           questRef,
@@ -429,7 +407,6 @@ class QuestService {
           SetOptions(merge: true),
         );
 
-        // Update user doc timestamp
         transaction.set(
           userRef,
           {
@@ -443,7 +420,6 @@ class QuestService {
       return null;
     }
 
-    // After transaction, reload all data to build the in-memory model
     try {
       final resolvedPlanId = planId.isNotEmpty
           ? planId
@@ -477,9 +453,6 @@ class QuestService {
     return updatedUser;
   }
 
-  // ──────────────────────────────────────────────
-  //  Utility
-  // ──────────────────────────────────────────────
 
   /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
   /// ready quests remain).

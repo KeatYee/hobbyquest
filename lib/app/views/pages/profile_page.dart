@@ -11,9 +11,6 @@ import '../../routes/app_routes.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  // ───────────────────────────────────────────
-  //  Root scaffold
-  // ───────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ProfileController());
@@ -42,7 +39,6 @@ class ProfilePage extends StatelessWidget {
         return CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // ── Hero ──────────────────────────────────────
             SliverToBoxAdapter(
               child: _HeroHeader(
                 currentUser: currentUser,
@@ -52,7 +48,6 @@ class ProfilePage extends StatelessWidget {
                 totalXP: controller.totalXP,
               ),
             ),
-            // ── Body ──────────────────────────────────────
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 76, 20, 40),
               sliver: SliverList(
@@ -75,9 +70,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  Stats section
-  // ───────────────────────────────────────────
   Widget _buildStatsSection() {
     final ctrl = Get.find<ProfileController>();
 
@@ -149,9 +141,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  Account section
-  // ───────────────────────────────────────────
   Widget _buildAccountSection(BuildContext context, User currentUser, UserModel userModel) {
     return _SectionCard(
       label: "ACCOUNT",
@@ -187,9 +176,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  General settings section
-  // ───────────────────────────────────────────
   Widget _buildGeneralSection(BuildContext context) {
     final ctrl = Get.find<ProfileController>();
 
@@ -233,9 +219,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  Logout button
-  // ───────────────────────────────────────────
   Widget _buildLogoutButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -262,9 +245,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  Delete account button
-  // ───────────────────────────────────────────
   Widget _buildDeleteAccountButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -291,9 +271,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ───────────────────────────────────────────
-  //  Backend
-  // ───────────────────────────────────────────
   void _handleDeleteAccount(BuildContext context) async {
     final confirmed = await AppDialogs.dangerConfirm(
       title: 'Delete Account',
@@ -304,9 +281,6 @@ class ProfilePage extends StatelessWidget {
     );
     if (confirmed == true) Get.find<ProfileController>().deleteAccount();
   }
-  // ───────────────────────────────────────────
-  //  Backend
-  // ───────────────────────────────────────────
   void _handleLogout(BuildContext context) async {
     final confirmed = await AppDialogs.confirm(
       title: 'Logout',
@@ -317,9 +291,6 @@ class ProfilePage extends StatelessWidget {
     if (confirmed == true) Get.find<ProfileController>().logout();
   }
 }
-// ═══════════════════════════════════════════════
-//  Edit Dialogs
-// ═══════════════════════════════════════════════
 extension _EditDialogs on ProfilePage {
   void _showEditNameDialog(BuildContext context) async {
     final result = await AppDialogs.input(
@@ -391,7 +362,6 @@ class _HeroHeader extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // ── Gradient background ─────────────────
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -404,7 +374,6 @@ class _HeroHeader extends StatelessWidget {
             bottom: false,
             child: Column(
               children: [
-                // App-bar row
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
@@ -427,12 +396,11 @@ class _HeroHeader extends StatelessWidget {
                           letterSpacing: 2.5,
                         ),
                       ),
-                      const SizedBox(width: 48), // visual balance
+                      const SizedBox(width: 48),
                     ],
                   ),
                 ),
 
-                // Avatar + name area
                 SizedBox(
                   height: 170,
                   child: Column(
@@ -468,7 +436,6 @@ class _HeroHeader extends StatelessWidget {
           ),
         ),
 
-        // ── XP card — floats over the hero/body seam ─
         Positioned(
           left: 20,
           right: 20,
@@ -476,7 +443,6 @@ class _HeroHeader extends StatelessWidget {
           child: _XPCard(level: level, xp: xp, progress: progress),
         ),
 
-        // Spacer so scroll body starts below the floating card
         const SizedBox(height: 52),
       ],
     );
@@ -512,9 +478,6 @@ class _HeroHeader extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  XP Progress card
-// ═══════════════════════════════════════════════
 class _XPCard extends StatelessWidget {
   final int level;
   final int xp;
@@ -541,7 +504,6 @@ class _XPCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  // Level badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 5),
@@ -583,7 +545,6 @@ class _XPCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Progress track
           Stack(
             children: [
               Container(
@@ -615,9 +576,6 @@ class _XPCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  Stat tile
-// ═══════════════════════════════════════════════
 class _StatTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -703,9 +661,6 @@ class _StatTile extends StatelessWidget {
 
 }
 
-// ═══════════════════════════════════════════════
-//  Section card wrapper
-// ═══════════════════════════════════════════════
 class _SectionCard extends StatelessWidget {
   final String label;
   final Widget child;
@@ -743,9 +698,6 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  Settings tile
-// ═══════════════════════════════════════════════
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -816,9 +768,6 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  Helpers
-// ═══════════════════════════════════════════════
 class _NotificationSettingsTile extends StatelessWidget {
   final bool isEnabled;
   final bool isUpdating;

@@ -165,7 +165,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final progressionController = Get.find<ProgressionController>();
 
     try {
-      // Find first free spot index
       final existingDocs = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -178,7 +177,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         firstFree++;
       }
 
-      // Count completed quests from current plan
       final userSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -213,14 +211,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         grownAt: DateTime.now(),
       );
 
-      // Save to tree subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('tree')
           .add(tree.toJson());
 
-      // Reset category XP to 0 so user can grow a new tree
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -323,7 +319,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     if (result == true && nameController.text.trim().isNotEmpty) {
       await _saveTreeToForest(category, nameController.text.trim());
-      // Navigate to the dedicated Forest page where the tree is displayed
       Get.toNamed(AppRoutes.FOREST);
     }
     nameController.dispose();
@@ -440,7 +435,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                         Expanded(child: _buildContent()),
                       ],
                     ),
-                    // Floating forest button (always visible)
                     Positioned(
                       right: 16,
                       bottom: 16,
@@ -460,9 +454,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
   }
 
-  // ────────────────────────────────────────────────────────
-  //  TOP BAR — arrows + category name
-  // ────────────────────────────────────────────────────────
   Widget _buildCategoryTopBar() {
     final category = _categories[_selectedIndex!];
 
@@ -475,14 +466,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // Left arrow
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded, size: 28),
             color: AppColors.primary,
             onPressed: _previousCategory,
           ),
           const SizedBox(width: 4),
-          // Category icon + name
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -505,7 +494,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(width: 4),
-          // Right arrow
           IconButton(
             icon: const Icon(Icons.chevron_right_rounded, size: 28),
             color: AppColors.primary,
@@ -516,9 +504,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
   }
 
-  // ────────────────────────────────────────────────────────
-  //  CONTENT — tree image + XP bar + speech bubble
-  // ────────────────────────────────────────────────────────
   Widget _buildContent() {
     if (_selectedIndex == null) {
       return const Center(child: Text('Select a category'));
@@ -535,24 +520,20 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           final thresholds = [0, 100, 300, 500, 800];
           final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
 
-          // Compute actual stage from XP
           int actualStage = 0;
           for (int i = thresholds.length - 1; i >= 0; i--) {
             if (xp >= thresholds[i]) { actualStage = i; break; }
           }
 
-          // Reset displayed stage when switching categories
           if (category.name != _displayedStageCategory) {
             _displayedStageCategory = category.name;
             _displayedStage = actualStage;
           }
 
-          // If XP regressed (tree saved), sync displayed stage down
           if (actualStage < _displayedStage) {
             _displayedStage = actualStage;
           }
 
-          // Check if there's a pending stage to advance to
           final hasPending = actualStage > _displayedStage;
 
           final stage = _displayedStage;
@@ -586,7 +567,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Speech bubble (above the tree)
               if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
@@ -634,7 +614,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                       ],
                     ),
                   ),
-              // Tree image with floating + shake animation
               Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -652,7 +631,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                       fit: BoxFit.contain,
                     ),
                   ),
-                  // Speech bubble when next stage is pending or tree is fully grown
                   if (hasPending || stage == 4)
                     Positioned(
                       top: -56,
@@ -699,7 +677,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            // Triangle pointing down toward the tree
                             CustomPaint(
                               size: const Size(14, 8),
                               painter: _TriangleDownPainter(),

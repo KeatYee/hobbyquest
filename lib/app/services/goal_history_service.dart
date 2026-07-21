@@ -2,9 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/goal_history_model.dart';
 
 class GoalHistoryService {
-  // ──────────────────────────────────────────────
-  //  Subcollection reference helpers
-  // ──────────────────────────────────────────────
 
   static String _historyDocPath(String uid, String historyId) =>
       'users/$uid/goalHistory/$historyId';
@@ -19,9 +16,6 @@ class GoalHistoryService {
           .doc(uid)
           .collection('goalHistory');
 
-  // ──────────────────────────────────────────────
-  //  Create
-  // ──────────────────────────────────────────────
 
   /// Saves a new goal history entry. Returns the generated document ID.
   static Future<String> saveGoalHistory(
@@ -67,9 +61,6 @@ class GoalHistoryService {
     await historyRef.set(completedEntry.toJson(), SetOptions(merge: true));
   }
 
-  // ──────────────────────────────────────────────
-  //  Read
-  // ──────────────────────────────────────────────
 
   /// Loads a single goal history entry by ID.
   static Future<GoalHistoryModel?> loadGoalHistory(
@@ -93,9 +84,6 @@ class GoalHistoryService {
     return entries;
   }
 
-  // ──────────────────────────────────────────────
-  //  Delete
-  // ──────────────────────────────────────────────
 
   /// Deletes a specific goal history entry.
   static Future<void> deleteGoalHistory(

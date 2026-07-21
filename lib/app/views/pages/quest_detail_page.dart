@@ -22,9 +22,6 @@ class QuestDetailPage extends StatefulWidget {
 }
 
 class _QuestDetailPageState extends State<QuestDetailPage> {
-  // ──────────────────────────────────────────────
-  //  State — UNCHANGED
-  // ──────────────────────────────────────────────
   late TextEditingController reflectionController;
   late QuestNodeModel currentQuest;
   late QuestDetailController _controller;
@@ -60,9 +57,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (mounted) setState(() {});
   }
 
-  // ──────────────────────────────────────────────
-  //  Type helpers — UNCHANGED logic
-  // ──────────────────────────────────────────────
   Color getTypeColor() {
     switch (currentQuest.type) {
       case 'knowledge':
@@ -102,9 +96,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  Actions
-  // ──────────────────────────────────────────────
   Future<void> _completeQuest() async {
     if (currentQuest.isCompleted) {
       Get.back();
@@ -116,7 +107,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
     if (!completed) return;
 
-    // Check milestone BEFORE popping (mounted is still true here)
     final homeController = Get.find<HomeController>();
     final hasCompletedMilestone = homeController.hasCompletedMilestone();
     final hasCompletedFinalMilestone = homeController
@@ -125,13 +115,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       await homeController.completeCurrentGoal();
     }
 
-    // Navigate back, then show level-up if triggered
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) Navigator.of(context).pop();
     await Future.delayed(const Duration(milliseconds: 400));
-    // Show pending level-up (uses Get.generalDialog with root navigator)
     await Get.find<ProgressionController>().showPendingLevelUp();
-    // Show milestone-complete screen after level-up is dismissed
     if (hasCompletedMilestone) {
       await Get.generalDialog(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -207,9 +194,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  BUILD
-  // ──────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final typeColor = getTypeColor();
@@ -256,11 +240,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  HERO HEADER
-  //  Signature detail: large semi-transparent type
-  //  icon as atmospheric background art.
-  // ──────────────────────────────────────────────
   Widget _buildHeroHeader(Color typeColor) {
     return Container(
       decoration: const BoxDecoration(
@@ -279,7 +258,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // ── Decorative atmospheric circles ──────
             Positioned(
               right: 20,
               top: -10,
@@ -291,7 +269,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               child: _DecorCircle(size: 80, opacity: 0.04),
             ),
 
-            // ── Large background type icon (signature detail) ──
             Positioned(
               right: -18,
               top: 18,
@@ -302,11 +279,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               ),
             ),
 
-            // ── Content ─────────────────────────────
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back + type chip row
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 12, 0),
                   child: Row(
@@ -320,7 +295,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         onPressed: () => Get.back(),
                       ),
                       const Spacer(),
-                      // Type chip — frosted glass style
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -359,7 +333,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   ),
                 ),
 
-                // Title + info pills
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 10, 22, 32),
                   child: Column(
@@ -378,7 +351,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          // XP pill — gold tint to differentiate from brand orange
                           _HeroPill(
                             icon: Icons.flash_on_rounded,
                             label: '+${currentQuest.xpReward} XP',
@@ -402,9 +374,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  COMPLETED BANNER
-  // ──────────────────────────────────────────────
   Widget _buildCompletedBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -463,9 +432,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  TUTORIAL BUTTON — UNCHANGED logic
-  // ──────────────────────────────────────────────
   Widget _buildTutorialButton() {
     return Container(
       width: double.infinity,
@@ -486,7 +452,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       ),
       child: Stack(
         children: [
-          // Subtle inner highlight stripe for depth
           Positioned(
             left: 0,
             right: 0,
@@ -566,9 +531,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  DESCRIPTION CARD
-  // ──────────────────────────────────────────────
   Widget _buildDescriptionCard() {
     return _SectionCard(
       label: 'DESCRIPTION',
@@ -586,12 +548,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  STEPS CARD
-  //  Signature detail: gradient connecting line
-  //  flows from typeColor to transparent, creating
-  //  a sense of journey direction.
-  // ──────────────────────────────────────────────
   Widget _buildStepsCard(Color typeColor) {
     return _SectionCard(
       label: 'STEPS',
@@ -608,7 +564,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Number + gradient connector ──
                   SizedBox(
                     width: 34,
                     child: Column(
@@ -663,7 +618,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  // ── Step text ────────────────────
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.only(bottom: isLast ? 0 : 18, top: 5),
@@ -686,11 +640,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  REFLECTION CARD
-  //  Signature detail: journal ruling lines drawn
-  //  via CustomPaint behind the TextField.
-  // ──────────────────────────────────────────────
   Widget _buildReflectionCard() {
     final charCount = reflectionController.text.trim().length;
     final isReady = charCount >= 15;
@@ -727,7 +676,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Journal-lined text field
             ClipRect(
               child: CustomPaint(
                 painter: _JournalLinesPainter(),
@@ -752,13 +700,12 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                   ),
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: AppFonts.bodyLg, // aligns with 24px ruling lines
+                    fontSize: AppFonts.bodyLg,
                   ),
                 ),
               ),
             ),
 
-            // Image preview — UNCHANGED logic
             if (selectedImage != null) ...[
               const Divider(height: 1, color: AppColors.border),
               const SizedBox(height: 12),
@@ -803,7 +750,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Bonus XP indicator shown below image
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -835,7 +781,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               ),
             ],
 
-            // Gallery / Camera buttons — UNCHANGED logic
             if (!currentQuest.isCompleted) ...[
               const Divider(height: 1, color: AppColors.border),
               const SizedBox(height: 12),
@@ -892,11 +837,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  //  ACTION BUTTON
-  // ──────────────────────────────────────────────
   Widget _buildActionButton(BuildContext context) {
-    // State 1: active, not yet completed
     if (currentQuest.isActive && !currentQuest.isCompleted) {
       return Obx(
         () => SizedBox(
@@ -968,7 +909,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       );
     }
 
-    // State 2: locked
     if (!currentQuest.isCompleted && !currentQuest.isActive) {
       return Container(
         width: double.infinity,
@@ -1002,7 +942,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       );
     }
 
-    // State 3: completed — back button
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -1029,9 +968,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 }
 
-// ═══════════════════════════════════════════════════════
-//  PRIVATE WIDGETS
-// ═══════════════════════════════════════════════════════
 
 /// Section card with architectural header (left bar + extending rule)
 class _SectionCard extends StatelessWidget {
@@ -1046,7 +982,6 @@ class _SectionCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Architectural header: bar + label + extending rule + optional trailing
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 10),
           child: Row(
@@ -1075,7 +1010,6 @@ class _SectionCard extends StatelessWidget {
             ],
           ),
         ),
-        // Card surface
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
@@ -1122,7 +1056,6 @@ class _GradientButton extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Inner top-edge highlight — adds tactile depth
           Positioned(
             left: 0,
             right: 0,
@@ -1272,7 +1205,6 @@ class _JournalLinesPainter extends CustomPainter {
       ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
-    // Start below the first line so the first ruling sits under text
     double y = _lineSpacing;
     while (y < size.height) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);

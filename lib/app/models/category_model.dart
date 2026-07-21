@@ -88,12 +88,12 @@ class HobbyEntry {
 /// The canonical identifier is the Firestore document ID,
 /// not the `id` field in the document data.
 class CategoryModel {
-  final String id;           // Firestore document ID (canonical identifier)
-  final String name;         // e.g., "Creative Arts", "Music & Performing"
-  final String description;  // e.g., "Express yourself visually"
-  final int iconCodePoint;   // Material icon codePoint for the category icon
-  final String? iconFontFamily; // Optional font family for the icon
-  final List<HobbyEntry> hobbies; // Hobbies with their review axes
+  final String id;
+  final String name;
+  final String description;
+  final int iconCodePoint;
+  final String? iconFontFamily;
+  final List<HobbyEntry> hobbies;
 
   const CategoryModel({
     required this.id,
@@ -114,10 +114,8 @@ class CategoryModel {
   /// Returns the review axes for a specific hobby (case-insensitive lookup).
   /// Returns an empty list if no axes are defined for that hobby.
   List<PeerReviewAxisModel> getAxisForHobby(String hobby) {
-    // Direct match first
     final direct = hobbies.where((h) => h.name == hobby);
     if (direct.isNotEmpty) return direct.first.axes;
-    // Case-insensitive fallback
     final match = hobbies.where((h) => h.name.toLowerCase() == hobby.toLowerCase());
     return match.isNotEmpty ? match.first.axes : [];
   }
@@ -161,11 +159,9 @@ class CategoryModel {
   /// Reads [iconCodePoint] from Firestore data, falling back to a mapping
   /// from the old emoji [icon] field, and ultimately to [Icons.palette].
   static int _readIconCodePoint(Map<String, dynamic> json) {
-    // New format: direct int codePoint
     final codePoint = json['iconCodePoint'];
     if (codePoint is num) return codePoint.toInt();
 
-    // Old format: emoji string → map to Material icon
     final oldIcon = json['icon'] as String?;
     if (oldIcon != null && oldIcon.isNotEmpty) {
       switch (oldIcon) {

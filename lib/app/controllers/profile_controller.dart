@@ -14,7 +14,6 @@ class ProfileController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ── Reactive state ──────────────────────────────────────────
   final isLoading = true.obs;
   final isUpdatingNotifications = false.obs;
   final isUpdatingPrivacy = false.obs;
@@ -24,7 +23,6 @@ class ProfileController extends GetxController {
   final profileVisible = true.obs;
   final postStatsVisible = true.obs;
 
-  // ── Convenience getters ─────────────────────────────────────
   int get totalXP => userModel.value?.totalXP ?? 0;
   int get level => userModel.value?.level ?? 1;
   int get xp => userModel.value?.currentXp ?? 0;
@@ -81,7 +79,6 @@ class ProfileController extends GetxController {
     }
   }
 
-  // ── Mutations ───────────────────────────────────────────────
 
   /// Update the user's display name in Firestore.
   Future<bool> updateNickname(String newNickname) async {
@@ -338,14 +335,11 @@ class ProfileController extends GetxController {
     try {
       AppDialogs.showLoading(message: 'Deleting account...');
 
-      // 1. Delete Firebase Auth account FIRST — if this fails, data stays safe
       await user.delete();
 
-      // 2. Clean up Firestore subcollections
       final uid = user.uid;
       final batch = _firestore.batch();
 
-      // 2a. Delete all quests and milestones under each plan
       final plansSnap = await _firestore
           .collection('users')
           .doc(uid)
@@ -375,7 +369,6 @@ class ProfileController extends GetxController {
         batch.delete(planDoc.reference);
       }
 
-      // 2b. Delete tree subcollection
       final treeSnap = await _firestore
           .collection('users').doc(uid)
           .collection('tree')
@@ -384,7 +377,6 @@ class ProfileController extends GetxController {
         batch.delete(t.reference);
       }
 
-      // 2c. Delete legacy savedTrees subcollection (if any)
       final savedTreesSnap = await _firestore
           .collection('users').doc(uid)
           .collection('savedTrees')
@@ -393,13 +385,10 @@ class ProfileController extends GetxController {
         batch.delete(st.reference);
       }
 
-      // 2d. Delete goalHistory subcollection
       await GoalHistoryService.deleteAllGoalHistory(uid);
 
-      // 2e. Delete growthLetters subcollection
       await GrowthLetterService.deleteAllGrowthLetters(uid);
 
-      // 2f. Delete feedback subcollection
       final feedbackSnap = await _firestore
           .collection('users')
           .doc(uid)
@@ -409,12 +398,10 @@ class ProfileController extends GetxController {
         batch.delete(feedback.reference);
       }
 
-      // 2g. Delete user document
       batch.delete(_firestore.collection('users').doc(uid));
 
       await batch.commit();
 
-      // 3. Sign out from Google
       await GoogleSignIn.instance.signOut();
 
       AppDialogs.dismissLoading();

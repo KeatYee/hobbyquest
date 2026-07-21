@@ -84,7 +84,6 @@ class UserProfilePage extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    // Avatar
                     Container(
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
@@ -118,7 +117,6 @@ class UserProfilePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // Nickname
                     Text(
                       userModel.nickname,
                       style: TextStyle(
@@ -228,7 +226,6 @@ class UserProfilePage extends StatelessWidget {
   }
 }
 
-// ── Reusable stat tile (same style as ProfilePage) ──
 class _PrivateProfileState extends StatelessWidget {
   const _PrivateProfileState();
 

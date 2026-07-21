@@ -56,7 +56,6 @@ class ProgressionController extends GetxController {
       totalXP.value = _readTotalXP(data);
       streak.value = data['currentStreak'] as int? ?? 0;
 
-      // Load per-category XP from UserModel
       final userModel = UserModel.fromJson(data, user.uid);
       categoryXp.value = Map<String, int>.from(userModel.categoryXp);
     } catch (e) {
@@ -72,7 +71,6 @@ class ProgressionController extends GetxController {
       throw Exception('User not authenticated');
     }
 
-    // Determine category if not provided
     String? resolvedCategory = categoryName;
     if (resolvedCategory == null) {
       try {
@@ -97,7 +95,6 @@ class ProgressionController extends GetxController {
       previousXP = currentXP;
       updatedXP = currentXP + xpReward;
 
-      // Handle streak calculation
       final currentStreak = data?['currentStreak'] as int? ?? 0;
       final lastStreakDateData = data?['lastStreakDate'];
       DateTime? lastStreakDate;
@@ -128,7 +125,6 @@ class ProgressionController extends GetxController {
         }
       }
 
-      // Build categoryXp map: read current, add xpReward to the right key
       final updatedCategoryXp = Map<String, int>.from(
         (data?['categoryXp'] as Map?)?.map(
               (k, v) => MapEntry(k.toString(), (v as num).toInt()),
@@ -155,7 +151,6 @@ class ProgressionController extends GetxController {
     totalXP.value = updatedXP;
     streak.value = updatedStreak;
 
-    // Update local category XP
     if (resolvedCategory != null) {
       categoryXp[resolvedCategory] =
           (categoryXp[resolvedCategory] ?? 0) + xpReward;
@@ -231,7 +226,6 @@ class ProgressionController extends GetxController {
       print('--- DEBUG _resolveCurrentCategory: loaded ${cats.length} categories ---');
       if (cats.isEmpty) return null;
 
-      // 1. Try exact hobby match
       for (final cat in cats) {
         print('--- DEBUG _resolveCurrentCategory: checking category "${cat.name}" with hobbies: ${cat.hobbyNames} ---');
         if (cat.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
@@ -240,7 +234,6 @@ class ProgressionController extends GetxController {
         }
       }
 
-      // 2. Fallback: hobby matches a category name keyword (e.g. "Learning" → "Skill & Strategy")
       final hobbyLower = hobby.toLowerCase();
       for (final cat in cats) {
         final catName = cat.name.toLowerCase();
@@ -251,7 +244,6 @@ class ProgressionController extends GetxController {
         }
       }
 
-      // 3. Last resort: first category
       print('--- DEBUG _resolveCurrentCategory: NO match, falling back to first category "${cats.first.name}" ---');
       return cats.first.name;
     } catch (e) {

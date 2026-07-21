@@ -149,7 +149,6 @@ class _GoalHistoryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row: category badge + date
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -214,7 +213,6 @@ class _GoalHistoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Goal text
             Text(
               goal.isNotEmpty ? goal : 'Untitled goal',
               style: TextStyle(
@@ -225,7 +223,6 @@ class _GoalHistoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Tags row: hobby, level, learning pace
             Wrap(
               spacing: 8,
               runSpacing: 6,

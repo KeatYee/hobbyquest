@@ -134,7 +134,6 @@ void _showPrivacyPolicyDialog(BuildContext context) {
   );
 }
 
-// ── Private Widgets ──────────────────────────────────────
 
 class _PrivacySwitchTile extends StatelessWidget {
   final IconData icon;

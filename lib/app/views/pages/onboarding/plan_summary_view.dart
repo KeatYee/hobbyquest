@@ -21,7 +21,7 @@ class PlanSummaryView extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
-          onPressed: () => Get.back(), // Allows them to go back to Step 5
+          onPressed: () => Get.back(),
         ),
       ),
       body: Stack(
@@ -31,9 +31,6 @@ class PlanSummaryView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // ------------------------------------
-            // TOP: USER AVATAR & TITLE
-            // ------------------------------------
             SizedBox(
               width: 140,
               height: 140,
@@ -48,7 +45,6 @@ class PlanSummaryView extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             
-            // Title: Name, Level, Hobby (e.g., "Alex, Level 1 Novice Sketcher")
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
@@ -67,9 +63,6 @@ class PlanSummaryView extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // ------------------------------------
-            // MIDDLE: MISSION PARAMETERS
-            // ------------------------------------
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -101,9 +94,6 @@ class PlanSummaryView extends StatelessWidget {
             ),
             const SizedBox(height: 40),
 
-            // ------------------------------------
-            // BOTTOM: MILESTONES WITH XP THRESHOLDS
-            // ------------------------------------
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -118,14 +108,10 @@ class PlanSummaryView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Milestone Timeline with XP Thresholds
             ..._buildMilestonesList(controller),
 
             const SizedBox(height: 40),
 
-            // ------------------------------------
-            // BUTTON: ACCEPT QUEST
-            // ------------------------------------
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -156,7 +142,6 @@ class PlanSummaryView extends StatelessWidget {
           ],
         ),
       ),
-          // Loading overlay during AI generation
           Obx(() => controller.isGenerating.value
               ? const LoadingScreen()
               : const SizedBox.shrink()

@@ -12,10 +12,8 @@ class Step4Goals extends StatefulWidget {
 }
 
 class _Step4GoalsState extends State<Step4Goals> {
-  // GlobalKey for Form Validation (Text Input)
   final _formKey = GlobalKey<FormState>();
 
-  // Local state to track learning pace validation error.
   bool showLearningPaceError = false;
 
   String? selectedPredefinedGoal;
@@ -49,7 +47,6 @@ class _Step4GoalsState extends State<Step4Goals> {
         ];
       }
     }
-    // Fallback for other hobbies (currently all locked except Drawing)
     return [
       "Master the fundamentals",
       "Complete a challenging project",
@@ -65,7 +62,6 @@ class _Step4GoalsState extends State<Step4Goals> {
     final textTheme = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
-      // Padding matches previous steps for consistency
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
       child: Form(
         key: _formKey,
@@ -74,7 +70,6 @@ class _Step4GoalsState extends State<Step4Goals> {
           children: [
             const SizedBox(height: 30),
 
-            // Section 1: The Main Goal
             Text(
               "YOUR MAIN QUEST",
               style: textTheme.headlineSmall?.copyWith(
@@ -85,7 +80,6 @@ class _Step4GoalsState extends State<Step4Goals> {
             ),
             const SizedBox(height: 15),
 
-            // Predefined Goals Dropdown
             Obx(() {
               final hobby = controller.hobby.value.isNotEmpty
                   ? controller.hobby.value
@@ -120,8 +114,6 @@ class _Step4GoalsState extends State<Step4Goals> {
             }),
             const SizedBox(height: 20),
 
-            // Custom Goal Input
-            // Uses AppTheme styles automatically
             TextFormField(
               controller: controller.goalController,
               textCapitalization: TextCapitalization.sentences,
@@ -134,7 +126,6 @@ class _Step4GoalsState extends State<Step4Goals> {
                 controller.isPredefinedGoal.value = false;
                 controller.goalValidationError.value = '';
               },
-              // Simple validation: Goal cannot be empty
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return "Please define your quest!";
@@ -143,7 +134,6 @@ class _Step4GoalsState extends State<Step4Goals> {
               },
             ),
 
-            // Goal validation error
             Obx(() {
               final error = controller.goalValidationError.value;
               if (error.isEmpty) return const SizedBox.shrink();
@@ -174,7 +164,6 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             const SizedBox(height: 30),
 
-            // Section 2: Learning Pace
             Text(
               "LEARNING PACE",
               style: textTheme.headlineSmall?.copyWith(
@@ -184,7 +173,6 @@ class _Step4GoalsState extends State<Step4Goals> {
               ),
             ),
 
-            // Inline Error for Learning Pace
             if (showLearningPaceError && controller.learningPace.value.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -209,11 +197,10 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             const SizedBox(height: 15),
 
-            // Learning pace chips
             Obx(
               () => Wrap(
-                spacing: 12, // Horizontal gap
-                runSpacing: 12, // Vertical gap
+                spacing: 12,
+                runSpacing: 12,
                 children: learningPaceOptions.map((option) {
                   return _buildLearningPaceChip(controller, option, textTheme);
                 }).toList(),
@@ -222,7 +209,6 @@ class _Step4GoalsState extends State<Step4Goals> {
 
             const SizedBox(height: 40),
 
-            // Final Action Button
             SizedBox(
               width: double.infinity,
               child: Obx(() {
@@ -235,10 +221,8 @@ class _Step4GoalsState extends State<Step4Goals> {
                             "--- ACTION: Final Button Clicked (Step 5) ---",
                           );
 
-                          // 1. Validate Text Input
                           bool isTextValid = _formKey.currentState!.validate();
 
-                          // 2. Validate learning pace selection
                           bool isLearningPaceValid =
                               controller.learningPace.value.isNotEmpty;
 
@@ -247,15 +231,12 @@ class _Step4GoalsState extends State<Step4Goals> {
                             setState(() => showLearningPaceError = true);
                           }
 
-                          // 3. Execute
                           if (isTextValid && isLearningPaceValid) {
                             print(
                               "--- SUCCESS: All Steps Complete. Generating Plan... ---",
                             );
-                            // Dismiss keyboard
                             FocusManager.instance.primaryFocus?.unfocus();
 
-                            // Trigger the Final Logic in Controller
                             controller.nextPage();
                           }
                         },

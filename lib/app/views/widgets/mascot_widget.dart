@@ -1,4 +1,4 @@
-import 'dart:async'; // Required for the Timer
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/asset_constants.dart';
 import '../../../../core/constants/color_constants.dart';
@@ -31,34 +31,31 @@ class _MascotWidgetState extends State<MascotWidget> {
   @override
   void didUpdateWidget(MascotWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the message changes (e.g. error msg), restart the effect
     if (oldWidget.message != widget.message) {
       _startTypewriterEffect();
     }
   }
 
   void _startTypewriterEffect() {
-    // Reset
     _timer?.cancel();
     setState(() {
       _currentIndex = 0;
     });
 
-    // Start Timer: Add 1 character every 30 milliseconds
     _timer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
       if (_currentIndex < widget.message.length) {
         setState(() {
           _currentIndex++;
         });
       } else {
-        timer.cancel(); // Stop when done
+        timer.cancel();
       }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Clean up memory
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -71,25 +68,21 @@ class _MascotWidgetState extends State<MascotWidget> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 🦊 1. The Fox
         Image.asset(
           imagePath,
           height: 120,
           fit: BoxFit.contain,
         ),
         
-        // 💬 2. The Speech Bubble Group
         Stack(
           alignment: Alignment.topCenter,
           children: [
-            // A. The Main White Box
             Container(
               margin: const EdgeInsets.only(top: 12, left: 10, right: 10),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                // Soft Shadow
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.primary.withOpacity(0.1),
@@ -98,7 +91,6 @@ class _MascotWidgetState extends State<MascotWidget> {
                   ),
                 ],
               ),
-              // Use RichText to keep layout stable while animating colors
               child: RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
@@ -107,15 +99,12 @@ class _MascotWidgetState extends State<MascotWidget> {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                     height: 1.4,
-                    fontFamily: AppFonts.familyPrimary, // Ensure font matches app theme
+                    fontFamily: AppFonts.familyPrimary,
                   ),
                   children: [
-                    // 1. Visible Text (Black)
                     TextSpan(
                       text: widget.message.substring(0, _currentIndex),
                     ),
-                    // 2. Invisible Text (Transparent)
-                    // This keeps the bubble size constant so it doesn't "jump"
                     TextSpan(
                       text: widget.message.substring(_currentIndex),
                       style: const TextStyle(color: Colors.transparent),
@@ -125,7 +114,6 @@ class _MascotWidgetState extends State<MascotWidget> {
               ),
             ),
             
-            // B. The Triangle Tail (Pointing Up)
             Positioned(
               top: 4, 
               child: CustomPaint(
@@ -140,7 +128,6 @@ class _MascotWidgetState extends State<MascotWidget> {
   }
 }
 
-// 🎨 Custom Painter to draw the Speech Bubble Tail
 class _BubbleTailPainter extends CustomPainter {
   final Color color;
   _BubbleTailPainter({required this.color});
@@ -150,10 +137,9 @@ class _BubbleTailPainter extends CustomPainter {
     var paint = Paint()..color = color..style = PaintingStyle.fill;
     var path = Path();
     
-    // Draw an upside-down triangle
-    path.moveTo(0, size.height); // Bottom Left
-    path.lineTo(size.width, size.height); // Bottom Right
-    path.lineTo(size.width / 2, 0); // Top Center (Tip)
+    path.moveTo(0, size.height);
+    path.lineTo(size.width, size.height);
+    path.lineTo(size.width / 2, 0);
     path.close();
     
     canvas.drawPath(path, paint);
