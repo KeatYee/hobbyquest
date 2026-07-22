@@ -13,6 +13,9 @@ class UserModel {
   final int dailyQuestCompletionCount;
 
   final Map<String, int> categoryXp;
+  final int currentGroveIndex;
+  final List<int> completedGroveIndexes;
+  final Map<int, List<int>> occupiedTreeSlotsByGrove;
 
   final bool mapTutorialDone;
   final bool notificationsEnabled;
@@ -41,6 +44,9 @@ class UserModel {
     this.currentStreak = 0,
     this.dailyQuestCompletionCount = 0,
     this.categoryXp = const {},
+    this.currentGroveIndex = 1,
+    this.completedGroveIndexes = const [],
+    this.occupiedTreeSlotsByGrove = const {},
     this.mapTutorialDone = false,
     this.notificationsEnabled = true,
     this.profileVisible = true,
@@ -73,6 +79,9 @@ class UserModel {
       currentStreak: json['currentStreak'] as int? ?? 0,
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       categoryXp: _readCategoryXp(json),
+      currentGroveIndex: _readCurrentGroveIndex(json['currentGroveIndex']),
+      completedGroveIndexes: _readGroveIndexes(json['completedGroveIndexes']),
+      occupiedTreeSlotsByGrove: _readGroveSlots(json),
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
       profileVisible: json['profileVisible'] as bool? ?? true,
@@ -100,6 +109,12 @@ class UserModel {
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
       'categoryXp': categoryXp,
+      'currentGroveIndex': currentGroveIndex,
+      'completedGroveIndexes': completedGroveIndexes,
+      'occupiedTreeSlotsByGrove': {
+        for (final entry in occupiedTreeSlotsByGrove.entries)
+          entry.key.toString(): entry.value,
+      },
       'mapTutorialDone': mapTutorialDone,
       'notificationsEnabled': notificationsEnabled,
       'profileVisible': profileVisible,
@@ -125,6 +140,9 @@ class UserModel {
     int? currentStreak,
     int? dailyQuestCompletionCount,
     Map<String, int>? categoryXp,
+    int? currentGroveIndex,
+    List<int>? completedGroveIndexes,
+    Map<int, List<int>>? occupiedTreeSlotsByGrove,
     bool? mapTutorialDone,
     bool? notificationsEnabled,
     bool? profileVisible,
@@ -150,6 +168,11 @@ class UserModel {
       dailyQuestCompletionCount:
           dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       categoryXp: categoryXp ?? this.categoryXp,
+      currentGroveIndex: currentGroveIndex ?? this.currentGroveIndex,
+      completedGroveIndexes:
+          completedGroveIndexes ?? this.completedGroveIndexes,
+      occupiedTreeSlotsByGrove:
+          occupiedTreeSlotsByGrove ?? this.occupiedTreeSlotsByGrove,
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       profileVisible: profileVisible ?? this.profileVisible,
@@ -184,6 +207,55 @@ class UserModel {
     if (legacy.isNotEmpty) return legacy;
 
     return const {};
+  }
+
+  static int _readCurrentGroveIndex(dynamic value) {
+    final index = (value as num?)?.toInt() ?? 1;
+    return index < 1 ? 1 : index;
+  }
+
+  static List<int> _readGroveIndexes(dynamic value) {
+    if (value is! List) return const [];
+    final indexes =
+        value
+            .whereType<num>()
+            .map((item) => item.toInt())
+            .where((index) => index > 0)
+            .toSet()
+            .toList()
+          ..sort();
+    return indexes;
+  }
+
+  static Map<int, List<int>> _readGroveSlots(Map<String, dynamic> json) {
+    final result = <int, List<int>>{};
+    final raw = json['occupiedTreeSlotsByGrove'];
+    if (raw is Map) {
+      for (final entry in raw.entries) {
+        final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
+        if (groveIndex < 1 || entry.value is! List) continue;
+        result[groveIndex] =
+            entry.value
+                .whereType<num>()
+                .map((item) => item.toInt())
+                .where((index) => index >= 0 && index < 9)
+                .toSet()
+                .toList()
+              ..sort();
+      }
+    }
+
+    if (result.isEmpty && json['occupiedTreeSlots'] is List) {
+      result[1] =
+          (json['occupiedTreeSlots'] as List)
+              .whereType<num>()
+              .map((item) => item.toInt())
+              .where((index) => index >= 0 && index < 9)
+              .toSet()
+              .toList()
+            ..sort();
+    }
+    return result;
   }
 
   static int _legacyTotalXp(Map<String, dynamic> json) {

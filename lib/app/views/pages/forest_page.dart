@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/constants/asset_constants.dart';
+import '../../controllers/home_controller.dart';
 import '../../models/tree_model.dart';
 import '../../../core/utils/dialog_utils.dart';
 
@@ -17,6 +18,41 @@ class ForestPage extends StatefulWidget {
 
 class _ForestPageState extends State<ForestPage> {
   static const int _spotCount = TreeModel.forestSpotCount;
+  int? _selectedGroveIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    final arguments = Get.arguments;
+    if (arguments is Map) {
+      final requestedIndex = (arguments['groveIndex'] as num?)?.toInt();
+      if (requestedIndex != null && requestedIndex > 0) {
+        _selectedGroveIndex = requestedIndex;
+      }
+    }
+  }
+
+  int _activeGroveIndex() {
+    if (!Get.isRegistered<HomeController>()) return 1;
+    final index = Get.find<HomeController>().user.value?.currentGroveIndex ?? 1;
+    return index < 1 ? 1 : index;
+  }
+
+  Map<int, Set<int>> _readGroveSlots(dynamic value) {
+    final slots = <int, Set<int>>{};
+    if (value is Map) {
+      for (final entry in value.entries) {
+        final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
+        if (groveIndex < 1 || entry.value is! List) continue;
+        slots[groveIndex] = entry.value
+            .whereType<num>()
+            .map((item) => item.toInt())
+            .where((index) => index >= 0 && index < _spotCount)
+            .toSet();
+      }
+    }
+    return slots;
+  }
 
   Future<void> _onSwap(
     TreeModel dragged,
@@ -77,8 +113,15 @@ class _ForestPageState extends State<ForestPage> {
         );
         final currentIndex =
             (draggedData['treeIndex'] as num?)?.toInt() ?? dragged.treeIndex;
-        final occupiedSlots = _readOccupiedSlots(userData['occupiedTreeSlots'])
-          ..addAll(items.map((entry) => entry.tree.treeIndex));
+        final groveSlots = _readGroveSlots(
+          userData['occupiedTreeSlotsByGrove'],
+        );
+        final occupiedSlots = groveSlots.putIfAbsent(
+          dragged.groveIndex,
+          () => dragged.groveIndex == 1
+              ? _readOccupiedSlots(userData['occupiedTreeSlots'])
+              : <int>{},
+        )..addAll(items.map((entry) => entry.tree.treeIndex));
 
         if (occupiedSlots.contains(spotIndex) && spotIndex != currentIndex) {
           throw StateError('That forest spot is no longer empty.');
@@ -88,10 +131,17 @@ class _ForestPageState extends State<ForestPage> {
           ..remove(currentIndex)
           ..add(spotIndex);
         transaction.update(draggedEntry.ref, {'treeIndex': spotIndex});
-        transaction.update(userRef, {
-          'occupiedTreeSlots': occupiedSlots.toList()..sort(),
+        final userUpdate = <String, dynamic>{
+          'occupiedTreeSlotsByGrove': {
+            for (final entry in groveSlots.entries)
+              entry.key.toString(): entry.value.toList()..sort(),
+          },
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+        if (dragged.groveIndex == 1) {
+          userUpdate['occupiedTreeSlots'] = occupiedSlots.toList()..sort();
+        }
+        transaction.update(userRef, userUpdate);
       });
     } catch (e) {
       AppDialogs.error('Could not move tree', e.toString());

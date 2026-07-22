@@ -13,6 +13,23 @@ import '../../models/category_model.dart';
 import '../../models/tree_model.dart';
 import '../../routes/app_routes.dart';
 import '../../../core/utils/dialog_utils.dart';
+import '../widgets/grove_complete_screen.dart';
+
+class GrovePlantingResult {
+  final int plantedGroveIndex;
+  final bool completedGrove;
+  final int groveTreeCount;
+  final int totalQuestXp;
+  final List<int> occupiedSlots;
+
+  const GrovePlantingResult({
+    required this.plantedGroveIndex,
+    required this.completedGrove,
+    required this.groveTreeCount,
+    required this.totalQuestXp,
+    required this.occupiedSlots,
+  });
+}
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -156,12 +173,67 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.forward(from: 0.0);
   }
 
-  Future<bool> _saveTreeToForest(
+  int _readGroveIndex(dynamic value) {
+    final index = (value as num?)?.toInt() ?? 1;
+    return index < 1 ? 1 : index;
+  }
+
+  Set<int> _readGroveIndexes(dynamic value) {
+    if (value is! List) return <int>{};
+    return value
+        .whereType<num>()
+        .map((item) => item.toInt())
+        .where((index) => index > 0)
+        .toSet();
+  }
+
+  Map<int, Set<int>> _readGroveSlots(
+    Map<String, dynamic> userData,
+    Map<int, Set<int>> existingSlotsByGrove,
+  ) {
+    final slots = <int, Set<int>>{
+      for (final entry in existingSlotsByGrove.entries)
+        entry.key: <int>{...entry.value},
+    };
+    final stored = userData['occupiedTreeSlotsByGrove'];
+    if (stored is Map) {
+      for (final entry in stored.entries) {
+        final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
+        if (groveIndex < 1 || entry.value is! List) continue;
+        slots
+            .putIfAbsent(groveIndex, () => <int>{})
+            .addAll(
+              entry.value
+                  .whereType<num>()
+                  .map((item) => item.toInt())
+                  .where(
+                    (index) => index >= 0 && index < TreeModel.forestSpotCount,
+                  ),
+            );
+      }
+    }
+    final legacySlots = userData['occupiedTreeSlots'];
+    if (legacySlots is List) {
+      slots
+          .putIfAbsent(1, () => <int>{})
+          .addAll(
+            legacySlots
+                .whereType<num>()
+                .map((item) => item.toInt())
+                .where(
+                  (index) => index >= 0 && index < TreeModel.forestSpotCount,
+                ),
+          );
+    }
+    return slots;
+  }
+
+  Future<GrovePlantingResult?> _saveTreeToForest(
     CategoryModel category,
     String treeName,
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || _isSavingTree) return false;
+    if (uid == null || _isSavingTree) return null;
     _isSavingTree = true;
 
     final firestore = FirebaseFirestore.instance;
@@ -182,10 +254,19 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       }
 
       final existingDocs = await treeCollection.get();
-      final existingIndices = existingDocs.docs
-          .map((doc) => (doc.data()['treeIndex'] as num?)?.toInt() ?? 0)
-          .where((index) => index >= 0 && index < TreeModel.forestSpotCount)
-          .toSet();
+      final existingSlotsByGrove = <int, Set<int>>{};
+      for (final doc in existingDocs.docs) {
+        final data = doc.data();
+        final groveIndex = (((data['groveIndex'] as num?)?.toInt() ?? 1).clamp(
+          1,
+          999999,
+        )).toInt();
+        final treeIndex = (data['treeIndex'] as num?)?.toInt() ?? -1;
+        if (treeIndex < 0 || treeIndex >= TreeModel.forestSpotCount) continue;
+        existingSlotsByGrove
+            .putIfAbsent(groveIndex, () => <int>{})
+            .add(treeIndex);
+      }
       var completedCount = 0;
       var totalMinutes = 0;
       if (planId.isNotEmpty) {
@@ -206,6 +287,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       }
 
       final treeRef = treeCollection.doc();
+      late GrovePlantingResult plantingResult;
       await firestore.runTransaction((transaction) async {
         final userSnapshot = await transaction.get(userRef);
         final userData = userSnapshot.data();
@@ -230,17 +312,19 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           throw StateError('This tree has not reached maturity yet.');
         }
 
-        final occupiedSlots = <int>{...existingIndices};
-        final storedSlots = userData['occupiedTreeSlots'];
-        if (storedSlots is List) {
-          occupiedSlots.addAll(
-            storedSlots
-                .whereType<num>()
-                .map((value) => value.toInt())
-                .where(
-                  (index) => index >= 0 && index < TreeModel.forestSpotCount,
-                ),
-          );
+        final slotsByGrove = _readGroveSlots(userData, existingSlotsByGrove);
+        final completedGroves = _readGroveIndexes(
+          userData['completedGroveIndexes'],
+        );
+        var currentGroveIndex = _readGroveIndex(userData['currentGroveIndex']);
+        var occupiedSlots = slotsByGrove[currentGroveIndex] ?? <int>{};
+
+        // Existing users may already have a full legacy Grove 1. Move their
+        // next planting action into Grove 2 instead of blocking progression.
+        while (occupiedSlots.length >= TreeModel.forestSpotCount) {
+          completedGroves.add(currentGroveIndex);
+          currentGroveIndex += 1;
+          occupiedSlots = slotsByGrove[currentGroveIndex] ?? <int>{};
         }
 
         int? firstFree;
@@ -250,15 +334,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             break;
           }
         }
-        if (firstFree == null) {
-          throw StateError('Your forest is full.');
-        }
+        if (firstFree == null) throw StateError('No grove space is available.');
 
         final tree = TreeModel(
           treeName: treeName,
           categoryId: category.id,
           planId: planId,
           xpRequired: TreeModel.maturityXp,
+          groveIndex: currentGroveIndex,
           treeIndex: firstFree,
           questsCompleted: completedCount,
           learningMinutes: totalMinutes,
@@ -270,13 +353,38 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           ..['grownAt'] = FieldValue.serverTimestamp();
 
         occupiedSlots.add(firstFree);
+        slotsByGrove[currentGroveIndex] = occupiedSlots;
+        final completedGrove =
+            occupiedSlots.length == TreeModel.forestSpotCount;
+        if (completedGrove) {
+          completedGroves.add(currentGroveIndex);
+        }
+        final nextGroveIndex = completedGrove
+            ? currentGroveIndex + 1
+            : currentGroveIndex;
         categoryXp[category.name] = 0;
         transaction.set(treeRef, treeData);
-        transaction.update(userRef, {
+        final updatedUser = <String, dynamic>{
           'categoryXp': categoryXp,
-          'occupiedTreeSlots': occupiedSlots.toList()..sort(),
+          'currentGroveIndex': nextGroveIndex,
+          'completedGroveIndexes': completedGroves.toList()..sort(),
+          'occupiedTreeSlotsByGrove': {
+            for (final entry in slotsByGrove.entries)
+              entry.key.toString(): entry.value.toList()..sort(),
+          },
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+        if (currentGroveIndex == 1) {
+          updatedUser['occupiedTreeSlots'] = occupiedSlots.toList()..sort();
+        }
+        transaction.update(userRef, updatedUser);
+        plantingResult = GrovePlantingResult(
+          plantedGroveIndex: currentGroveIndex,
+          completedGrove: completedGrove,
+          groveTreeCount: occupiedSlots.length,
+          totalQuestXp: occupiedSlots.length * TreeModel.maturityXp,
+          occupiedSlots: occupiedSlots.toList()..sort(),
+        );
       });
 
       progressionController.categoryXp[category.name] = 0;
@@ -284,15 +392,28 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       if (currentUser != null) {
         homeController.user.value = currentUser.copyWith(
           categoryXp: {...currentUser.categoryXp, category.name: 0},
+          currentGroveIndex: plantingResult.completedGrove
+              ? plantingResult.plantedGroveIndex + 1
+              : plantingResult.plantedGroveIndex,
+          completedGroveIndexes: {
+            ...currentUser.completedGroveIndexes,
+            if (plantingResult.completedGrove) plantingResult.plantedGroveIndex,
+          }.toList()..sort(),
+          occupiedTreeSlotsByGrove: {
+            ...currentUser.occupiedTreeSlotsByGrove,
+            plantingResult.plantedGroveIndex: plantingResult.occupiedSlots,
+          },
         );
       }
 
-      print('--- Tree saved to forest: ${category.name} ---');
-      return true;
+      print(
+        '--- Tree saved to Grove ${plantingResult.plantedGroveIndex}: ${category.name} ---',
+      );
+      return plantingResult;
     } catch (e) {
       print('--- Error saving tree to forest: $e ---');
       AppDialogs.error('Could not plant tree', e.toString());
-      return false;
+      return null;
     } finally {
       _isSavingTree = false;
     }
@@ -390,12 +511,28 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
 
     if (result == true && nameController.text.trim().isNotEmpty) {
-      final saved = await _saveTreeToForest(
+      final plantingResult = await _saveTreeToForest(
         category,
         nameController.text.trim(),
       );
-      if (saved) {
-        Get.toNamed(AppRoutes.FOREST);
+      if (plantingResult != null) {
+        if (plantingResult.completedGrove && mounted) {
+          await GroveCompleteScreen.show(
+            context: context,
+            completedGroveIndex: plantingResult.plantedGroveIndex,
+            treeCount: plantingResult.groveTreeCount,
+            totalQuestXp: plantingResult.totalQuestXp,
+            onExploreNextGrove: Get.back,
+          );
+        }
+        Get.toNamed(
+          AppRoutes.FOREST,
+          arguments: {
+            'groveIndex': plantingResult.completedGrove
+                ? plantingResult.plantedGroveIndex + 1
+                : plantingResult.plantedGroveIndex,
+          },
+        );
       }
     }
     nameController.dispose();

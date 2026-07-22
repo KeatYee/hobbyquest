@@ -24,6 +24,7 @@ class TreeModel {
   final String categoryId;
   final String planId;
   final int xpRequired;
+  final int groveIndex;
   final int treeIndex;
   final int questsCompleted;
   final int learningMinutes;
@@ -36,6 +37,7 @@ class TreeModel {
     required this.categoryId,
     this.planId = '',
     this.xpRequired = 0,
+    this.groveIndex = 1,
     this.treeIndex = 0,
     this.questsCompleted = 0,
     this.learningMinutes = 0,
@@ -50,6 +52,7 @@ class TreeModel {
       categoryId: json['categoryId'] as String? ?? '',
       planId: json['planId'] as String? ?? '',
       xpRequired: (json['xpRequired'] as num?)?.toInt() ?? 0,
+      groveIndex: _readGroveIndex(json['groveIndex']),
       treeIndex: (json['treeIndex'] as num?)?.toInt() ?? 0,
       questsCompleted: (json['questsCompleted'] as num?)?.toInt() ?? 0,
       learningMinutes: (json['learningMinutes'] as num?)?.toInt() ?? 0,
@@ -64,6 +67,7 @@ class TreeModel {
       'categoryId': categoryId,
       'planId': planId,
       'xpRequired': xpRequired,
+      'groveIndex': groveIndex,
       'treeIndex': treeIndex,
       'questsCompleted': questsCompleted,
       'learningMinutes': learningMinutes,
@@ -79,12 +83,18 @@ class TreeModel {
     return null;
   }
 
+  static int _readGroveIndex(dynamic value) {
+    final index = (value as num?)?.toInt() ?? 1;
+    return index < 1 ? 1 : index;
+  }
+
   TreeModel copyWith({
     String? id,
     String? treeName,
     String? categoryId,
     String? planId,
     int? xpRequired,
+    int? groveIndex,
     int? treeIndex,
     int? questsCompleted,
     int? learningMinutes,
@@ -97,6 +107,7 @@ class TreeModel {
       categoryId: categoryId ?? this.categoryId,
       planId: planId ?? this.planId,
       xpRequired: xpRequired ?? this.xpRequired,
+      groveIndex: groveIndex ?? this.groveIndex,
       treeIndex: treeIndex ?? this.treeIndex,
       questsCompleted: questsCompleted ?? this.questsCompleted,
       learningMinutes: learningMinutes ?? this.learningMinutes,
