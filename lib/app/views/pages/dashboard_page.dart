@@ -18,56 +18,97 @@ class DashboardPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-
       body: Obx(
         () => IndexedStack(
           index: controller.tabIndex.value,
           children: const [HomePage(), MapPage(), GuildPage(), ProfilePage()],
         ),
       ),
-
       bottomNavigationBar: Obx(
-        () => BottomNavigationBar(
-          currentIndex: controller.tabIndex.value,
-          onTap: controller.changeTabIndex,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: AppFonts.badge,
+        () => SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              key: const Key('dashboard-navigation'),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.softShadow,
+                    blurRadius: 18,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BottomNavigationBar(
+                  currentIndex: controller.tabIndex.value,
+                  onTap: controller.changeTabIndex,
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: AppColors.surface,
+                  selectedItemColor: AppColors.primary,
+                  unselectedItemColor: AppColors.textSecondary,
+                  selectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppFonts.badge,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: AppFonts.badge,
+                  ),
+                  showUnselectedLabels: true,
+                  elevation: 0,
+                  items: [
+                    _navigationItem(
+                      icon: Icons.dashboard_outlined,
+                      activeIcon: Icons.dashboard_rounded,
+                      label: 'Home',
+                    ),
+                    _navigationItem(
+                      icon: Icons.forest_outlined,
+                      activeIcon: Icons.forest_rounded,
+                      label: 'Forest',
+                    ),
+                    _navigationItem(
+                      icon: Icons.shield_outlined,
+                      activeIcon: Icons.shield_rounded,
+                      label: 'Guild',
+                    ),
+                    _navigationItem(
+                      icon: Icons.person_outline_rounded,
+                      activeIcon: Icons.person_rounded,
+                      label: 'Profile',
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: AppFonts.badge,
-          ),
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard_rounded),
-              label: "Home",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.forest_outlined),
-              activeIcon: Icon(Icons.forest_rounded),
-              label: "Forest",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.shield_outlined),
-              activeIcon: Icon(Icons.shield_rounded),
-              label: "Guild",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: "Profile",
-            ),
-          ],
         ),
       ),
+    );
+  }
+
+  BottomNavigationBarItem _navigationItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    return BottomNavigationBarItem(
+      icon: Padding(padding: const EdgeInsets.all(7), child: Icon(icon)),
+      activeIcon: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(activeIcon),
+      ),
+      label: label,
     );
   }
 }

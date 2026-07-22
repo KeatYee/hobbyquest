@@ -22,7 +22,7 @@ class HomePage extends StatelessWidget {
 
     return Column(
       children: [
-        _buildHeroHud(context, controller),
+        _buildHeroHud(controller),
 
         Expanded(
           child: SingleChildScrollView(
@@ -31,45 +31,34 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
+                _buildPrimaryAction(controller),
+
+                const SizedBox(height: 16),
                 _buildMilestoneProgress(controller),
 
-                const SizedBox(height: 12),
-                _buildMilestoneRecoveryButton(controller),
-
-                const SizedBox(height: 24),
-
-                _buildSectionHeader(
-                  "QUESTS",
-                  onInfoTap: _showQuestInfoDialog,
-                  trailing: _buildGrowthLetterButton(controller),
-                ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 22),
 
                 Obx(() {
                   final activeQuests = controller.dailyQuests
                       .where((q) => q.isActive && !q.isCompleted)
                       .toList();
+                  final supportingQuests = activeQuests.skip(1).toList();
+                  if (supportingQuests.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
 
                   return Column(
-                    children: activeQuests.map((quest) {
-                      return _buildQuestCard(
-                        context,
-                        controller: controller,
-                        title: quest.title,
-                        desc: quest.desc,
-                        xp: quest.xpReward,
-                        durationMinutes: quest.durationMinutes,
-                        type: quest.type,
-                        questId: quest.nodeId,
-                        isActive: quest.isActive,
-                        isCompleted: quest.isCompleted,
-                        onTap: () {
-                          Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest);
-                        },
-                      );
-                    }).toList(),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader(
+                        'ALSO AVAILABLE',
+                        onInfoTap: _showQuestInfoDialog,
+                      ),
+                      const SizedBox(height: 10),
+                      ...supportingQuests.map(_buildSecondaryQuestCard),
+                    ],
                   );
                 }),
 
@@ -87,39 +76,400 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildMilestoneRecoveryButton(HomeController controller) {
+    if (!controller.hasCompletedMilestone()) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        key: const Key('milestone-recovery-cta'),
+        onPressed: () => Get.generalDialog(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MilestoneCompleteScreen(),
+          barrierDismissible: false,
+          barrierLabel: 'Continue to Next Milestone',
+        ),
+        icon: const Icon(Icons.arrow_forward_rounded),
+        label: const Text('CONTINUE TO NEXT MILESTONE'),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryAction(HomeController controller) {
     return Obx(() {
-      if (!controller.hasCompletedMilestone()) {
-        return const SizedBox.shrink();
+      if (controller.isLoadingProfile.value) {
+        return _buildQuestGuidance(
+          title: 'Preparing your next win',
+          message: 'We are getting your learning path ready.',
+          icon: Icons.auto_awesome_rounded,
+          showMapAction: false,
+        );
       }
 
-      return SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: () => Get.generalDialog(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const MilestoneCompleteScreen(),
-            barrierDismissible: false,
-            barrierLabel: 'Continue to Next Milestone',
-          ),
-          icon: const Icon(Icons.arrow_forward_rounded),
-          label: const Text('CONTINUE TO NEXT MILESTONE'),
-        ),
-      );
+      if (controller.hasCompletedMilestone()) {
+        return _buildMilestoneRecoveryButton(controller);
+      }
+
+      final activeQuests = controller.dailyQuests
+          .where((quest) => quest.isActive && !quest.isCompleted)
+          .toList();
+      if (activeQuests.isEmpty) {
+        return _buildQuestGuidance(
+          title: 'Your next step is taking shape',
+          message:
+              'Review your milestone map to see your path and what unlocks next.',
+          icon: Icons.map_rounded,
+          showMapAction: true,
+          controller: controller,
+        );
+      }
+
+      return _buildFeaturedQuestCard(activeQuests.first);
     });
   }
 
-  Widget _buildHeroHud(BuildContext context, HomeController controller) {
+  Widget _buildFeaturedQuestCard(QuestNodeModel quest) {
+    void openQuest() {
+      Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest);
+    }
+
+    return Semantics(
+      button: true,
+      label: 'Start next quest: ${quest.title}',
+      child: Material(
+        key: const Key('featured-quest-card'),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: openQuest,
+          borderRadius: BorderRadius.circular(22),
+          child: Ink(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppColors.textShadow,
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.textOnPrimary.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: AppColors.textOnPrimary.withValues(
+                            alpha: 0.22,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _questTypeIcon(quest.type),
+                            size: 14,
+                            color: AppColors.textOnPrimary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _questTypeLabel(quest.type),
+                            style: const TextStyle(
+                              color: AppColors.textOnPrimary,
+                              fontSize: AppFonts.label,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'NEXT QUEST',
+                      style: TextStyle(
+                        color: AppColors.textOnPrimary,
+                        fontSize: AppFonts.label,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  quest.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textOnPrimary,
+                    fontSize: AppFonts.title,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                  ),
+                ),
+                if (quest.desc.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    quest.desc,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textOnPrimary.withValues(alpha: 0.88),
+                      fontSize: AppFonts.caption,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _featuredQuestMeta(
+                      Icons.access_time_rounded,
+                      '${quest.durationMinutes} min',
+                    ),
+                    const SizedBox(width: 8),
+                    _featuredQuestMeta(
+                      Icons.flash_on_rounded,
+                      '+${quest.xpReward} XP',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: const Key('featured-quest-cta'),
+                    onPressed: openQuest,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.surface,
+                      foregroundColor: AppColors.primary,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                    label: const Text('START QUEST'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _featuredQuestMeta(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.textOnPrimary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textOnPrimary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textOnPrimary,
+              fontSize: AppFonts.badge,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestGuidance({
+    required String title,
+    required String message,
+    required IconData icon,
+    required bool showMapAction,
+    HomeController? controller,
+  }) {
+    return Container(
+      key: const Key('quest-guidance'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: AppFonts.bodyLg,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: AppFonts.caption,
+                    height: 1.35,
+                  ),
+                ),
+                if (showMapAction && controller != null) ...[
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () {
+                      final plan = controller.user.value?.currentPlan;
+                      if (plan != null) {
+                        _showFullMilestoneMap(controller, plan);
+                      }
+                    },
+                    icon: const Icon(Icons.map_rounded, size: 17),
+                    label: const Text('VIEW MILESTONE MAP'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(48, 40),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondaryQuestCard(QuestNodeModel quest) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        key: Key('secondary-quest-${quest.nodeId}'),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    _questTypeIcon(quest.type),
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        quest.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: AppFonts.caption,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${quest.durationMinutes} min  •  +${quest.xpReward} XP',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: AppFonts.badge,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _questTypeIcon(String type) {
+    switch (type) {
+      case 'knowledge':
+        return Icons.menu_book_rounded;
+      case 'practice':
+        return Icons.timer_rounded;
+      case 'challenge':
+        return Icons.camera_alt_rounded;
+      default:
+        return Icons.task_alt_rounded;
+    }
+  }
+
+  String _questTypeLabel(String type) {
+    switch (type) {
+      case 'knowledge':
+        return 'KNOWLEDGE';
+      case 'practice':
+        return 'PRACTICE';
+      case 'challenge':
+        return 'CHALLENGE';
+      default:
+        return 'QUEST';
+    }
+  }
+
+  Widget _buildHeroHud(HomeController controller) {
     final progressionController = Get.find<ProgressionController>();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 42, 20, 22),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 18),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -127,37 +477,30 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _buildHeaderAvatar(controller, progressionController),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Obx(
-                      () => Text(
-                        controller.nickname.value,
+                    Obx(() {
+                      final nickname = controller.nickname.value.trim();
+                      return Text(
+                        nickname.isEmpty ? 'Hero' : 'Hi, $nickname',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: AppFonts.title,
-                          color: AppColors.textOnPrimary,
+                          color: AppColors.textPrimary,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        _buildCharacterTypeChip(controller),
-                        _buildHobbyChip(controller),
-                      ],
-                    ),
+                      );
+                    }),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              _buildGrowthLetterButton(controller),
             ],
           ),
         ],
@@ -174,19 +517,16 @@ class HomePage extends StatelessWidget {
       alignment: Alignment.bottomRight,
       children: [
         Container(
-          width: 76,
-          height: 76,
+          width: 60,
+          height: 60,
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: AppColors.textOnPrimary.withOpacity(0.18),
+            color: AppColors.surface,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: AppColors.textOnPrimary.withOpacity(0.85),
-              width: 2,
-            ),
+            border: Border.all(color: AppColors.borderStrong, width: 2),
             boxShadow: [
               BoxShadow(
-                color: AppColors.textPrimary.withOpacity(0.18),
+                color: AppColors.softShadow,
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -195,14 +535,14 @@ class HomePage extends StatelessWidget {
           child: Obx(() {
             final avatarPath = controller.avatarSvg.value;
             return CircleAvatar(
-              radius: 34,
+              radius: 26,
               backgroundColor: AppColors.primaryLight,
               child: avatarPath.isNotEmpty
                   ? ClipOval(
                       child: Image.asset(
                         avatarPath,
-                        width: 68,
-                        height: 68,
+                        width: 52,
+                        height: 52,
                         fit: BoxFit.cover,
                         alignment: Alignment.topCenter,
                       ),
@@ -210,7 +550,7 @@ class HomePage extends StatelessWidget {
                   : const Icon(
                       Icons.person_rounded,
                       color: AppColors.primaryDark,
-                      size: 32,
+                      size: 26,
                     ),
             );
           }),
@@ -220,18 +560,18 @@ class HomePage extends StatelessWidget {
           bottom: -2,
           child: Obx(
             () => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: AppColors.textOnPrimary, width: 1.5),
+                border: Border.all(color: AppColors.surface, width: 1.5),
               ),
               child: Text(
                 'LV ${progressionController.currentLevel}',
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w900,
-                  fontSize: AppFonts.micro,
+                  fontSize: AppFonts.label,
                 ),
               ),
             ),
@@ -239,82 +579,6 @@ class HomePage extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Widget _buildCharacterTypeChip(HomeController controller) {
-    return Obx(() {
-      final characterType = _characterTypeFromAvatar(
-        controller.avatarSvg.value,
-      );
-      if (characterType.isEmpty) return const SizedBox.shrink();
-
-      return _buildHeaderInfoChip(
-        icon: Icons.person_rounded,
-        label: characterType,
-        backgroundColor: AppColors.textOnPrimary.withOpacity(0.18),
-        foregroundColor: AppColors.textOnPrimary,
-      );
-    });
-  }
-
-  Widget _buildHobbyChip(HomeController controller) {
-    return Obx(() {
-      final hobby = controller.hobby.value.trim();
-      if (hobby.isEmpty) return const SizedBox.shrink();
-
-      return _buildHeaderInfoChip(
-        icon: Icons.local_florist_rounded,
-        label: hobby,
-        backgroundColor: AppColors.textOnPrimary.withOpacity(0.12),
-        foregroundColor: AppColors.textOnPrimary.withOpacity(0.92),
-      );
-    });
-  }
-
-  Widget _buildHeaderInfoChip({
-    required IconData icon,
-    required String label,
-    required Color backgroundColor,
-    required Color foregroundColor,
-  }) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.textOnPrimary.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: foregroundColor, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: foregroundColor,
-              fontSize: AppFonts.badge,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _characterTypeFromAvatar(String avatarPath) {
-    if (avatarPath.trim().isEmpty) return '';
-
-    final filename = avatarPath.split('/').last;
-    final parts = filename.split('_');
-    if (parts.length < 3) return '';
-
-    final rawName = parts[1].trim();
-    if (rawName.isEmpty) return '';
-    return rawName[0].toUpperCase() + rawName.substring(1);
   }
 
   Widget _buildGrowthLetterButton(HomeController controller) {
