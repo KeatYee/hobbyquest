@@ -157,6 +157,73 @@ class _ForestPageState extends State<ForestPage> {
         .toSet();
   }
 
+  Widget _buildGroveSelector(int selectedGrove, List<int> availableGroves) {
+    final currentPosition = availableGroves.indexOf(selectedGrove);
+    final canGoBack = currentPosition > 0;
+    final canGoForward =
+        currentPosition >= 0 && currentPosition < availableGroves.length - 1;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 104, 24, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Previous grove',
+            onPressed: canGoBack
+                ? () => setState(
+                    () => _selectedGroveIndex =
+                        availableGroves[currentPosition - 1],
+                  )
+                : null,
+            icon: const Icon(Icons.chevron_left_rounded),
+            color: AppColors.primary,
+          ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'FOREST GROVE',
+                  style: TextStyle(
+                    fontSize: AppFonts.label,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.7,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  'Grove $selectedGrove',
+                  style: const TextStyle(
+                    fontSize: AppFonts.bodyLg,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next grove',
+            onPressed: canGoForward
+                ? () => setState(
+                    () => _selectedGroveIndex =
+                        availableGroves[currentPosition + 1],
+                  )
+                : null,
+            icon: const Icon(Icons.chevron_right_rounded),
+            color: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptySpot(bool isHovered) {
     return Center(
       child: Container(
@@ -437,13 +504,33 @@ class _ForestPageState extends State<ForestPage> {
 
                     final docs = snapshot.data?.docs ?? [];
 
-                    final items = docs.map((doc) {
+                    final allItems = docs.map((doc) {
                       final tree = TreeModel.fromJson(
                         doc.data() as Map<String, dynamic>,
                         docId: doc.id,
                       );
                       return (tree: tree, ref: doc.reference);
                     }).toList();
+
+                    final activeGrove = _activeGroveIndex();
+                    final availableGroves = <int>{
+                      activeGrove,
+                      ...allItems.map((entry) => entry.tree.groveIndex),
+                      if (Get.isRegistered<HomeController>())
+                        ...?Get.find<HomeController>()
+                            .user
+                            .value
+                            ?.completedGroveIndexes,
+                    }.where((index) => index > 0).toList()..sort();
+                    final selectedGrove =
+                        availableGroves.contains(_selectedGroveIndex)
+                        ? _selectedGroveIndex!
+                        : activeGrove;
+                    final items = allItems
+                        .where(
+                          (entry) => entry.tree.groveIndex == selectedGrove,
+                        )
+                        .toList();
 
                     final occupied =
                         <int, ({TreeModel tree, DocumentReference ref})>{};
@@ -461,12 +548,13 @@ class _ForestPageState extends State<ForestPage> {
 
                     return Column(
                       children: [
+                        _buildGroveSelector(selectedGrove, availableGroves),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,
                           ),
-                          margin: const EdgeInsets.fromLTRB(32, 110, 32, 32),
+                          margin: const EdgeInsets.fromLTRB(32, 0, 32, 20),
                           decoration: BoxDecoration(
                             color: AppColors.surface.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(14),

@@ -258,11 +258,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   Widget _buildHeroHeader(Color typeColor) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.accent],
-        ),
+        color: AppColors.primary,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(36),
           bottomRight: Radius.circular(36),
@@ -270,118 +266,91 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       ),
       child: SafeArea(
         bottom: false,
-        child: Stack(
-          clipBehavior: Clip.none,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Positioned(
-              right: 20,
-              top: -10,
-              child: _DecorCircle(size: 120, opacity: 0.06),
-            ),
-            Positioned(
-              left: -20,
-              bottom: 30,
-              child: _DecorCircle(size: 80, opacity: 0.04),
-            ),
-
-            Positioned(
-              right: -18,
-              top: 18,
-              child: Icon(
-                getTypeIcon(),
-                size: 148,
-                color: AppColors.textOnPrimary.withOpacity(0.07),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 12, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.textOnPrimary,
+                      size: 20,
+                    ),
+                    onPressed: () => Get.back(),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.textOnPrimary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: AppColors.textOnPrimary.withOpacity(0.28),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          getTypeIcon(),
+                          color: AppColors.textOnPrimary,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          getTypeLabel(),
+                          style: TextStyle(
+                            color: AppColors.textOnPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: AppFonts.badge,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 4, 12, 0),
-                  child: Row(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentQuest.title,
+                    style: TextStyle(
+                      fontSize: AppFonts.titlePage,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textOnPrimary,
+                      height: 1.2,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: AppColors.textOnPrimary,
-                          size: 20,
-                        ),
-                        onPressed: () => Get.back(),
+                      _HeroPill(
+                        icon: Icons.flash_on_rounded,
+                        label: '+${currentQuest.xpReward} XP',
                       ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.textOnPrimary.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: AppColors.textOnPrimary.withOpacity(0.28),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              getTypeIcon(),
-                              color: AppColors.textOnPrimary,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              getTypeLabel(),
-                              style: TextStyle(
-                                color: AppColors.textOnPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: AppFonts.badge,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(width: 8),
+                      _HeroPill(
+                        icon: Icons.access_time_rounded,
+                        label: '${currentQuest.durationMinutes} min',
                       ),
                     ],
                   ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currentQuest.title,
-                        style: TextStyle(
-                          fontSize: AppFonts.titlePage,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textOnPrimary,
-                          height: 1.2,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _HeroPill(
-                            icon: Icons.flash_on_rounded,
-                            label: '+${currentQuest.xpReward} XP',
-                            accentColor: AppColors.secondary,
-                          ),
-                          const SizedBox(width: 8),
-                          _HeroPill(
-                            icon: Icons.access_time_rounded,
-                            label: '${currentQuest.durationMinutes} min',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1107,13 +1076,11 @@ class _GradientButton extends StatelessWidget {
 class _HeroPill extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color? accentColor;
 
-  const _HeroPill({required this.icon, required this.label, this.accentColor});
+  const _HeroPill({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = accentColor ?? AppColors.textOnPrimary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
@@ -1127,36 +1094,17 @@ class _HeroPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 14),
+          Icon(icon, color: AppColors.textOnPrimary, size: 14),
           const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
-              color: iconColor,
+              color: AppColors.textOnPrimary,
               fontWeight: FontWeight.w700,
               fontSize: AppFonts.caption,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Decorative circle for the gradient hero
-class _DecorCircle extends StatelessWidget {
-  final double size;
-  final double opacity;
-  const _DecorCircle({required this.size, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.textOnPrimary.withOpacity(opacity),
       ),
     );
   }

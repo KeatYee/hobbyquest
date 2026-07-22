@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
@@ -1071,119 +1072,112 @@ class HomePage extends StatelessWidget {
         ? plan.milestones[currentIndex]
         : null;
 
-    Get.bottomSheet(
-      SafeArea(
-        top: false,
-        child: Container(
-          height: Get.height * 0.86,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+    Get.to<void>(
+      () => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: AppColors.background,
+          systemNavigationBarColor: AppColors.background,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Full Milestone Map',
-                      style: TextStyle(
-                        fontSize: AppFonts.title,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Full Milestone Map',
+                          style: TextStyle(
+                            fontSize: AppFonts.title,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.close_rounded),
+                        color: AppColors.textSecondary,
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                  if (currentMilestone != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Phase ${currentIndex + 1}: ${currentMilestone.title}',
+                      style: const TextStyle(
+                        fontSize: AppFonts.caption,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
                       ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: plan.milestones
+                          .map((milestone) => _milestoneRow(milestone, plan))
+                          .toList(),
+                    ),
                   ),
-                  IconButton(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.close_rounded),
-                    color: AppColors.textSecondary,
-                    tooltip: 'Close',
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Quest Path',
+                    style: TextStyle(
+                      fontSize: AppFonts.bodyLg,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: Obx(() {
+                      final quests = controller.dailyQuests.isNotEmpty
+                          ? controller.dailyQuests.toList()
+                          : controller.getAllQuestNodes(plan.quests);
+
+                      if (quests.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No quests yet.',
+                            style: TextStyle(
+                              fontSize: AppFonts.caption,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        itemCount: quests.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (_, index) =>
+                            _buildMilestoneQuestRow(quests[index]),
+                      );
+                    }),
                   ),
                 ],
               ),
-              if (currentMilestone != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Phase ${currentIndex + 1}: ${currentMilestone.title}',
-                  style: const TextStyle(
-                    fontSize: AppFonts.caption,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: plan.milestones
-                      .map((milestone) => _milestoneRow(milestone, plan))
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Quest Path',
-                style: TextStyle(
-                  fontSize: AppFonts.bodyLg,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Obx(() {
-                  final quests = controller.dailyQuests.isNotEmpty
-                      ? controller.dailyQuests.toList()
-                      : controller.getAllQuestNodes(plan.quests);
-
-                  if (quests.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No quests yet.',
-                        style: TextStyle(
-                          fontSize: AppFonts.caption,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: quests.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, index) =>
-                        _buildMilestoneQuestRow(quests[index]),
-                  );
-                }),
-              ),
-            ],
+            ),
           ),
         ),
       ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
     );
   }
 
