@@ -12,14 +12,12 @@ class AppColors {
   static const Color error = Color(0xFFB85450);
   static const Color info = Color(0xFF6A9BB8);
 
-  static const Color background = Color(0xFFFAF6F0); 
+  static const Color background = Color(0xFFFAF6F0);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color border = Color(0xFFE6E2DB);
-  
-  static const Color textPrimary = Color(0xFF232D33); 
+
+  static const Color textPrimary = Color(0xFF232D33);
   static const Color textSecondary = Color(0xFF7A8B94);
   static const Color textOnPrimary = Colors.white;
-  static const Color textShadow = Color(0x26000000); 
-
-  static const Color gold = secondary;
+  static const Color textShadow = Color(0x26000000);
 }

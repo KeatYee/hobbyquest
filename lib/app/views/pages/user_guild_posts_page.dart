@@ -11,11 +11,7 @@ class UserGuildPostsPage extends StatelessWidget {
   final String userId;
   final String? title;
 
-  const UserGuildPostsPage({
-    super.key,
-    required this.userId,
-    this.title,
-  });
+  const UserGuildPostsPage({super.key, required this.userId, this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -128,15 +124,16 @@ Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
       .where('userId', isEqualTo: trimmedUserId)
       .get();
 
-  final posts = postSnapshot.docs
-      .map((doc) => GuildPostModel.fromJson(doc.data(), doc.id))
-      .where((post) => post.title.trim().isNotEmpty)
-      .toList()
-    ..sort((a, b) {
-      final aTime = a.createdAt ?? DateTime(2000);
-      final bTime = b.createdAt ?? DateTime(2000);
-      return bTime.compareTo(aTime);
-    });
+  final posts =
+      postSnapshot.docs
+          .map((doc) => GuildPostModel.fromJson(doc.data(), doc.id))
+          .where((post) => post.title.trim().isNotEmpty)
+          .toList()
+        ..sort((a, b) {
+          final aTime = a.createdAt ?? DateTime(2000);
+          final bTime = b.createdAt ?? DateTime(2000);
+          return bTime.compareTo(aTime);
+        });
 
   final userIds = <String>{};
   for (final post in posts) {
@@ -183,9 +180,9 @@ class _UserGuildPostsData {
   });
 
   const _UserGuildPostsData.empty()
-      : posts = const [],
-        profiles = const {},
-        isPrivate = false;
+    : posts = const [],
+      profiles = const {},
+      isPrivate = false;
 }
 
 class _UserSummary {
@@ -232,10 +229,7 @@ class _UserGuildPostCard extends StatelessWidget {
   final GuildPostModel post;
   final Map<String, _UserSummary> profiles;
 
-  const _UserGuildPostCard({
-    required this.post,
-    required this.profiles,
-  });
+  const _UserGuildPostCard({required this.post, required this.profiles});
 
   @override
   Widget build(BuildContext context) {
@@ -361,9 +355,9 @@ class _UserGuildPostCard extends StatelessWidget {
           Text(
             post.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -374,7 +368,7 @@ class _UserGuildPostCard extends StatelessWidget {
               fontSize: AppFonts.bodyLg,
             ),
           ),
-          if(hasImage) ...[
+          if (hasImage) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -389,10 +383,7 @@ class _UserGuildPostCard extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           if (canViewStats)
-            _GuildMetricsRow(
-              post: post,
-              reactionCount: reactionCount,
-            )
+            _GuildMetricsRow(post: post, reactionCount: reactionCount)
           else
             _MetricPill(
               icon: Icons.visibility_off_outlined,
@@ -408,8 +399,8 @@ class _UserGuildPostCard extends StatelessWidget {
             _ReactionGroups(post: post, profiles: profiles),
           ],
         ],
-      ));
-    
+      ),
+    );
   }
 }
 
@@ -492,10 +483,7 @@ class _ReactionGroups extends StatelessWidget {
   final GuildPostModel post;
   final Map<String, _UserSummary> profiles;
 
-  const _ReactionGroups({
-    required this.post,
-    required this.profiles,
-  });
+  const _ReactionGroups({required this.post, required this.profiles});
 
   @override
   Widget build(BuildContext context) {
@@ -531,10 +519,7 @@ class _GuildMetricsRow extends StatelessWidget {
   final GuildPostModel post;
   final int reactionCount;
 
-  const _GuildMetricsRow({
-    required this.post,
-    required this.reactionCount,
-  });
+  const _GuildMetricsRow({required this.post, required this.reactionCount});
 
   @override
   Widget build(BuildContext context) {
@@ -594,10 +579,7 @@ class _ReviewerList extends StatelessWidget {
   final GuildPostModel post;
   final Map<String, _UserSummary> profiles;
 
-  const _ReviewerList({
-    required this.post,
-    required this.profiles,
-  });
+  const _ReviewerList({required this.post, required this.profiles});
 
   @override
   Widget build(BuildContext context) {
@@ -606,8 +588,9 @@ class _ReviewerList extends StatelessWidget {
       runSpacing: 6,
       children: post.peerReviews.entries.map((entry) {
         final user = profiles[entry.key] ?? _UserSummary.fallback(entry.key);
-        final displayName =
-            user.name.trim().isNotEmpty ? user.name.trim() : 'Anonymous';
+        final displayName = user.name.trim().isNotEmpty
+            ? user.name.trim()
+            : 'Anonymous';
         final hasAvatar = user.avatarSvg.trim().isNotEmpty;
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -678,10 +661,7 @@ class _ReviewChart extends StatelessWidget {
                   .toList(),
             ),
           ],
-          getTitle: (index, _) => RadarChartTitle(
-            text: axes[index],
-            angle: 0,
-          ),
+          getTitle: (index, _) => RadarChartTitle(text: axes[index], angle: 0),
           titleTextStyle: const TextStyle(
             fontSize: AppFonts.badge,
             fontWeight: FontWeight.w600,
@@ -691,7 +671,10 @@ class _ReviewChart extends StatelessWidget {
           borderData: FlBorderData(show: false),
           radarBorderData: BorderSide.none,
           tickBorderData: BorderSide.none,
-          ticksTextStyle: const TextStyle(color: Colors.transparent, fontSize: 0),
+          ticksTextStyle: const TextStyle(
+            color: Colors.transparent,
+            fontSize: 0,
+          ),
           gridBorderData: BorderSide.none,
         ),
       ),
@@ -767,10 +750,7 @@ class _SectionLabel extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _SectionLabel({
-    required this.icon,
-    required this.label,
-  });
+  const _SectionLabel({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -795,10 +775,7 @@ class _MetricPill extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _MetricPill({
-    required this.icon,
-    required this.label,
-  });
+  const _MetricPill({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -850,12 +827,8 @@ class _EmojiBadge extends StatelessWidget {
 
 class _UserChip extends StatelessWidget {
   final _UserSummary user;
-  final String? trailing;
 
-  const _UserChip({
-    required this.user,
-    this.trailing,
-  });
+  const _UserChip({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -905,17 +878,6 @@ class _UserChip extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 6),
-            Text(
-              trailing!,
-              style: const TextStyle(
-                fontSize: AppFonts.badge,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
         ],
       ),
     );

@@ -23,12 +23,6 @@ class ProgressionController extends GetxController {
 
   int get currentLevel => (totalXP.value ~/ 1000) + 1;
 
-  int get currentXpInLevel => totalXP.value % 1000;
-
-  double get levelProgress => currentXpInLevel / 1000;
-
-  int get xpToNextLevel => 1000 - currentXpInLevel;
-
   @override
   void onInit() {
     super.onInit();
@@ -65,7 +59,11 @@ class ProgressionController extends GetxController {
     }
   }
 
-  Future<void> completeQuest({String? questId, int xpReward = 100, String? categoryName}) async {
+  Future<void> completeQuest({
+    String? questId,
+    int xpReward = 100,
+    String? categoryName,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw Exception('User not authenticated');
@@ -75,12 +73,16 @@ class ProgressionController extends GetxController {
     if (resolvedCategory == null) {
       try {
         resolvedCategory = await _resolveCurrentCategory();
-        print('--- DEBUG: _resolveCurrentCategory returned: $resolvedCategory ---');
+        print(
+          '--- DEBUG: _resolveCurrentCategory returned: $resolvedCategory ---',
+        );
       } catch (e) {
         print('--- ERROR: _resolveCurrentCategory threw: $e ---');
       }
     }
-    print('--- DEBUG: completeQuest resolvedCategory=$resolvedCategory, xpReward=$xpReward ---');
+    print(
+      '--- DEBUG: completeQuest resolvedCategory=$resolvedCategory, xpReward=$xpReward ---',
+    );
 
     final userRef = _firestore.collection('users').doc(user.uid);
 
@@ -98,7 +100,7 @@ class ProgressionController extends GetxController {
       final currentStreak = data?['currentStreak'] as int? ?? 0;
       final lastStreakDateData = data?['lastStreakDate'];
       DateTime? lastStreakDate;
-      
+
       if (lastStreakDateData != null) {
         if (lastStreakDateData is Timestamp) {
           lastStreakDate = lastStreakDateData.toDate();
@@ -109,11 +111,15 @@ class ProgressionController extends GetxController {
 
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
-      
+
       if (lastStreakDate == null) {
         updatedStreak = 1;
       } else {
-        final lastStreakDateOnly = DateTime(lastStreakDate.year, lastStreakDate.month, lastStreakDate.day);
+        final lastStreakDateOnly = DateTime(
+          lastStreakDate.year,
+          lastStreakDate.month,
+          lastStreakDate.day,
+        );
         final daysDifference = todayDate.difference(lastStreakDateOnly).inDays;
 
         if (daysDifference == 0) {
@@ -128,24 +134,21 @@ class ProgressionController extends GetxController {
       final updatedCategoryXp = Map<String, int>.from(
         (data?['categoryXp'] as Map?)?.map(
               (k, v) => MapEntry(k.toString(), (v as num).toInt()),
-            ) ?? {},
+            ) ??
+            {},
       );
       if (resolvedCategory != null) {
         updatedCategoryXp[resolvedCategory] =
             (updatedCategoryXp[resolvedCategory] ?? 0) + xpReward;
       }
 
-      transaction.set(
-        userRef,
-        {
-          'totalXP': updatedXP,
-          'currentStreak': updatedStreak,
-          'lastStreakDate': today,
-          'categoryXp': updatedCategoryXp,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(userRef, {
+        'totalXP': updatedXP,
+        'currentStreak': updatedStreak,
+        'lastStreakDate': today,
+        'categoryXp': updatedCategoryXp,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     });
 
     totalXP.value = updatedXP;
@@ -154,7 +157,9 @@ class ProgressionController extends GetxController {
     if (resolvedCategory != null) {
       categoryXp[resolvedCategory] =
           (categoryXp[resolvedCategory] ?? 0) + xpReward;
-      print('--- DEBUG: categoryXp updated: [${resolvedCategory}] = ${categoryXp[resolvedCategory]} ---');
+      print(
+        '--- DEBUG: categoryXp updated: [${resolvedCategory}] = ${categoryXp[resolvedCategory]} ---',
+      );
     } else {
       print('--- WARN: resolvedCategory is null, categoryXp NOT updated ---');
     }
@@ -200,36 +205,31 @@ class ProgressionController extends GetxController {
     );
   }
 
-  /// Directly sets category XP (used by map page tap-to-level-up).
-  Future<void> setCategoryXp(String categoryName, int xp) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .update({'categoryXp.$categoryName': xp});
-
-    categoryXp[categoryName] = xp;
-  }
-
   /// Resolves the current hobby's category name from Firestore categories.
   Future<String?> _resolveCurrentCategory() async {
     try {
       final hobby = Get.find<HomeController>().hobby.value;
       print('--- DEBUG _resolveCurrentCategory: hobby="$hobby" ---');
       if (hobby.isEmpty) {
-        print('--- DEBUG _resolveCurrentCategory: hobby is EMPTY, returning null ---');
+        print(
+          '--- DEBUG _resolveCurrentCategory: hobby is EMPTY, returning null ---',
+        );
         return null;
       }
       final cats = await _categoryService.getCategories();
-      print('--- DEBUG _resolveCurrentCategory: loaded ${cats.length} categories ---');
+      print(
+        '--- DEBUG _resolveCurrentCategory: loaded ${cats.length} categories ---',
+      );
       if (cats.isEmpty) return null;
 
       for (final cat in cats) {
-        print('--- DEBUG _resolveCurrentCategory: checking category "${cat.name}" with hobbies: ${cat.hobbyNames} ---');
+        print(
+          '--- DEBUG _resolveCurrentCategory: checking category "${cat.name}" with hobbies: ${cat.hobbyNames} ---',
+        );
         if (cat.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
-          print('--- DEBUG _resolveCurrentCategory: MATCHED category "${cat.name}" ---');
+          print(
+            '--- DEBUG _resolveCurrentCategory: MATCHED category "${cat.name}" ---',
+          );
           return cat.name;
         }
       }
@@ -237,14 +237,23 @@ class ProgressionController extends GetxController {
       final hobbyLower = hobby.toLowerCase();
       for (final cat in cats) {
         final catName = cat.name.toLowerCase();
-        if (catName.contains(hobbyLower) || hobbyLower.contains(catName) ||
-            cat.hobbyNames.any((h) => h.toLowerCase().contains(hobbyLower) || hobbyLower.contains(h.toLowerCase()))) {
-          print('--- DEBUG _resolveCurrentCategory: PARTIAL MATCHED category "${cat.name}" for hobby="$hobby" ---');
+        if (catName.contains(hobbyLower) ||
+            hobbyLower.contains(catName) ||
+            cat.hobbyNames.any(
+              (h) =>
+                  h.toLowerCase().contains(hobbyLower) ||
+                  hobbyLower.contains(h.toLowerCase()),
+            )) {
+          print(
+            '--- DEBUG _resolveCurrentCategory: PARTIAL MATCHED category "${cat.name}" for hobby="$hobby" ---',
+          );
           return cat.name;
         }
       }
 
-      print('--- DEBUG _resolveCurrentCategory: NO match, falling back to first category "${cats.first.name}" ---');
+      print(
+        '--- DEBUG _resolveCurrentCategory: NO match, falling back to first category "${cats.first.name}" ---',
+      );
       return cats.first.name;
     } catch (e) {
       print('--- ERROR _resolveCurrentCategory: exception: $e ---');

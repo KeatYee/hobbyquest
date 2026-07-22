@@ -1,14 +1,13 @@
 import 'package:get/get.dart';
-import '../models/quest_node_model.dart';
 import 'progression_controller.dart';
 
 class DashboardController extends GetxController {
-  static const int maxVisibleQuestSlots = 3;
   static const int forestTabIndex = 1;
-  static const int guildTabIndex = 2;
 
   var tabIndex = 0.obs;
-  final ProgressionController progressionController = Get.put(ProgressionController());
+  final ProgressionController progressionController = Get.put(
+    ProgressionController(),
+  );
   String? _lastAppliedArgumentsKey;
 
   void changeTabIndex(int index) {
@@ -37,15 +36,5 @@ class DashboardController extends GetxController {
     }
 
     tabIndex.value = parsedTabIndex;
-  }
-
-  int getActiveQuestsCount(List<QuestNodeModel> quests) {
-    return quests.where((quest) => quest.isActive && !quest.isCompleted).length;
-  }
-
-  int getRemainingQuestCount(List<QuestNodeModel> quests) {
-    final activeQuestsCount = getActiveQuestsCount(quests);
-    final remaining = maxVisibleQuestSlots - activeQuestsCount;
-    return remaining <= 0 ? 0 : remaining;
   }
 }

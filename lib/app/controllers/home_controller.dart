@@ -314,7 +314,6 @@ class HomeController extends GetxController {
     );
   }
 
-
   Future<GoalCompletionTestSeedResult> seedGoalCompletionTestState() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) throw Exception('User not logged in.');
@@ -335,17 +334,6 @@ class HomeController extends GetxController {
     } finally {
       isSeedingGoalCompletionTest.value = false;
     }
-  }
-
-  void rerollDailyQuests() {
-    print(
-      "--- LOGIC: Refreshing visible quest window from current plan... ---",
-    );
-    _reloadCurrentPlanQuests();
-  }
-
-  void startQuest(String id) {
-    print("--- LOGIC: Starting Quest $id ---");
   }
 
   Future<bool> completeQuest(
@@ -387,121 +375,6 @@ class HomeController extends GetxController {
     print('--- INFO: Quest $questId completed via HomeController ---');
 
     return true;
-  }
-
-  Future<void> _reloadCurrentPlanQuests() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        return;
-      }
-
-      final uid = currentUser.uid;
-      final planId = user.value?.activePlanId ?? '';
-      if (planId.isEmpty) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-
-        final data = userDoc.data();
-        if (data == null) return;
-
-        final loadedUser = UserModel.fromJson(data, uid);
-        user.value = loadedUser;
-
-        nickname.value = loadedUser.nickname;
-        avatarSvg.value = loadedUser.avatarSvg;
-        hobby.value = loadedUser.currentPlan.hobby;
-        goal.value = loadedUser.currentPlan.goal;
-        learningPace.value = loadedUser.currentPlan.learningPace;
-        level.value = loadedUser.currentPlan.level;
-        dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
-        return;
-      }
-
-      final plan = await QuestService.loadPlan(uid, planId);
-      final milestones = await QuestService.loadMilestones(uid, planId);
-      final quests = await QuestService.loadQuests(uid, planId);
-
-      final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
-
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final data = userDoc.data();
-      if (data == null) return;
-
-      final loadedUser = UserModel.fromJson(
-        data,
-        uid,
-      ).copyWith(activePlanId: planId, currentPlan: fullPlan);
-      user.value = loadedUser;
-
-      nickname.value = loadedUser.nickname;
-      avatarSvg.value = loadedUser.avatarSvg;
-      hobby.value = loadedUser.currentPlan.hobby;
-      goal.value = loadedUser.currentPlan.goal;
-      learningPace.value = loadedUser.currentPlan.learningPace;
-      level.value = loadedUser.currentPlan.level;
-      dailyQuests.value = getAllQuestNodes(loadedUser.currentPlan.quests);
-    } catch (e) {
-      print("--- ERROR: Failed to reload current plan quests: $e ---");
-    }
-  }
-
-  /// Ephemeral reroll using GeminiService. Does NOT persist to Firestore.
-  Future<void> rerollWithGemini() async {
-    if (!_geminiService.hasApiKey) {
-      print('--- INFO: Gemini API key not set; cannot reroll with model ---');
-      return;
-    }
-
-    try {
-      final refreshed = <QuestNodeModel>[];
-      for (final quest in dailyQuests) {
-        final alternative = await _geminiService.generateAlternativeQuest(
-          hobby: hobby.value,
-          nodeTitle: quest.title,
-          nodeDesc: quest.desc,
-          learningPace: learningPace.value,
-          milestoneTitle: _currentMilestoneTitle(),
-          questType: quest.type,
-          durationMinutes: quest.durationMinutes,
-        );
-
-        final altSteps = (alternative['steps'] is List)
-            ? (alternative['steps'] as List).map((e) => e.toString()).toList()
-            : null;
-        final altYoutube =
-            (alternative['youtube_search_query']
-                    ?.toString()
-                    .trim()
-                    .isNotEmpty ??
-                false)
-            ? alternative['youtube_search_query'].toString().trim()
-            : (alternative['youtubeSearchQuery']?.toString().trim() ??
-                  quest.youtubeSearchQuery ??
-                  '');
-
-        refreshed.add(
-          quest.copyWith(
-            title: alternative['title'] ?? quest.title,
-            desc: alternative['desc'] ?? quest.desc,
-            steps: altSteps ?? quest.steps,
-            youtubeSearchQuery: altYoutube,
-          ),
-        );
-      }
-
-      dailyQuests.value = refreshed;
-      print(
-        '--- INFO: Ephemeral reroll applied (${dailyQuests.length} quests) ---',
-      );
-    } catch (e) {
-      print('--- ERROR: Gemini reroll failed: $e ---');
-    }
   }
 
   /// Reroll a single quest card and persist the updated title/description.
@@ -776,11 +649,12 @@ class HomeController extends GetxController {
 
     await batch.commit();
 
-    final completionDates = completedPlan.quests
-        .map((quest) => quest.completedAt)
-        .whereType<DateTime>()
-        .toList()
-      ..sort();
+    final completionDates =
+        completedPlan.quests
+            .map((quest) => quest.completedAt)
+            .whereType<DateTime>()
+            .toList()
+          ..sort();
     await GoalHistoryService.markGoalCompleted(
       uid,
       GoalHistoryModel(
@@ -793,10 +667,12 @@ class HomeController extends GetxController {
         category: completedPlan.category?.trim().isNotEmpty == true
             ? completedPlan.category!.trim()
             : completedPlan.hobby,
-        createdAt:
-            completionDates.isEmpty ? DateTime.now() : completionDates.first,
-        completedAt:
-            completionDates.isEmpty ? DateTime.now() : completionDates.last,
+        createdAt: completionDates.isEmpty
+            ? DateTime.now()
+            : completionDates.first,
+        completedAt: completionDates.isEmpty
+            ? DateTime.now()
+            : completionDates.last,
       ),
     );
 

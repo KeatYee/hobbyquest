@@ -191,11 +191,10 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
                   : normalizedGoal),
         learningPace:
             (jsonMap['learningPace']?.toString().trim().isNotEmpty ?? false)
-                ? jsonMap['learningPace'].toString().trim()
-                : ((jsonMap['frequency']?.toString().trim().isNotEmpty ??
-                          false)
-                      ? jsonMap['frequency'].toString().trim()
-                      : learningPace),
+            ? jsonMap['learningPace'].toString().trim()
+            : ((jsonMap['frequency']?.toString().trim().isNotEmpty ?? false)
+                  ? jsonMap['frequency'].toString().trim()
+                  : learningPace),
         progress: (jsonMap['progress'] as int?) ?? 0,
         milestones: milestones.take(4).toList(),
         quests: const [],
@@ -216,10 +215,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     required String level,
     required String goal,
   }) async {
-    final localValidation = _validateGoalLocally(
-      hobby: hobby,
-      goal: goal,
-    );
+    final localValidation = _validateGoalLocally(hobby: hobby, goal: goal);
 
     if (!localValidation.isValid) {
       return localValidation;
@@ -230,7 +226,8 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
     }
 
     try {
-      final prompt = '''
+      final prompt =
+          '''
 You are a goal validator for a gamified hobby learning app.
 
 User Context:
@@ -351,7 +348,9 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
       final rawText = response.text?.trim() ?? '';
 
-      debugPrint('[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------');
+      debugPrint(
+        '[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------',
+      );
 
       final jsonMap = _extractJsonObject(rawText);
       final listDynamic =
@@ -361,9 +360,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       for (final item in listDynamic) {
         try {
           if (item is Map<String, dynamic>) {
-            final rawId = (item['node_id'] ?? item['id'] ?? '').toString().trim();
+            final rawId = (item['node_id'] ?? item['id'] ?? '')
+                .toString()
+                .trim();
             final formattedNodeId = '${milestoneNumber}_node_$rawId';
-            
+
             item['node_id'] = formattedNodeId;
 
             final rawDependsOn = item['depends_on'] ?? item['dependsOn'];
@@ -375,7 +376,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
             final node = QuestNodeModel.fromJson(item);
             final sanitizedType = _sanitizeType(node.type);
-            
+
             parsed.add(
               node.copyWith(
                 nodeId: formattedNodeId,
@@ -388,9 +389,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
           if (item is Map) {
             final rawMap = Map<String, dynamic>.from(item);
-            final rawId = (rawMap['node_id'] ?? rawMap['id'] ?? '').toString().trim();
+            final rawId = (rawMap['node_id'] ?? rawMap['id'] ?? '')
+                .toString()
+                .trim();
             final formattedNodeId = '${milestoneNumber}_node_$rawId';
-            
+
             rawMap['node_id'] = formattedNodeId;
 
             final rawDependsOn = rawMap['depends_on'] ?? rawMap['dependsOn'];
@@ -402,7 +405,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 
             final node = QuestNodeModel.fromJson(rawMap);
             final sanitizedType = _sanitizeType(node.type);
-            
+
             parsed.add(
               node.copyWith(
                 nodeId: formattedNodeId,
@@ -547,7 +550,9 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
 
-      debugPrint('[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------');
+      debugPrint(
+        '[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------',
+      );
 
       final title = (jsonMap['title']?.toString().trim().isNotEmpty ?? false)
           ? jsonMap['title'].toString().trim()
@@ -626,7 +631,8 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     }
 
     try {
-      final prompt = '''
+      final prompt =
+          '''
 You are writing a warm weekly growth letter for a gamified hobby learning app.
 The user is learning $hobby.
 
@@ -822,7 +828,8 @@ Instructions:
         ? 'Even without long notes, your completed quests show steady effort.'
         : 'Your reflections show that you are starting to notice what feels difficult and what improves with practice.';
 
-    final letter = 'Dear $nickname,\n\n'
+    final letter =
+        'Dear $nickname,\n\n'
         'This week, your $hobby tree grew through $questCount quest${questCount == 1 ? '' : 's'}. '
         '$reflectionHint\n\n'
         'Your strongest growth this week: you kept showing up and turning small actions into progress.\n\n'
@@ -890,11 +897,7 @@ Instructions:
       learningPace: learningPace,
       currentMilestoneIndex: 0,
       progress: 0,
-      milestones: _buildMilestones(
-        hobby: hobby,
-        level: level,
-        goal: goal,
-      ),
+      milestones: _buildMilestones(hobby: hobby, level: level, goal: goal),
       quests: _buildFallbackPhaseDag(
         hobby: hobby,
         milestoneNumber: '1',
@@ -975,115 +978,6 @@ Instructions:
     if (lower.endsWith('.gif')) return 'image/gif';
     if (lower.endsWith('.heic')) return 'image/heic';
     return 'image/jpeg';
-  }
-
-  List<QuestNodeModel> _buildFallbackQuests({
-    required String hobby,
-    required String level,
-    required String focus,
-  }) {
-    final seed = DateTime.now().day;
-    final variants = _questTemplatesForHobby(hobby);
-    final random = Random(seed);
-    variants.shuffle(random);
-
-    return [
-      QuestNodeModel(
-        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_1',
-        title: variants[0]['title']!,
-        desc: variants[0]['desc']!,
-        steps: [
-          'Read the topic overview.',
-          'Try one guided example or drill.',
-          'Write down one takeaway.',
-        ],
-        xpReward: _xpRewardForType('practice'),
-        type: 'practice',
-        durationMinutes: 15,
-        dependsOn: const [],
-      ),
-      QuestNodeModel(
-        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_2',
-        title: variants[1]['title']!,
-        desc: variants[1]['desc']!,
-        steps: [
-          'Review the concept briefly.',
-          'Apply it in a small exercise.',
-          'Note one thing to improve next time.',
-        ],
-        xpReward: _xpRewardForType('knowledge'),
-        type: 'knowledge',
-        durationMinutes: 10,
-        dependsOn: const [],
-      ),
-      QuestNodeModel(
-        nodeId: 'q_${hobby.toLowerCase().replaceAll(' ', '_')}_3',
-        title: 'Goal Push: ${_shorten(focus)}',
-        desc: 'Take one concrete step today toward: $focus',
-        steps: [
-          'Break the goal into one small action.',
-          'Complete the action now.',
-          'Record the result or a quick note.',
-        ],
-        xpReward: _xpRewardForType('challenge'),
-        type: 'challenge',
-        durationMinutes: 30,
-        dependsOn: const [],
-      ),
-    ];
-  }
-
-  List<QuestNodeModel> _parseQuests(
-    List<dynamic>? questsDynamic, {
-    required String hobby,
-    required String level,
-    required String focus,
-  }) {
-    final rawQuests = questsDynamic ?? const <dynamic>[];
-    if (rawQuests.isEmpty) {
-      return _buildFallbackQuests(hobby: hobby, level: level, focus: focus);
-    }
-
-    final parsed = rawQuests
-        .map((item) {
-          if (item is Map<String, dynamic>) {
-            return QuestNodeModel.fromJson(item);
-          }
-
-          if (item is Map) {
-            return QuestNodeModel.fromJson(Map<String, dynamic>.from(item));
-          }
-
-          return QuestNodeModel(
-            nodeId: item.toString(),
-            title: item.toString(),
-            desc: 'Complete a focused step for $hobby today.',
-            steps: [
-              'Read the task once end to end.',
-              'Do the smallest meaningful action.',
-              'Capture one observation before finishing.',
-            ],
-            xpReward: 100,
-            type: 'practice',
-            durationMinutes: 15,
-            dependsOn: const [],
-          );
-        })
-        .where((quest) => quest.title.trim().isNotEmpty)
-        .toList();
-
-    if (parsed.length < 3) {
-      return _buildFallbackQuests(hobby: hobby, level: level, focus: focus);
-    }
-
-    final normalized = parsed.take(3).toList();
-    if (!normalized.any((quest) => quest.type == 'challenge')) {
-      normalized[0] = normalized[0].copyWith(type: 'challenge');
-    }
-
-    return normalized
-        .map((quest) => quest.copyWith(isCompleted: false, reflectionNote: ''))
-        .toList();
   }
 
   List<MilestoneModel> _buildMilestones({
@@ -1261,12 +1155,6 @@ Instructions:
     }
 
     return normalized;
-  }
-
-  String _shorten(String text) {
-    const maxLength = 36;
-    if (text.length <= maxLength) return text;
-    return '${text.substring(0, maxLength - 3)}...';
   }
 
   int _durationFromLearningPace(String learningPace) {

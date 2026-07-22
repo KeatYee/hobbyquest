@@ -20,7 +20,6 @@
 class AppFonts {
   AppFonts._();
 
-  static const String familyLogo = 'Fredoka';
   static const String familyPrimary = 'OpenSans';
 
   static const double logo = 32.0;
@@ -46,8 +45,4 @@ class AppFonts {
   static const double micro = 11.0;
 
   static const double label = 10.0;
-
-  static const double letterSpacingLogo = 2.0;
-  static const double letterSpacingLabel = 1.8;
-  static const double letterSpacingButton = 0.3;
 }

@@ -43,6 +43,4 @@ class MilestoneModel {
       order: order ?? this.order,
     );
   }
-
-  String get task => title;
 }

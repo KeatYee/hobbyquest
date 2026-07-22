@@ -10,11 +10,7 @@ import '../models/category_model.dart';
 import '../services/imgbb_service.dart';
 import 'home_controller.dart';
 
-enum GuildFeedFilter {
-  forYou,
-  sameHobby,
-  sameCharacter,
-}
+enum GuildFeedFilter { forYou, sameHobby, sameCharacter }
 
 class GuildController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -31,7 +27,6 @@ class GuildController extends GetxController {
   final userAvatars = <String, String>{}.obs;
   final userNicknames = <String, String>{}.obs;
   final userPostStatsVisible = <String, bool>{}.obs;
-  final selectedCategoryId = Rx<String?>(null);
   final selectedFeedFilter = GuildFeedFilter.forYou.obs;
   final userReactions = <String, Set<String>>{}.obs;
   final userPeerReviews = <String, Set<String>>{}.obs;
@@ -95,16 +90,21 @@ class GuildController extends GetxController {
         userPostStatsVisible.containsKey(userId)) {
       return;
     }
-    _firestore.collection('users').doc(userId).get().then((doc) {
-      final data = doc.data();
-      if (data == null) return;
-      final avatarSvg = data['avatarSvg'] as String? ?? '';
-      final nickname = data['nickname'] as String? ?? '';
-      if (avatarSvg.trim().isNotEmpty) userAvatars[userId] = avatarSvg;
-      if (nickname.trim().isNotEmpty) userNicknames[userId] = nickname;
-      userPostStatsVisible[userId] =
-          data['postStatsVisible'] as bool? ?? true;
-    }).catchError((_) {});
+    _firestore
+        .collection('users')
+        .doc(userId)
+        .get()
+        .then((doc) {
+          final data = doc.data();
+          if (data == null) return;
+          final avatarSvg = data['avatarSvg'] as String? ?? '';
+          final nickname = data['nickname'] as String? ?? '';
+          if (avatarSvg.trim().isNotEmpty) userAvatars[userId] = avatarSvg;
+          if (nickname.trim().isNotEmpty) userNicknames[userId] = nickname;
+          userPostStatsVisible[userId] =
+              data['postStatsVisible'] as bool? ?? true;
+        })
+        .catchError((_) {});
   }
 
   bool canViewPostStats(GuildPostModel post) {
@@ -119,11 +119,14 @@ class GuildController extends GetxController {
 
       final results = await Future.wait([
         _firestore.collection('categories').get(),
-        _firestore.collection(_guildPostsCollection).orderBy('createdAt', descending: true).get(),
+        _firestore
+            .collection(_guildPostsCollection)
+            .orderBy('createdAt', descending: true)
+            .get(),
       ]);
 
-      final categorySnapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
-      final postSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final categorySnapshot = results[0];
+      final postSnapshot = results[1];
 
       final loadedCategories = categorySnapshot.docs
           .map((doc) => CategoryModel.fromJson(doc.data(), doc.id))
@@ -172,7 +175,9 @@ class GuildController extends GetxController {
 
       for (final post in loadedPosts) {
         if (post.peerReviews.isNotEmpty) {
-          print('--- Post ${post.id} has ${post.peerReviews.length} review(s): ${post.peerReviews.keys.toList()} ---');
+          print(
+            '--- Post ${post.id} has ${post.peerReviews.length} review(s): ${post.peerReviews.keys.toList()} ---',
+          );
         }
       }
     } catch (e) {
@@ -180,42 +185,6 @@ class GuildController extends GetxController {
     } finally {
       isLoading.value = false;
     }
-  }
-
-  /// Resolve the default category based on user's hobby
-  String? resolveDefaultCategoryId() {
-    if (categories.isEmpty) return null;
-
-    if (Get.isRegistered<HomeController>()) {
-      try {
-        final homeController = Get.find<HomeController>();
-        final hobby = homeController.hobby.value.trim().toLowerCase();
-        for (final category in categories) {
-          if (category.hobbyNames.any((item) => item.toLowerCase() == hobby)) {
-            return category.id;
-          }
-        }
-      } catch (_) {}
-    }
-
-    return categories.first.id;
-  }
-
-  /// Get filtered posts for the currently selected category
-  List<GuildPostModel> get filteredPosts {
-    final selectedId = selectedCategoryId.value;
-    if (selectedId == null) return [];
-
-    final selectedCategory = categories.where((c) => c.id == selectedId).firstOrNull;
-    if (selectedCategory == null) return [];
-
-    return posts.where((post) {
-      final matchesCategoryId = post.categoryId.trim().isNotEmpty && post.categoryId == selectedCategory.id;
-      final matchesHobby = selectedCategory.hobbyNames.any(
-        (hobby) => hobby.toLowerCase() == post.hobby.toLowerCase(),
-      );
-      return matchesCategoryId || matchesHobby;
-    }).toList();
   }
 
   /// Extract character class name from an avatar asset path.
@@ -270,8 +239,9 @@ class GuildController extends GetxController {
         if (characterClass.isEmpty) return const [];
         return _sortByDateDesc(
           posts.where((post) {
-            final authorClass =
-                extractCharacterClass(userAvatars[post.userId] ?? '');
+            final authorClass = extractCharacterClass(
+              userAvatars[post.userId] ?? '',
+            );
             return authorClass == characterClass;
           }),
         );
@@ -302,8 +272,7 @@ class GuildController extends GetxController {
             }
           }
         }
-      } catch (_) {
-      }
+      } catch (_) {}
     }
 
     if (currentHobby == null) {
@@ -328,7 +297,9 @@ class GuildController extends GetxController {
       }
 
       if (currentCharacterClass != null && currentCharacterClass.isNotEmpty) {
-        final authorClass = extractCharacterClass(userAvatars[post.userId] ?? '');
+        final authorClass = extractCharacterClass(
+          userAvatars[post.userId] ?? '',
+        );
         if (authorClass == currentCharacterClass) {
           score += 1;
         }
@@ -378,11 +349,6 @@ class GuildController extends GetxController {
     final aTime = a ?? DateTime(2000);
     final bTime = b ?? DateTime(2000);
     return bTime.compareTo(aTime);
-  }
-
-  /// Get all hobbies from all categories
-  List<String> get allHobbies {
-    return categories.expand((c) => c.hobbyNames).toList();
   }
 
   final ImgBBService _imgbbService = ImgBBService();
@@ -463,9 +429,7 @@ class GuildController extends GetxController {
           updatedReactions[emoji] = currentList;
         }
 
-        posts[index] = post.copyWith(
-          reactions: updatedReactions,
-        );
+        posts[index] = post.copyWith(reactions: updatedReactions);
 
         currentUserEmojis.remove(emoji);
         if (currentUserEmojis.isEmpty) {
@@ -485,9 +449,7 @@ class GuildController extends GetxController {
         currentList.add(uid);
         updatedReactions[emoji] = currentList;
 
-        posts[index] = post.copyWith(
-          reactions: updatedReactions,
-        );
+        posts[index] = post.copyWith(reactions: updatedReactions);
 
         currentUserEmojis.add(emoji);
         userReactions[post.id] = currentUserEmojis;
@@ -500,35 +462,6 @@ class GuildController extends GetxController {
       print('--- ERROR: Failed to toggle reaction on post $postId: $e ---');
     }
   }
-
-  /// Delete a post
-  Future<void> deletePost(String postId) async {
-    try {
-      final uid = currentUserId.value;
-      if (uid == null) {
-        throw Exception('User not authenticated');
-      }
-
-      final postDoc = await _firestore
-          .collection(_guildPostsCollection)
-          .doc(postId)
-          .get();
-
-      final post = GuildPostModel.fromJson(postDoc.data()!, postDoc.id);
-      if (post.userId != uid) {
-        throw Exception('You can only delete your own posts');
-      }
-
-      await _firestore.collection(_guildPostsCollection).doc(postId).delete();
-
-      posts.removeWhere((p) => p.id == postId);
-
-      print('--- SUCCESS: Post deleted: $postId ---');
-    } catch (e) {
-      print('--- ERROR: Failed to delete post: $e ---');
-    }
-  }
-
 
   /// Demo user IDs used across seeded posts and peer reviews.
   /// Documents for these users are also created in Firestore
@@ -643,12 +576,24 @@ class GuildController extends GetxController {
         'hobby': 'Painting',
         'categoryId': creativeArtsId,
         'title': 'Best watercolor techniques for beginners',
-        'body': 'I have been experimenting with wet-on-wet and wet-on-dry techniques. Would love to hear what everyone else recommends for someone just starting out!',
+        'body':
+            'I have been experimenting with wet-on-wet and wet-on-dry techniques. Would love to hear what everyone else recommends for someone just starting out!',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[1], _demoUsers[2]], '👏': [_demoUsers[3]]},
+        'reactions': {
+          '🔥': [_demoUsers[1], _demoUsers[2]],
+          '👏': [_demoUsers[3]],
+        },
         'peerReviews': {
-          _demoUsers[1]: {'Creativity': 4.0, 'Technique': 3.5, 'Color Theory': 5.0},
-          _demoUsers[3]: {'Creativity': 5.0, 'Technique': 4.0, 'Color Theory': 4.5},
+          _demoUsers[1]: {
+            'Creativity': 4.0,
+            'Technique': 3.5,
+            'Color Theory': 5.0,
+          },
+          _demoUsers[3]: {
+            'Creativity': 5.0,
+            'Technique': 4.0,
+            'Color Theory': 4.5,
+          },
         },
         'createdAt': DateTime.now().subtract(const Duration(days: 2)),
       },
@@ -657,9 +602,14 @@ class GuildController extends GetxController {
         'hobby': 'Photography',
         'categoryId': creativeArtsId,
         'title': 'Golden hour photography spots in town',
-        'body': 'I compiled a list of the best locations for sunset and sunrise shots around the city. Drop your favorite spots below and I will add them to the map!',
+        'body':
+            'I compiled a list of the best locations for sunset and sunrise shots around the city. Drop your favorite spots below and I will add them to the map!',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[0], _demoUsers[4]], '👏': [_demoUsers[2], _demoUsers[3]], '💡': [_demoUsers[5]]},
+        'reactions': {
+          '🔥': [_demoUsers[0], _demoUsers[4]],
+          '👏': [_demoUsers[2], _demoUsers[3]],
+          '💡': [_demoUsers[5]],
+        },
         'peerReviews': {
           _demoUsers[2]: {'Composition': 5.0, 'Lighting': 4.5, 'Editing': 3.0},
         },
@@ -670,9 +620,13 @@ class GuildController extends GetxController {
         'hobby': 'Drawing',
         'categoryId': creativeArtsId,
         'title': 'Daily sketch challenge — day 30 reflection',
-        'body': 'Just finished my 30-day daily sketch challenge! I focused on gesture drawing and saw huge improvement in my line work. Highly recommend this to anyone looking to level up.',
+        'body':
+            'Just finished my 30-day daily sketch challenge! I focused on gesture drawing and saw huge improvement in my line work. Highly recommend this to anyone looking to level up.',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[0], _demoUsers[1], _demoUsers[4]], '👏': [_demoUsers[3]]},
+        'reactions': {
+          '🔥': [_demoUsers[0], _demoUsers[1], _demoUsers[4]],
+          '👏': [_demoUsers[3]],
+        },
         'peerReviews': {
           _demoUsers[4]: {'Composition': 4.5, 'Line Work': 4.0, 'Shading': 3.5},
           _demoUsers[5]: {'Composition': 5.0, 'Line Work': 5.0, 'Shading': 4.0},
@@ -685,9 +639,12 @@ class GuildController extends GetxController {
         'hobby': 'Guitar',
         'categoryId': musicId,
         'title': 'Learning my first chord progression',
-        'body': 'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice transitioning between them?',
+        'body':
+            'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice transitioning between them?',
         'imageUrl': '',
-        'reactions': {'👏': [_demoUsers[0], _demoUsers[1]]},
+        'reactions': {
+          '👏': [_demoUsers[0], _demoUsers[1]],
+        },
         'peerReviews': {
           _demoUsers[0]: {'Rhythm': 3.0, 'Technique': 2.5, 'Musicality': 3.5},
         },
@@ -698,9 +655,13 @@ class GuildController extends GetxController {
         'hobby': 'Singing',
         'categoryId': musicId,
         'title': 'Overcoming stage fright — my journey so far',
-        'body': 'I used to freeze up before every open mic. After 6 months of practice and small performances, I can finally sing in front of a crowd without my voice shaking. Here is what helped me.',
+        'body':
+            'I used to freeze up before every open mic. After 6 months of practice and small performances, I can finally sing in front of a crowd without my voice shaking. Here is what helped me.',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[5]], '👏': [_demoUsers[1], _demoUsers[2]]},
+        'reactions': {
+          '🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[5]],
+          '👏': [_demoUsers[1], _demoUsers[2]],
+        },
         'peerReviews': {
           _demoUsers[2]: {'Pitch': 4.0, 'Tone': 4.5, 'Breath Control': 3.5},
           _demoUsers[3]: {'Pitch': 3.5, 'Tone': 5.0, 'Breath Control': 4.0},
@@ -713,9 +674,13 @@ class GuildController extends GetxController {
         'hobby': 'Yoga',
         'categoryId': wellnessId,
         'title': '30-day yoga challenge — who is in?',
-        'body': 'Starting a 30-day yoga challenge next Monday. Minimum 15 minutes each day. I will post daily prompts. Comment if you want to join!',
+        'body':
+            'Starting a 30-day yoga challenge next Monday. Minimum 15 minutes each day. I will post daily prompts. Comment if you want to join!',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[4], _demoUsers[1]], '👏': [_demoUsers[2]]},
+        'reactions': {
+          '🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[4], _demoUsers[1]],
+          '👏': [_demoUsers[2]],
+        },
         'peerReviews': {},
         'createdAt': DateTime.now().subtract(const Duration(days: 1)),
       },
@@ -724,9 +689,19 @@ class GuildController extends GetxController {
         'hobby': 'Cooking',
         'categoryId': wellnessId,
         'title': 'Share your favorite quick weeknight dinner',
-        'body': 'Busy schedule means I need dinners under 30 minutes. Please share your go-to recipes — bonus points if they use 5 ingredients or fewer!',
+        'body':
+            'Busy schedule means I need dinners under 30 minutes. Please share your go-to recipes — bonus points if they use 5 ingredients or fewer!',
         'imageUrl': '',
-        'reactions': {'🔥': [_demoUsers[1], _demoUsers[2], _demoUsers[3], _demoUsers[4], _demoUsers[5]], '👏': []},
+        'reactions': {
+          '🔥': [
+            _demoUsers[1],
+            _demoUsers[2],
+            _demoUsers[3],
+            _demoUsers[4],
+            _demoUsers[5],
+          ],
+          '👏': [],
+        },
         'peerReviews': {
           _demoUsers[3]: {'Taste': 4.0, 'Presentation': 3.5, 'Technique': 4.0},
           _demoUsers[4]: {'Taste': 5.0, 'Presentation': 4.5, 'Technique': 4.5},
@@ -739,11 +714,19 @@ class GuildController extends GetxController {
         'hobby': 'Coding',
         'categoryId': strategyId,
         'title': 'Best resources for learning Flutter',
-        'body': 'I am diving into Flutter development and looking for the best courses, YouTube channels, and books. What has worked for you?',
+        'body':
+            'I am diving into Flutter development and looking for the best courses, YouTube channels, and books. What has worked for you?',
         'imageUrl': '',
-        'reactions': {'💡': [_demoUsers[0], _demoUsers[2], _demoUsers[3]], '🔥': [_demoUsers[4]]},
+        'reactions': {
+          '💡': [_demoUsers[0], _demoUsers[2], _demoUsers[3]],
+          '🔥': [_demoUsers[4]],
+        },
         'peerReviews': {
-          _demoUsers[5]: {'Code Quality': 4.0, 'Efficiency': 3.0, 'Readability': 4.5},
+          _demoUsers[5]: {
+            'Code Quality': 4.0,
+            'Efficiency': 3.0,
+            'Readability': 4.5,
+          },
         },
         'createdAt': DateTime.now().subtract(const Duration(hours: 12)),
       },
@@ -752,9 +735,13 @@ class GuildController extends GetxController {
         'hobby': 'Chess',
         'categoryId': strategyId,
         'title': 'Chess tactics puzzle of the day',
-        'body': 'White to move and win material in 3 moves. I will post the solution tomorrow! Hint: look for a forcing sequence.',
+        'body':
+            'White to move and win material in 3 moves. I will post the solution tomorrow! Hint: look for a forcing sequence.',
         'imageUrl': '',
-        'reactions': {'💡': [_demoUsers[0]], '🔥': [_demoUsers[1], _demoUsers[3]]},
+        'reactions': {
+          '💡': [_demoUsers[0]],
+          '🔥': [_demoUsers[1], _demoUsers[3]],
+        },
         'peerReviews': {
           _demoUsers[0]: {'Strategy': 5.0, 'Tactics': 4.5, 'Endgame': 3.0},
           _demoUsers[4]: {'Strategy': 4.0, 'Tactics': 5.0, 'Endgame': 3.5},
@@ -766,18 +753,28 @@ class GuildController extends GetxController {
         'hobby': 'Language',
         'categoryId': strategyId,
         'title': 'How I learned 50 new words in a week',
-        'body': 'I used the spaced repetition method with physical flashcards. Writing each word in a sentence helped way more than just memorizing definitions. Try it!',
+        'body':
+            'I used the spaced repetition method with physical flashcards. Writing each word in a sentence helped way more than just memorizing definitions. Try it!',
         'imageUrl': '',
-        'reactions': {'👏': [_demoUsers[0], _demoUsers[1], _demoUsers[5]], '💡': [_demoUsers[2]]},
+        'reactions': {
+          '👏': [_demoUsers[0], _demoUsers[1], _demoUsers[5]],
+          '💡': [_demoUsers[2]],
+        },
         'peerReviews': {
-          _demoUsers[3]: {'Vocabulary': 4.5, 'Grammar': 4.0, 'Pronunciation': 3.5},
+          _demoUsers[3]: {
+            'Vocabulary': 4.5,
+            'Grammar': 4.0,
+            'Pronunciation': 3.5,
+          },
         },
         'createdAt': DateTime.now().subtract(const Duration(days: 7)),
       },
     ];
 
     for (var data in initialData) {
-      var snapshot = await collection.where('title', isEqualTo: data['title']).get();
+      var snapshot = await collection
+          .where('title', isEqualTo: data['title'])
+          .get();
       if (snapshot.docs.isEmpty) {
         await collection.add(data);
         print("✅ Added '${data['title']}'");
@@ -787,17 +784,6 @@ class GuildController extends GetxController {
     }
     print("--- SEEDING GUILD POSTS COMPLETE ---");
   }
-
-  /// Get posts by hobby
-  List<GuildPostModel> getPostsByHobby(String hobby) {
-    return posts.where((post) => post.hobby == hobby).toList();
-  }
-
-  /// Get posts by category
-  List<GuildPostModel> getPostsByCategory(String categoryId) {
-    return posts.where((post) => post.categoryId == categoryId).toList();
-  }
-
 
   /// Whether the current user has already reviewed a given post.
   bool hasUserReviewed(String postId) {
@@ -848,7 +834,9 @@ class GuildController extends GetxController {
           posts[postIndex].peerReviews,
         );
         existingReviews[uid] = ratings;
-        posts[postIndex] = posts[postIndex].copyWith(peerReviews: existingReviews);
+        posts[postIndex] = posts[postIndex].copyWith(
+          peerReviews: existingReviews,
+        );
         posts.refresh();
 
         userPeerReviews[postId] = <String>{uid};
@@ -867,9 +855,18 @@ class GuildController extends GetxController {
   /// Fallback default axes.
   List<PeerReviewAxisModel> _defaultAxesForHobby() {
     return [
-      PeerReviewAxisModel.fromIconData(label: 'Quality', icon: Icons.star_outline),
-      PeerReviewAxisModel.fromIconData(label: 'Effort', icon: Icons.trending_up),
-      PeerReviewAxisModel.fromIconData(label: 'Impact', icon: Icons.rocket_launch_outlined),
+      PeerReviewAxisModel.fromIconData(
+        label: 'Quality',
+        icon: Icons.star_outline,
+      ),
+      PeerReviewAxisModel.fromIconData(
+        label: 'Effort',
+        icon: Icons.trending_up,
+      ),
+      PeerReviewAxisModel.fromIconData(
+        label: 'Impact',
+        icon: Icons.rocket_launch_outlined,
+      ),
     ];
   }
 }

@@ -103,8 +103,6 @@ class GrowthLetterModel {
     return data;
   }
 
-  bool get hasWeeklyStats => questCount == 0 || weeklyStreakDays > 0;
-
   static bool _hasText(dynamic value) {
     return value is String && value.trim().isNotEmpty;
   }

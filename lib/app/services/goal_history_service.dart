@@ -2,24 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/goal_history_model.dart';
 
 class GoalHistoryService {
-
-  static String _historyDocPath(String uid, String historyId) =>
-      'users/$uid/goalHistory/$historyId';
-
-  static DocumentReference<Map<String, dynamic>> _historyRef(
-          String uid, String historyId) =>
-      FirebaseFirestore.instance.doc(_historyDocPath(uid, historyId));
-
   static CollectionReference<Map<String, dynamic>> _historyCol(String uid) =>
       FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('goalHistory');
 
-
   /// Saves a new goal history entry. Returns the generated document ID.
   static Future<String> saveGoalHistory(
-      String uid, GoalHistoryModel entry, {String? historyId}) async {
+    String uid,
+    GoalHistoryModel entry, {
+    String? historyId,
+  }) async {
     if (historyId != null && historyId.isNotEmpty) {
       final docRef = _historyCol(uid).doc(historyId);
       await docRef.set(entry.toJson(), SetOptions(merge: true));
@@ -52,22 +46,12 @@ class GoalHistoryService {
       }
     }
 
-    final historyRef = matchingDoc?.reference ??
+    final historyRef =
+        matchingDoc?.reference ??
         _historyCol(uid).doc(
-          completedPlanId.isEmpty
-              ? _historyCol(uid).doc().id
-              : completedPlanId,
+          completedPlanId.isEmpty ? _historyCol(uid).doc().id : completedPlanId,
         );
     await historyRef.set(completedEntry.toJson(), SetOptions(merge: true));
-  }
-
-
-  /// Loads a single goal history entry by ID.
-  static Future<GoalHistoryModel?> loadGoalHistory(
-      String uid, String historyId) async {
-    final snapshot = await _historyRef(uid, historyId).get();
-    if (!snapshot.exists) return null;
-    return GoalHistoryModel.fromJson(snapshot.data()!, historyId);
   }
 
   /// Loads all goal history entries for a user, sorted by createdAt descending.
@@ -82,13 +66,6 @@ class GoalHistoryService {
       return bDate.compareTo(aDate);
     });
     return entries;
-  }
-
-
-  /// Deletes a specific goal history entry.
-  static Future<void> deleteGoalHistory(
-      String uid, String historyId) async {
-    await _historyRef(uid, historyId).delete();
   }
 
   /// Deletes all goal history entries for a user (used during account deletion).

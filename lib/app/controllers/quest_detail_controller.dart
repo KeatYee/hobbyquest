@@ -21,17 +21,16 @@ class QuestDetailController extends GetxController {
   final isSubmitting = false.obs;
 
   QuestDetailController({required QuestNodeModel initialQuest})
-      : currentQuest = Rx<QuestNodeModel>(initialQuest);
+    : currentQuest = Rx<QuestNodeModel>(initialQuest);
 
   /// Completes the quest using `HomeController.completeQuest` then
   /// awards XP via `ProgressionController.completeQuest`.
   /// Returns true when successful.
-  Future<bool> completeQuest(
-    String reflectionNote, {
-    XFile? imageFile,
-  }) async {
-    print('--- DEBUG: completeQuest() called for quest ${currentQuest.value.nodeId} ---');
-    
+  Future<bool> completeQuest(String reflectionNote, {XFile? imageFile}) async {
+    print(
+      '--- DEBUG: completeQuest() called for quest ${currentQuest.value.nodeId} ---',
+    );
+
     if (currentQuest.value.isCompleted) {
       print('--- DEBUG: Quest already completed, returning true ---');
       return true;
@@ -47,12 +46,14 @@ class QuestDetailController extends GetxController {
 
     try {
       String? imageUrl;
-      String? greeting;
-      String? observation;
-      String? tip;
+      String greeting = '';
+      String observation = '';
+      String tip = '';
 
-      print('--- DEBUG: imageFile is ${imageFile == null ? 'NULL' : 'NOT NULL'} ---');
-      
+      print(
+        '--- DEBUG: imageFile is ${imageFile == null ? 'NULL' : 'NOT NULL'} ---',
+      );
+
       if (imageFile != null) {
         print('--- DEBUG: Processing image evidence ---');
         final feedbackResult = await geminiService.generateQuestImageFeedback(
@@ -71,7 +72,7 @@ class QuestDetailController extends GetxController {
 
         final isApproved = feedbackResult['is_approved'] as bool? ?? false;
         print('--- DEBUG: Gemini feedback received. Approved: $isApproved ---');
-        
+
         greeting = feedbackResult['greeting'] as String? ?? '';
         observation = feedbackResult['observation'] as String? ?? '';
         tip = feedbackResult['tip'] as String? ?? '';
@@ -86,19 +87,27 @@ class QuestDetailController extends GetxController {
                   ? [
                       const Text(
                         'Quest Approved',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: AppFonts.title),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: AppFonts.title,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      if (greeting!.isNotEmpty) ...[
-                        Text(greeting!, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      if (greeting.isNotEmpty) ...[
+                        Text(
+                          greeting,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 8),
                       ],
-                      if (observation!.isNotEmpty) ...[
-                        Text(observation!),
+                      if (observation.isNotEmpty) ...[
+                        Text(observation),
                         const SizedBox(height: 8),
                       ],
-                      if (tip!.isNotEmpty) Text(tip!),
-                      if (greeting!.isEmpty && observation!.isEmpty && tip!.isEmpty)
+                      if (tip.isNotEmpty) Text(tip),
+                      if (greeting.isEmpty &&
+                          observation.isEmpty &&
+                          tip.isEmpty)
                         const Text('Your submission was approved.'),
                       const SizedBox(height: 24),
                       Row(
@@ -126,9 +135,9 @@ class QuestDetailController extends GetxController {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      if (greeting!.isNotEmpty) ...[
+                      if (greeting.isNotEmpty) ...[
                         Text(
-                          greeting!,
+                          greeting,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             color: AppColors.error,
@@ -136,13 +145,17 @@ class QuestDetailController extends GetxController {
                         ),
                         const SizedBox(height: 8),
                       ],
-                      if (observation!.isNotEmpty) ...[
-                        Text(observation!),
+                      if (observation.isNotEmpty) ...[
+                        Text(observation),
                         const SizedBox(height: 8),
                       ],
-                      if (tip!.isNotEmpty) Text(tip!),
-                      if (greeting!.isEmpty && observation!.isEmpty && tip!.isEmpty)
-                        const Text('Retake the photo and make the completed quest easier to see.'),
+                      if (tip.isNotEmpty) Text(tip),
+                      if (greeting.isEmpty &&
+                          observation.isEmpty &&
+                          tip.isEmpty)
+                        const Text(
+                          'Retake the photo and make the completed quest easier to see.',
+                        ),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -163,7 +176,7 @@ class QuestDetailController extends GetxController {
         );
 
         print('--- DEBUG: Dialog closed. isApproved: $isApproved ---');
-        
+
         if (!isApproved) {
           print('--- DEBUG: Quest not approved, returning false ---');
           return false;
@@ -171,15 +184,18 @@ class QuestDetailController extends GetxController {
 
         print('--- DEBUG: Uploading image to ImgBB ---');
         imageUrl = await imageUploadService.uploadImage(imageFile.path);
-        print('--- DEBUG: Image uploaded. URL: ${imageUrl ?? 'NULL'} ---');
+        print('--- DEBUG: Image uploaded. URL: $imageUrl ---');
       } else {
         print('--- DEBUG: No image file provided ---');
       }
 
-      final int totalXpReward = currentQuest.value.xpReward +
+      final int totalXpReward =
+          currentQuest.value.xpReward +
           (imageUrl != null ? reflectionImageBonusXp : 0);
-      print('--- DEBUG: Starting quest completion transaction for $questId ---');
-      
+      print(
+        '--- DEBUG: Starting quest completion transaction for $questId ---',
+      );
+
       final updatedUser = await questService.completeQuestTransaction(
         uid: homeController.user.value?.id ?? '',
         planId: homeController.user.value?.activePlanId ?? '',
@@ -192,7 +208,9 @@ class QuestDetailController extends GetxController {
         awardedXP: totalXpReward,
       );
 
-      print('--- DEBUG: completeQuestTransaction returned. updatedUser is ${updatedUser == null ? 'NULL' : 'NOT NULL'} ---');
+      print(
+        '--- DEBUG: completeQuestTransaction returned. updatedUser is ${updatedUser == null ? 'NULL' : 'NOT NULL'} ---',
+      );
 
       if (updatedUser == null) {
         print('--- ERROR: updatedUser is null, returning false ---');
@@ -200,7 +218,9 @@ class QuestDetailController extends GetxController {
         return false;
       }
 
-      print('--- DEBUG: Calling progressionController.completeQuest with xpReward=$totalXpReward (base: ${currentQuest.value.xpReward}, bonus: ${imageUrl != null ? reflectionImageBonusXp : 0}) ---');
+      print(
+        '--- DEBUG: Calling progressionController.completeQuest with xpReward=$totalXpReward (base: ${currentQuest.value.xpReward}, bonus: ${imageUrl != null ? reflectionImageBonusXp : 0}) ---',
+      );
       await progressionController.completeQuest(
         questId: questId,
         xpReward: totalXpReward,
@@ -209,17 +229,25 @@ class QuestDetailController extends GetxController {
 
       print('--- DEBUG: Updating homeController.user ---');
       homeController.user.value = updatedUser;
-      print('--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---');
-      
+      print(
+        '--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---',
+      );
+
       print('--- DEBUG: Calling getAllQuestNodes ---');
-      final allNodes = homeController.getAllQuestNodes(updatedUser.currentPlan.quests);
-      print('--- DEBUG: getAllQuestNodes returned ${allNodes.length} quests ---');
-      
+      final allNodes = homeController.getAllQuestNodes(
+        updatedUser.currentPlan.quests,
+      );
+      print(
+        '--- DEBUG: getAllQuestNodes returned ${allNodes.length} quests ---',
+      );
+
       homeController.dailyQuests.value = allNodes;
       print('--- DEBUG: homeController.dailyQuests updated ---');
       await homeController.refreshGrowthLetterAvailability();
 
-      print('--- INFO: Quest $questId completed. Total quest nodes: ${allNodes.length} ---');
+      print(
+        '--- INFO: Quest $questId completed. Total quest nodes: ${allNodes.length} ---',
+      );
       for (final q in allNodes) {
         print('  - ${q.nodeId}: ${q.title}');
       }
@@ -245,7 +273,9 @@ class QuestDetailController extends GetxController {
       AppDialogs.error('Failed to complete quest', e.toString());
       return false;
     } finally {
-      print('--- DEBUG: completeQuest finally block - setting isSubmitting to false ---');
+      print(
+        '--- DEBUG: completeQuest finally block - setting isSubmitting to false ---',
+      );
       isSubmitting.value = false;
     }
   }
@@ -275,13 +305,20 @@ class QuestDetailController extends GetxController {
                     color: AppColors.primary.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 24),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
                     'Share Your Achievement?',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: AppFonts.title),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: AppFonts.title,
+                    ),
                   ),
                 ),
               ],
@@ -313,7 +350,9 @@ class QuestDetailController extends GetxController {
                     onPressed: () => Get.back(result: true),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text('Share to Guild'),
                   ),
@@ -333,7 +372,9 @@ class QuestDetailController extends GetxController {
 
       String? categoryId;
       for (final category in guildController.categories) {
-        if (category.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+        if (category.hobbyNames.any(
+          (h) => h.toLowerCase() == hobby.toLowerCase(),
+        )) {
           categoryId = category.id;
           break;
         }
@@ -341,9 +382,7 @@ class QuestDetailController extends GetxController {
 
       await Get.bottomSheet<void>(
         Padding(
-          padding: EdgeInsets.only(
-            bottom: Get.mediaQuery.viewInsets.bottom,
-          ),
+          padding: EdgeInsets.only(bottom: Get.mediaQuery.viewInsets.bottom),
           child: AddGuildPostDialog(
             hobby: hobby,
             categoryId: categoryId ?? '',

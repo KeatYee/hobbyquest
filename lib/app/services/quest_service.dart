@@ -21,7 +21,6 @@ class GoalCompletionTestSeedResult {
 }
 
 class QuestService {
-
   static String _planDocPath(String uid, String planId) =>
       'users/$uid/plans/$planId';
 
@@ -32,53 +31,57 @@ class QuestService {
       'users/$uid/plans/$planId/quests/$qid';
 
   static DocumentReference<Map<String, dynamic>> _planRef(
-          String uid, String planId) =>
-      FirebaseFirestore.instance.doc(_planDocPath(uid, planId));
+    String uid,
+    String planId,
+  ) => FirebaseFirestore.instance.doc(_planDocPath(uid, planId));
 
   static DocumentReference<Map<String, dynamic>> _milestoneRef(
-          String uid, String planId, String mid) =>
-      FirebaseFirestore.instance.doc(_milestoneDocPath(uid, planId, mid));
+    String uid,
+    String planId,
+    String mid,
+  ) => FirebaseFirestore.instance.doc(_milestoneDocPath(uid, planId, mid));
 
   static DocumentReference<Map<String, dynamic>> _questRef(
-          String uid, String planId, String qid) =>
-      FirebaseFirestore.instance.doc(_questDocPath(uid, planId, qid));
+    String uid,
+    String planId,
+    String qid,
+  ) => FirebaseFirestore.instance.doc(_questDocPath(uid, planId, qid));
 
   static CollectionReference<Map<String, dynamic>> _milestonesCol(
-          String uid, String planId) =>
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('plans')
-          .doc(planId)
-          .collection('milestones');
+    String uid,
+    String planId,
+  ) => FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('plans')
+      .doc(planId)
+      .collection('milestones');
 
   static CollectionReference<Map<String, dynamic>> _questsCol(
-          String uid, String planId) =>
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('plans')
-          .doc(planId)
-          .collection('quests');
-
+    String uid,
+    String planId,
+  ) => FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('plans')
+      .doc(planId)
+      .collection('quests');
 
   /// Loads plan metadata document from `users/{uid}/plans/{planId}`.
-  static Future<QuestPlanModel> loadPlan(
-      String uid, String planId) async {
+  static Future<QuestPlanModel> loadPlan(String uid, String planId) async {
     final snapshot = await _planRef(uid, planId).get();
     if (!snapshot.exists) {
       throw Exception('Plan $planId not found for user $uid');
     }
-    return QuestPlanModel.fromJson(
-        snapshot.data()!, docId: planId);
+    return QuestPlanModel.fromJson(snapshot.data()!, docId: planId);
   }
 
   /// Loads all milestones from `plans/{planId}/milestones/`, sorted by [order].
   static Future<List<MilestoneModel>> loadMilestones(
-      String uid, String planId) async {
-    final snapshot = await _milestonesCol(uid, planId)
-        .orderBy('order')
-        .get();
+    String uid,
+    String planId,
+  ) async {
+    final snapshot = await _milestonesCol(uid, planId).orderBy('order').get();
     return snapshot.docs.map((doc) {
       return MilestoneModel.fromJson(doc.data(), docId: doc.id);
     }).toList();
@@ -86,18 +89,13 @@ class QuestService {
 
   /// Loads all quests from `plans/{planId}/quests/`.
   static Future<List<QuestNodeModel>> loadQuests(
-      String uid, String planId) async {
+    String uid,
+    String planId,
+  ) async {
     final snapshot = await _questsCol(uid, planId).get();
     return snapshot.docs.map((doc) {
       return QuestNodeModel.fromJson(doc.data());
     }).toList();
-  }
-
-
-  /// Saves/replaces plan metadata document.
-  static Future<void> savePlan(
-      String uid, String planId, QuestPlanModel plan) async {
-    await _planRef(uid, planId).set(plan.toJson());
   }
 
   /// Seeds the current plan so only Milestone 4's final quest remains.
@@ -150,9 +148,7 @@ class QuestService {
         milestoneNumber: milestoneNumber,
       );
       if (milestoneQuests.isEmpty) {
-        throw Exception(
-          'AI could not generate Milestone ${index + 1} quests.',
-        );
+        throw Exception('AI could not generate Milestone ${index + 1} quests.');
       }
       generatedQuests.addAll(milestoneQuests);
     }
@@ -193,15 +189,14 @@ class QuestService {
       final challengeComparison = (aQuest.type == 'challenge' ? 1 : 0)
           .compareTo(bQuest.type == 'challenge' ? 1 : 0);
       if (challengeComparison != 0) return challengeComparison;
-      return _questSequence(aQuest.nodeId).compareTo(
-        _questSequence(bQuest.nodeId),
-      );
+      return _questSequence(
+        aQuest.nodeId,
+      ).compareTo(_questSequence(bQuest.nodeId));
     });
     final finalQuestDoc = finalCandidates.last;
-    final finalQuest = QuestNodeModel.fromJson(finalQuestDoc.data()).copyWith(
-      isCompleted: false,
-      isActive: true,
-    );
+    final finalQuest = QuestNodeModel.fromJson(
+      finalQuestDoc.data(),
+    ).copyWith(isCompleted: false, isActive: true);
 
     final completedAt = DateTime.now();
     var seededXP = 0;
@@ -210,31 +205,28 @@ class QuestService {
 
     for (final doc in questSnapshot.docs) {
       final quest = QuestNodeModel.fromJson(doc.data());
-      final belongsToFirstFourMilestones =
-          RegExp(r'^[1-4](?:_|\b)').hasMatch(quest.nodeId);
-      final shouldComplete = belongsToFirstFourMilestones &&
-          quest.nodeId != finalQuest.nodeId;
+      final belongsToFirstFourMilestones = RegExp(
+        r'^[1-4](?:_|\b)',
+      ).hasMatch(quest.nodeId);
+      final shouldComplete =
+          belongsToFirstFourMilestones && quest.nodeId != finalQuest.nodeId;
 
       if (shouldComplete) {
         seededXP += quest.xpReward;
         completedQuestCount += 1;
       }
 
-      batch.set(
-        doc.reference,
-        {
-          'isCompleted': shouldComplete,
-          'isActive': quest.nodeId == finalQuest.nodeId,
-          'completedAt': shouldComplete ? completedAt : null,
-          'awardedXP': shouldComplete ? quest.xpReward : null,
-          if (!shouldComplete) 'reflectionNote': '',
-          if (!shouldComplete) 'imageUrl': null,
-          if (!shouldComplete) 'greeting': null,
-          if (!shouldComplete) 'observation': null,
-          if (!shouldComplete) 'tip': null,
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(doc.reference, {
+        'isCompleted': shouldComplete,
+        'isActive': quest.nodeId == finalQuest.nodeId,
+        'completedAt': shouldComplete ? completedAt : null,
+        'awardedXP': shouldComplete ? quest.xpReward : null,
+        if (!shouldComplete) 'reflectionNote': '',
+        if (!shouldComplete) 'imageUrl': null,
+        if (!shouldComplete) 'greeting': null,
+        if (!shouldComplete) 'observation': null,
+        if (!shouldComplete) 'tip': null,
+      }, SetOptions(merge: true));
     }
 
     final updatedMilestones = milestones.asMap().entries.map((entry) {
@@ -250,24 +242,22 @@ class QuestService {
     }
     batch.set(
       planRef,
-      plan.copyWith(
-        progress: 3,
-        currentMilestoneIndex: 3,
-        isActive: true,
-        startingXP: 0,
-      ).toJson(),
+      plan
+          .copyWith(
+            progress: 3,
+            currentMilestoneIndex: 3,
+            isActive: true,
+            startingXP: 0,
+          )
+          .toJson(),
       SetOptions(merge: true),
     );
-    batch.set(
-      userRef,
-      {
-        'activePlanId': planId,
-        'totalXP': seededXP,
-        'dailyQuestCompletionCount': completedQuestCount,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(userRef, {
+      'activePlanId': planId,
+      'totalXP': seededXP,
+      'dailyQuestCompletionCount': completedQuestCount,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     await batch.commit();
     return GoalCompletionTestSeedResult(
@@ -282,7 +272,6 @@ class QuestService {
     final matches = RegExp(r'(\d+)').allMatches(nodeId).toList();
     return matches.isEmpty ? 0 : int.tryParse(matches.last.group(1)!) ?? 0;
   }
-
 
   /// Writes quests, milestones, and plan metadata to subcollections.
   /// Returns the updated [UserModel] with in-memory populated data, or null on failure.
@@ -311,17 +300,11 @@ class QuestService {
             : QuestPlanModel.fromJson(planSnapshot.data()!, docId: planId);
 
         final questsToWrite = newQuests
-            .map((q) => q.copyWith(
-                  isActive: true,
-                  isCompleted: false,
-                ))
+            .map((q) => q.copyWith(isActive: true, isCompleted: false))
             .toList();
 
         for (final quest in questsToWrite) {
-          transaction.set(
-            _questRef(uid, planId, quest.nodeId),
-            quest.toJson(),
-          );
+          transaction.set(_questRef(uid, planId, quest.nodeId), quest.toJson());
         }
 
         for (final milestone in milestones) {
@@ -339,14 +322,10 @@ class QuestService {
         );
         transaction.set(_planRef(uid, planId), plan.toJson());
 
-        transaction.set(
-          userRef,
-          {
-            'activePlanId': planId,
-            'updatedAt': DateTime.now(),
-          },
-          SetOptions(merge: true),
-        );
+        transaction.set(userRef, {
+          'activePlanId': planId,
+          'updatedAt': DateTime.now(),
+        }, SetOptions(merge: true));
 
         final normalizedUser = loadedUser.copyWith(
           activePlanId: planId,
@@ -361,7 +340,6 @@ class QuestService {
 
     return updatedUser;
   }
-
 
   /// Updates a single quest document in the subcollection + user doc timestamp.
   /// Returns the updated [UserModel] with in-memory data, or null on failure.
@@ -387,34 +365,28 @@ class QuestService {
         if (data == null) return;
 
         final loadedUser = UserModel.fromJson(data, uid);
-        final resolvedPlanId = planId.isNotEmpty ? planId : loadedUser.activePlanId;
+        final resolvedPlanId = planId.isNotEmpty
+            ? planId
+            : loadedUser.activePlanId;
         if (resolvedPlanId.isEmpty) return;
 
         final questRef = _questRef(uid, resolvedPlanId, questId);
-        transaction.set(
-          questRef,
-          {
-            'isCompleted': true,
-            'isActive': false,
-            'reflectionNote': reflectionNote,
-            'completedAt': DateTime.now(),
-            if (imageUrl != null) 'imageUrl': imageUrl,
-            if (greeting != null) 'greeting': greeting,
-            if (observation != null) 'observation': observation,
-            if (tip != null) 'tip': tip,
-            if (awardedXP != null) 'awardedXP': awardedXP,
-          },
-          SetOptions(merge: true),
-        );
+        transaction.set(questRef, {
+          'isCompleted': true,
+          'isActive': false,
+          'reflectionNote': reflectionNote,
+          'completedAt': DateTime.now(),
+          if (imageUrl != null) 'imageUrl': imageUrl,
+          if (greeting != null) 'greeting': greeting,
+          if (observation != null) 'observation': observation,
+          if (tip != null) 'tip': tip,
+          if (awardedXP != null) 'awardedXP': awardedXP,
+        }, SetOptions(merge: true));
 
-        transaction.set(
-          userRef,
-          {
-            'updatedAt': DateTime.now(),
-            'lastQuestCompletionDate': DateTime.now(),
-          },
-          SetOptions(merge: true),
-        );
+        transaction.set(userRef, {
+          'updatedAt': DateTime.now(),
+          'lastQuestCompletionDate': DateTime.now(),
+        }, SetOptions(merge: true));
       });
     } catch (e) {
       return null;
@@ -430,7 +402,9 @@ class QuestService {
       if (!planSnapshot.exists) return null;
 
       final plan = QuestPlanModel.fromJson(
-          planSnapshot.data()!, docId: resolvedPlanId);
+        planSnapshot.data()!,
+        docId: resolvedPlanId,
+      );
       final milestones = await loadMilestones(uid, resolvedPlanId);
       final quests = await loadQuests(uid, resolvedPlanId);
 
@@ -438,30 +412,15 @@ class QuestService {
       final userData = userSnapshot.data();
       if (userData == null) return null;
 
-      final fullPlan = plan.copyWith(
-        milestones: milestones,
-        quests: quests,
-      );
-      updatedUser = UserModel.fromJson(userData, uid).copyWith(
-        activePlanId: resolvedPlanId,
-        currentPlan: fullPlan,
-      );
+      final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
+      updatedUser = UserModel.fromJson(
+        userData,
+        uid,
+      ).copyWith(activePlanId: resolvedPlanId, currentPlan: fullPlan);
     } catch (e) {
       return null;
     }
 
     return updatedUser;
-  }
-
-
-  /// Checks whether the quest pool needs replenishment (fewer than [minVisible]
-  /// ready quests remain).
-  bool needsReplenishment(List<QuestNodeModel> quests, {int minVisible = 3}) {
-    final completedIds =
-        quests.where((q) => q.isCompleted).map((q) => q.nodeId).toSet();
-    final readyCount = quests.where((q) =>
-        !q.isCompleted &&
-        (q.dependsOn.isEmpty || q.dependsOn.every(completedIds.contains))).length;
-    return readyCount < minVisible;
   }
 }

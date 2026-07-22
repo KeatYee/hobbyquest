@@ -17,79 +17,72 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final HomeController controller = Get.put(HomeController());
-    final ProgressionController progressionController = Get.put(
-      ProgressionController(),
-    );
+    Get.put(ProgressionController());
 
     return Column(
-        children: [
-          _buildHeroHud(context, controller),
+      children: [
+        _buildHeroHud(context, controller),
 
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
 
-                  _buildMilestoneProgress(controller),
+                _buildMilestoneProgress(controller),
 
-                  const SizedBox(height: 12),
-                  _buildGoalCompletionTestButton(controller),
+                const SizedBox(height: 12),
+                _buildGoalCompletionTestButton(controller),
 
-                  const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-                  _buildSectionHeader(
-                    "QUESTS",
-                    onInfoTap: _showQuestInfoDialog,
-                    trailing: _buildGrowthLetterButton(controller),
-                  ),
-                  const SizedBox(height: 14),
+                _buildSectionHeader(
+                  "QUESTS",
+                  onInfoTap: _showQuestInfoDialog,
+                  trailing: _buildGrowthLetterButton(controller),
+                ),
+                const SizedBox(height: 14),
 
-                  Obx(
-                    () {
-                      final activeQuests = controller.dailyQuests
-                          .where((q) => q.isActive && !q.isCompleted)
-                          .toList();
+                Obx(() {
+                  final activeQuests = controller.dailyQuests
+                      .where((q) => q.isActive && !q.isCompleted)
+                      .toList();
 
-                      return Column(
-                        children: activeQuests.map((quest) {
-                          return _buildQuestCard(
-                            context,
-                            controller: controller,
-                            title: quest.title,
-                            desc: quest.desc,
-                            xp: quest.xpReward,
-                            durationMinutes: quest.durationMinutes,
-                            type: quest.type,
-                            questId: quest.nodeId,
-                            isActive: quest.isActive,
-                            isCompleted: quest.isCompleted,
-                            onTap: () {
-                              Get.toNamed(
-                                AppRoutes.QUEST_DETAIL,
-                                arguments: quest,
-                              );
-                            },
-                          );
-                        }).toList(),
+                  return Column(
+                    children: activeQuests.map((quest) {
+                      return _buildQuestCard(
+                        context,
+                        controller: controller,
+                        title: quest.title,
+                        desc: quest.desc,
+                        xp: quest.xpReward,
+                        durationMinutes: quest.durationMinutes,
+                        type: quest.type,
+                        questId: quest.nodeId,
+                        isActive: quest.isActive,
+                        isCompleted: quest.isCompleted,
+                        onTap: () {
+                          Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest);
+                        },
                       );
-                    },
-                  ),
+                    }).toList(),
+                  );
+                }),
 
-                  _buildViewFullMilestoneMapButton(controller),
+                _buildViewFullMilestoneMapButton(controller),
 
-                  _buildCompletedSection(context, controller),
+                _buildCompletedSection(context, controller),
 
-                  const SizedBox(height: 20),
-                ],
-              ),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
-        ],
-      );
+        ),
+      ],
+    );
   }
 
   Widget _buildGoalCompletionTestButton(HomeController controller) {
@@ -299,10 +292,7 @@ class HomePage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: AppColors.textOnPrimary,
-                  width: 1.5,
-                ),
+                border: Border.all(color: AppColors.textOnPrimary, width: 1.5),
               ),
               child: Text(
                 'LV ${progressionController.currentLevel}',
@@ -321,7 +311,9 @@ class HomePage extends StatelessWidget {
 
   Widget _buildCharacterTypeChip(HomeController controller) {
     return Obx(() {
-      final characterType = _characterTypeFromAvatar(controller.avatarSvg.value);
+      final characterType = _characterTypeFromAvatar(
+        controller.avatarSvg.value,
+      );
       if (characterType.isEmpty) return const SizedBox.shrink();
 
       return _buildHeaderInfoChip(
@@ -359,9 +351,7 @@ class HomePage extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.textOnPrimary.withOpacity(0.18),
-        ),
+        border: Border.all(color: AppColors.textOnPrimary.withOpacity(0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -435,7 +425,8 @@ class HomePage extends StatelessWidget {
   Widget _buildMilestoneProgress(HomeController controller) {
     return Obx(() {
       final plan = controller.user.value?.currentPlan;
-      if (plan == null || plan.milestones.isEmpty) return const SizedBox.shrink();
+      if (plan == null || plan.milestones.isEmpty)
+        return const SizedBox.shrink();
 
       final index = plan.currentMilestoneIndex;
       final total = plan.milestones.length;
@@ -457,74 +448,75 @@ class HomePage extends StatelessWidget {
             border: Border.all(color: AppColors.border, width: 1),
           ),
           child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(12),
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.flag_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
-              child: const Icon(
-                Icons.flag_rounded,
-                size: 20,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Phase ${index + 1}: ${milestone.title}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: AppFonts.caption,
-                            color: AppColors.textPrimary,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Phase ${index + 1}: ${milestone.title}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: AppFonts.caption,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        '${index + 1}/$total',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: AppFonts.micro,
-                          color: AppColors.textSecondary,
+                        Text(
+                          '${index + 1}/$total',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: AppFonts.micro,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: AppColors.border,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                        minHeight: 5,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: AppColors.border,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.primary),
-                      minHeight: 5,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$completedQuests/$totalQuests quests completed',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: AppFonts.micro,
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 4),
+                    Text(
+                      '$completedQuests/$totalQuests quests completed',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: AppFonts.micro,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       );
     });
   }
@@ -559,15 +551,9 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  _infoChip(
-                    Icons.auto_awesome_rounded,
-                    plan.hobby,
-                  ),
+                  _infoChip(Icons.auto_awesome_rounded, plan.hobby),
                   const SizedBox(width: 8),
-                  _infoChip(
-                    Icons.trending_up_rounded,
-                    plan.level,
-                  ),
+                  _infoChip(Icons.trending_up_rounded, plan.level),
                 ],
               ),
               const SizedBox(height: 8),
@@ -667,19 +653,23 @@ class HomePage extends StatelessWidget {
               shape: BoxShape.circle,
               color: isCompleted
                   ? AppColors.success
-                  : (isCurrent
-                      ? AppColors.primary
-                      : AppColors.border),
+                  : (isCurrent ? AppColors.primary : AppColors.border),
             ),
             child: Center(
               child: isCompleted
-                  ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    )
                   : Text(
                       '${index + 1}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isCurrent ? Colors.white : AppColors.textSecondary,
+                        color: isCurrent
+                            ? Colors.white
+                            : AppColors.textSecondary,
                       ),
                     ),
             ),
@@ -718,15 +708,12 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  void _showFullMilestoneMap(
-    HomeController controller,
-    QuestPlanModel plan,
-  ) {
+  void _showFullMilestoneMap(HomeController controller, QuestPlanModel plan) {
     final currentIndex = plan.currentMilestoneIndex;
     final currentMilestone =
         currentIndex >= 0 && currentIndex < plan.milestones.length
-            ? plan.milestones[currentIndex]
-            : null;
+        ? plan.milestones[currentIndex]
+        : null;
 
     Get.bottomSheet(
       SafeArea(
@@ -830,9 +817,8 @@ class HomePage extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 24),
                     itemCount: quests.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, index) => _buildMilestoneQuestRow(
-                      quests[index],
-                    ),
+                    itemBuilder: (_, index) =>
+                        _buildMilestoneQuestRow(quests[index]),
                   );
                 }),
               ),
@@ -864,10 +850,7 @@ class HomePage extends StatelessWidget {
             ? null
             : () {
                 Get.back();
-                Get.toNamed(
-                  AppRoutes.QUEST_DETAIL,
-                  arguments: quest,
-                );
+                Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest);
               },
         borderRadius: BorderRadius.circular(14),
         child: Padding(
@@ -978,7 +961,10 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildCompletedSection(BuildContext context, HomeController controller) {
+  Widget _buildCompletedSection(
+    BuildContext context,
+    HomeController controller,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1013,15 +999,17 @@ class HomePage extends StatelessWidget {
                   );
                 }),
                 const Spacer(),
-                Obx(() => AnimatedRotation(
-                  turns: controller.isCompletedExpanded.value ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: const Icon(
-                    Icons.chevron_left_rounded,
-                    color: AppColors.textSecondary,
-                    size: 20,
+                Obx(
+                  () => AnimatedRotation(
+                    turns: controller.isCompletedExpanded.value ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
                   ),
-                )),
+                ),
               ],
             ),
           ),
@@ -1034,19 +1022,22 @@ class HomePage extends StatelessWidget {
           return Column(
             children: controller.dailyQuests
                 .where((q) => q.isCompleted)
-                .map((quest) => _buildQuestCard(
-                  context,
-                  controller: controller,
-                  title: quest.title,
-                  desc: quest.desc,
-                  xp: quest.xpReward,
-                  durationMinutes: quest.durationMinutes,
-                  type: quest.type,
-                  questId: quest.nodeId,
-                  isActive: quest.isActive,
-                  isCompleted: quest.isCompleted,
-                  onTap: null,
-                )).toList(),
+                .map(
+                  (quest) => _buildQuestCard(
+                    context,
+                    controller: controller,
+                    title: quest.title,
+                    desc: quest.desc,
+                    xp: quest.xpReward,
+                    durationMinutes: quest.durationMinutes,
+                    type: quest.type,
+                    questId: quest.nodeId,
+                    isActive: quest.isActive,
+                    isCompleted: quest.isCompleted,
+                    onTap: null,
+                  ),
+                )
+                .toList(),
           );
         }),
       ],
@@ -1186,10 +1177,7 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
-        if (trailing != null) ...[
-          const Spacer(),
-          trailing,
-        ],
+        if (trailing != null) ...[const Spacer(), trailing],
       ],
     );
   }
@@ -1240,9 +1228,7 @@ class HomePage extends StatelessWidget {
     }
 
     final color = getTypeColor();
-    final cardOpacity = isLocked
-        ? 0.45
-        : (isCompleted ? 0.7 : 1.0);
+    final cardOpacity = isLocked ? 0.45 : (isCompleted ? 0.7 : 1.0);
     final completedColor = AppColors.success;
 
     return Opacity(
@@ -1264,8 +1250,8 @@ class HomePage extends StatelessWidget {
                       color: isCompleted
                           ? completedColor.withOpacity(0.3)
                           : (isLocked
-                              ? AppColors.textSecondary.withOpacity(0.2)
-                              : AppColors.border),
+                                ? AppColors.textSecondary.withOpacity(0.2)
+                                : AppColors.border),
                       width: 1,
                     ),
                   ),
@@ -1280,290 +1266,332 @@ class HomePage extends StatelessWidget {
                             color: isCompleted
                                 ? completedColor
                                 : (isLocked
-                                    ? AppColors.textSecondary.withOpacity(0.3)
-                                    : color),
+                                      ? AppColors.textSecondary.withOpacity(0.3)
+                                      : color),
                           ),
 
                           Expanded(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                14,
+                                16,
+                                12,
+                              ),
                               child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: isCompleted
-                                  ? [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: completedColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle_rounded,
-                                              color: completedColor,
-                                              size: 14,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: isCompleted
+                                        ? [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: completedColor
+                                                    .withOpacity(0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    color: completedColor,
+                                                    size: 14,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'COMPLETED',
+                                                    style: TextStyle(
+                                                      color: completedColor,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: AppFonts.label,
+                                                      letterSpacing: 0.8,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'COMPLETED',
-                                              style: TextStyle(
-                                                color: completedColor,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: AppFonts.label,
-                                                letterSpacing: 0.8,
+                                            const Spacer(),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: completedColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.flash_on_rounded,
+                                                    size: 13,
+                                                    color:
+                                                        AppColors.primaryDark,
+                                                  ),
+                                                  Text(
+                                                    '+$xp XP',
+                                                    style: TextStyle(
+                                                      color:
+                                                          AppColors.primaryDark,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: AppFonts.badge,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ]
+                                        : [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: color.withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    getTypeIcon(),
+                                                    color: color,
+                                                    size: 12,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    getTypeLabel(),
+                                                    style: TextStyle(
+                                                      color: color,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: AppFonts.label,
+                                                      letterSpacing: 0.8,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primaryLight,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.flash_on_rounded,
+                                                    size: 13,
+                                                    color:
+                                                        AppColors.primaryDark,
+                                                  ),
+                                                  Text(
+                                                    "+$xp XP",
+                                                    style: TextStyle(
+                                                      color:
+                                                          AppColors.primaryDark,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: AppFonts.badge,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: completedColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.flash_on_rounded,
-                                              size: 13,
-                                              color: AppColors.primaryDark,
-                                            ),
-                                            Text(
-                                              '+$xp XP',
-                                              style: TextStyle(
-                                                color: AppColors.primaryDark,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: AppFonts.badge,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ]
-                                  : [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        getTypeIcon(),
-                                        color: color,
-                                        size: 12,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        getTypeLabel(),
-                                        style: TextStyle(
-                                          color: color,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: AppFonts.label,
-                                          letterSpacing: 0.8,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryLight,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.flash_on_rounded,
-                                        size: 13,
-                                        color: AppColors.primaryDark,
-                                      ),
-                                      Text(
-                                        "+$xp XP",
-                                        style: TextStyle(
-                                          color: AppColors.primaryDark,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: AppFonts.badge,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
+                                  const SizedBox(height: 10),
 
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: AppFonts.button,
-                                color: AppColors.textPrimary,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-
-                            Text(
-                              desc,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: AppFonts.caption,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            Row(
-                              children: isCompleted
-                                  ? [
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: completedColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle_rounded,
-                                              size: 14,
-                                              color: completedColor,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Done',
-                                              style: TextStyle(
-                                                color: completedColor,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: AppFonts.badge,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ]
-                                  : [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.background,
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.access_time_rounded,
-                                              size: 13,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              '$durationMinutes min',
-                                              style: TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: AppFonts.badge,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      TextButton.icon(
-                                  onPressed: () async {
-                                    final confirmed = await AppDialogs.confirm(
-                                      title: 'Reroll this quest?',
-                                      message: 'This will generate a new task for the same skill.',
-                                      confirmLabel: 'Reroll',
-                                    );
-
-                                    if (confirmed != true) return;
-
-                                    final didReroll = await controller
-                                        .rerollQuestWithGemini(questId);
-
-                                    if (didReroll) {
-                                      AppDialogs.success(
-                                        'Quest rerolled',
-                                        'The new quest version has been saved.',
-                                      );
-                                    } else {
-                                      AppDialogs.error(
-                                        'Reroll unavailable',
-                                        'Unable to reroll this quest right now',
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.casino_rounded,
-                                    size: 16,
-                                  ),
-                                  label: Text(
-                                    'Reroll',
-                                    style: TextStyle(fontSize: AppFonts.caption),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: AppColors.textSecondary,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: AppFonts.button,
+                                      color: AppColors.textPrimary,
+                                      height: 1.3,
                                     ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+
+                                  Text(
+                                    desc,
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: AppFonts.caption,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  Row(
+                                    children: isCompleted
+                                        ? [
+                                            const Spacer(),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: completedColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    size: 14,
+                                                    color: completedColor,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Done',
+                                                    style: TextStyle(
+                                                      color: completedColor,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: AppFonts.badge,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ]
+                                        : [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 5,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.background,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.access_time_rounded,
+                                                    size: 13,
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '$durationMinutes min',
+                                                    style: TextStyle(
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: AppFonts.badge,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            TextButton.icon(
+                                              onPressed: () async {
+                                                final confirmed =
+                                                    await AppDialogs.confirm(
+                                                      title:
+                                                          'Reroll this quest?',
+                                                      message:
+                                                          'This will generate a new task for the same skill.',
+                                                      confirmLabel: 'Reroll',
+                                                    );
+
+                                                if (confirmed != true) return;
+
+                                                final didReroll =
+                                                    await controller
+                                                        .rerollQuestWithGemini(
+                                                          questId,
+                                                        );
+
+                                                if (didReroll) {
+                                                  AppDialogs.success(
+                                                    'Quest rerolled',
+                                                    'The new quest version has been saved.',
+                                                  );
+                                                } else {
+                                                  AppDialogs.error(
+                                                    'Reroll unavailable',
+                                                    'Unable to reroll this quest right now',
+                                                  );
+                                                }
+                                              },
+                                              icon: const Icon(
+                                                Icons.casino_rounded,
+                                                size: 16,
+                                              ),
+                                              label: Text(
+                                                'Reroll',
+                                                style: TextStyle(
+                                                  fontSize: AppFonts.caption,
+                                                ),
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    AppColors.textSecondary,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                            ),
+                                          ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-),
-);
+    );
   }
 }

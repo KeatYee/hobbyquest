@@ -57,7 +57,7 @@ class UserModel {
     final totalXp = json['totalXP'] as int? ?? _legacyTotalXp(json);
     final currentPlanJson = json['currentPlan'];
     final currentPlan = currentPlanJson is Map
-      ? QuestPlanModel.fromJson(Map<String, dynamic>.from(currentPlanJson))
+        ? QuestPlanModel.fromJson(Map<String, dynamic>.from(currentPlanJson))
         : _legacyCurrentPlan(json);
 
     return UserModel(
@@ -110,30 +110,6 @@ class UserModel {
     };
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'nickname': nickname,
-      'birthDate': birthDate,
-      'gender': gender,
-      'avatarSvg': avatarSvg,
-      'isOnboardingComplete': isOnboardingComplete,
-      'totalXP': totalXP,
-      'activePlanId': activePlanId,
-      'currentStreak': currentStreak,
-      'dailyQuestCompletionCount': dailyQuestCompletionCount,
-      'categoryXp': categoryXp,
-      'mapTutorialDone': mapTutorialDone,
-      'notificationsEnabled': notificationsEnabled,
-      'profileVisible': profileVisible,
-      'postStatsVisible': postStatsVisible,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'lastRerollDate': lastRerollDate,
-      'lastStreakDate': lastStreakDate,
-      'lastQuestCompletionDate': lastQuestCompletionDate,
-    };
-  }
-
   /// Create a copy with modified fields
   UserModel copyWith({
     String? id,
@@ -169,18 +145,19 @@ class UserModel {
       activePlanId: activePlanId ?? this.activePlanId,
       currentPlan: currentPlan ?? this.currentPlan,
       currentStreak: currentStreak ?? this.currentStreak,
-      dailyQuestCompletionCount: dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
+      dailyQuestCompletionCount:
+          dailyQuestCompletionCount ?? this.dailyQuestCompletionCount,
       categoryXp: categoryXp ?? this.categoryXp,
       mapTutorialDone: mapTutorialDone ?? this.mapTutorialDone,
-      notificationsEnabled:
-          notificationsEnabled ?? this.notificationsEnabled,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       profileVisible: profileVisible ?? this.profileVisible,
       postStatsVisible: postStatsVisible ?? this.postStatsVisible,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastRerollDate: lastRerollDate ?? this.lastRerollDate,
       lastStreakDate: lastStreakDate ?? this.lastStreakDate,
-      lastQuestCompletionDate: lastQuestCompletionDate ?? this.lastQuestCompletionDate,
+      lastQuestCompletionDate:
+          lastQuestCompletionDate ?? this.lastQuestCompletionDate,
     );
   }
 
@@ -218,14 +195,21 @@ class UserModel {
 
   static QuestPlanModel _legacyCurrentPlan(Map<String, dynamic> json) {
     return QuestPlanModel(
-      hobby: json['hobby'] as String? ?? (json['hobbyName'] as String? ?? 'Learning'),
-      level: json['level'] as String? ?? (json['skillLevel'] as String? ?? 'Novice'),
+      hobby:
+          json['hobby'] as String? ??
+          (json['hobbyName'] as String? ?? 'Learning'),
+      level:
+          json['level'] as String? ??
+          (json['skillLevel'] as String? ?? 'Novice'),
       goal: json['goal'] as String? ?? (json['customGoal'] as String? ?? ''),
-      learningPace: json['learningPace'] as String? ??
+      learningPace:
+          json['learningPace'] as String? ??
           (json['frequency'] as String? ??
               (json['dailyCommitment'] as String? ?? 'Steady Learner')),
       progress: json['progress'] as int? ?? 0,
-      currentMilestoneIndex: json['currentMilestoneIndex'] as int? ?? (json['progress'] as int? ?? 0),
+      currentMilestoneIndex:
+          json['currentMilestoneIndex'] as int? ??
+          (json['progress'] as int? ?? 0),
       milestones: const [],
       quests: const [],
     );

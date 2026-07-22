@@ -61,10 +61,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 2500),
     )..repeat(reverse: true);
     _floatAnimation = Tween<double>(begin: -6, end: 6).animate(
-      CurvedAnimation(
-        parent: _floatController!,
-        curve: Curves.easeInOutSine,
-      ),
+      CurvedAnimation(parent: _floatController!, curve: Curves.easeInOutSine),
     );
     _shakeController = AnimationController(
       vsync: this,
@@ -105,14 +102,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     }
 
     if (Get.isRegistered<DashboardController>()) {
-      _tabWorker = ever<int>(
-        Get.find<DashboardController>().tabIndex,
-        (index) {
-          if (index == DashboardController.forestTabIndex) {
-            _selectCurrentHobbyCategory();
-          }
-        },
-      );
+      _tabWorker = ever<int>(Get.find<DashboardController>().tabIndex, (index) {
+        if (index == DashboardController.forestTabIndex) {
+          _selectCurrentHobbyCategory();
+        }
+      });
     }
   }
 
@@ -140,12 +134,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       final homeCtrl = Get.find<HomeController>();
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'mapTutorialDone': true});
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'mapTutorialDone': true,
+      });
       if (homeCtrl.user.value != null) {
-        homeCtrl.user.value = homeCtrl.user.value!.copyWith(mapTutorialDone: true);
+        homeCtrl.user.value = homeCtrl.user.value!.copyWith(
+          mapTutorialDone: true,
+        );
       }
       print('--- SUCCESS: Map tutorial completed and saved to Firestore ---');
     } catch (e) {
@@ -159,7 +154,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.forward(from: 0.0);
   }
 
-  Future<void> _saveTreeToForest(CategoryModel category, String treeName) async {
+  Future<void> _saveTreeToForest(
+    CategoryModel category,
+    String treeName,
+  ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final progressionController = Get.find<ProgressionController>();
@@ -170,8 +168,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           .doc(uid)
           .collection('tree')
           .get();
-      final usedIndices =
-          existingDocs.docs.map((doc) => doc['treeIndex'] as int? ?? 0).toSet();
+      final usedIndices = existingDocs.docs
+          .map((doc) => doc['treeIndex'] as int? ?? 0)
+          .toSet();
       int firstFree = 0;
       while (usedIndices.contains(firstFree) && firstFree < 6) {
         firstFree++;
@@ -184,20 +183,18 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       final rawPlan = userSnap.data()?['currentPlan'] as Map<String, dynamic>?;
       final rawQuests = rawPlan?['quests'] as List<dynamic>? ?? [];
       final completedCount = rawQuests
-          .where((q) =>
-              q is Map<String, dynamic> && q['isCompleted'] == true)
+          .where((q) => q is Map<String, dynamic> && q['isCompleted'] == true)
           .length;
       final totalMinutes = rawQuests
-          .where((q) =>
-              q is Map<String, dynamic> && q['isCompleted'] == true)
+          .where((q) => q is Map<String, dynamic> && q['isCompleted'] == true)
           .fold<int>(
-        0,
-        (acc, q) =>
-            acc +
-            ((q['durationMinutes'] as int?) ??
-                (q['duration_minutes'] as int?) ??
-                0),
-      );
+            0,
+            (acc, q) =>
+                acc +
+                ((q['durationMinutes'] as int?) ??
+                    (q['duration_minutes'] as int?) ??
+                    0),
+          );
 
       final tree = TreeModel(
         treeName: treeName,
@@ -217,10 +214,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           .collection('tree')
           .add(tree.toJson());
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'categoryXp.${category.name}': 0});
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'categoryXp.${category.name}': 0,
+      });
       progressionController.categoryXp[category.name] = 0;
 
       print('--- Tree saved to forest: ${category.name} ---');
@@ -272,7 +268,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: AppColors.primary, width: 2),
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -392,10 +391,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     return visibleCategories.take(4).toList();
   }
 
-  int _findCategoryIndexForHobby(
-    List<CategoryModel> categories,
-    String hobby,
-  ) {
+  int _findCategoryIndexForHobby(List<CategoryModel> categories, String hobby) {
     final normalizedHobby = hobby.trim().toLowerCase();
     if (normalizedHobby.isEmpty) return -1;
 
@@ -409,7 +405,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   void _previousCategory() {
     if (_categories.isEmpty || _selectedIndex == null) return;
     setState(() {
-      _selectedIndex = (_selectedIndex! - 1 + _categories.length) % _categories.length;
+      _selectedIndex =
+          (_selectedIndex! - 1 + _categories.length) % _categories.length;
     });
   }
 
@@ -426,31 +423,31 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _categories.isEmpty
-              ? const Center(child: Text('No categories available'))
-              : Stack(
+          ? const Center(child: Text('No categories available'))
+          : Stack(
+              children: [
+                Column(
                   children: [
-                    Column(
-                      children: [
-                        _buildCategoryTopBar(),
-                        Expanded(child: _buildContent()),
-                      ],
-                    ),
-                    Positioned(
-                      right: 16,
-                      bottom: 16,
-                      child: FloatingActionButton(
-                        onPressed: () => Get.toNamed(AppRoutes.FOREST),
-                        child: const Icon(Icons.forest_rounded),
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textOnPrimary,
-                        elevation: 0,
-                        focusElevation: 0,
-                        hoverElevation: 0,
-                        highlightElevation: 0,
-                      ),
-                    ),
+                    _buildCategoryTopBar(),
+                    Expanded(child: _buildContent()),
                   ],
                 ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: FloatingActionButton(
+                    onPressed: () => Get.toNamed(AppRoutes.FOREST),
+                    child: const Icon(Icons.forest_rounded),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    elevation: 0,
+                    focusElevation: 0,
+                    hoverElevation: 0,
+                    highlightElevation: 0,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -518,11 +515,20 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           final progressionController = Get.find<ProgressionController>();
           final xp = progressionController.categoryXp[category.name] ?? 0;
           final thresholds = [0, 100, 300, 500, 800];
-          final labels = ['Seed', 'Sprout', 'Seedling', 'Young Tree', 'Mature Tree'];
+          final labels = [
+            'Seed',
+            'Sprout',
+            'Seedling',
+            'Young Tree',
+            'Mature Tree',
+          ];
 
           int actualStage = 0;
           for (int i = thresholds.length - 1; i >= 0; i--) {
-            if (xp >= thresholds[i]) { actualStage = i; break; }
+            if (xp >= thresholds[i]) {
+              actualStage = i;
+              break;
+            }
           }
 
           if (category.name != _displayedStageCategory) {
@@ -538,8 +544,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
           final stage = _displayedStage;
           final currentMin = thresholds[stage];
-          final nextMax = stage < thresholds.length - 1 ? thresholds[stage + 1] : thresholds[stage] + 1000;
-          final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(0.0, 1.0);
+          final nextMax = stage < thresholds.length - 1
+              ? thresholds[stage + 1]
+              : thresholds[stage] + 1000;
+          final progress = ((xp - currentMin) / (nextMax - currentMin)).clamp(
+            0.0,
+            1.0,
+          );
           final xpToNext = stage < thresholds.length - 1 ? nextMax - xp : 0;
 
           return GestureDetector(
@@ -552,31 +563,33 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                     }
                   }
                 : hasPending
-                    ? () {
-                        setState(() {
-                          _displayedStage++;
-                          _triggerShake();
-                        });
-                        if (_displayedStage == 4) {
-                          _showTreeNamingDialog(category);
-                        }
-                      }
-                    : stage == 4
-                        ? () => _showTreeNamingDialog(category)
-                        : null,
+                ? () {
+                    setState(() {
+                      _displayedStage++;
+                      _triggerShake();
+                    });
+                    if (_displayedStage == 4) {
+                      _showTreeNamingDialog(category);
+                    }
+                  }
+                : stage == 4
+                ? () => _showTreeNamingDialog(category)
+                : null,
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_speechIndex >= 0 && _speechIndex < _speechMessages.length)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           constraints: const BoxConstraints(maxWidth: 260),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
@@ -614,175 +627,190 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                       ],
                     ),
                   ),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedBuilder(
-                    animation: Listenable.merge([_floatAnimation!, _shakeAnimation!]),
-                    builder: (context, child) {
-                      return Transform.translate(
-                        offset: Offset(_shakeAnimation!.value, _floatAnimation!.value),
-                        child: child,
-                      );
-                    },
-                    child: Image.asset(
-                      _treeImageForStage(stage),
-                      width: 200,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  if (hasPending || stage == 4)
-                    Positioned(
-                      top: -56,
-                      left: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: hasPending
-                            ? () {
-                                setState(() {
-                                  _displayedStage++;
-                                  _triggerShake();
-                                });
-                                if (_displayedStage == 4) {
-                                  _showTreeNamingDialog(category);
-                                }
-                              }
-                            : () => _showTreeNamingDialog(category),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              constraints: const BoxConstraints(maxWidth: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                hasPending ? 'Tap me to grow!' : 'Save me to forest!',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: AppFonts.badge,
-                                  color: AppColors.textPrimary,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            CustomPaint(
-                              size: const Size(14, 8),
-                              painter: _TriangleDownPainter(),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              hasPending ? 'Tap to level up' : 'Tap to name your tree',
-                              style: TextStyle(
-                                fontSize: AppFonts.micro,
-                                color: AppColors.textSecondary.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
-                        ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedBuilder(
+                      animation: Listenable.merge([
+                        _floatAnimation!,
+                        _shakeAnimation!,
+                      ]),
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(
+                            _shakeAnimation!.value,
+                            _floatAnimation!.value,
+                          ),
+                          child: child,
+                        );
+                      },
+                      child: Image.asset(
+                        _treeImageForStage(stage),
+                        width: 200,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                ],
-              ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: 220,
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              labels[stage],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: AppFonts.badge,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            if (stage < thresholds.length - 1)
-                              Text(
-                                '$xp / $nextMax XP',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: AppFonts.micro,
-                                  color: AppColors.textSecondary,
+                    if (hasPending || stage == 4)
+                      Positioned(
+                        top: -56,
+                        left: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: hasPending
+                              ? () {
+                                  setState(() {
+                                    _displayedStage++;
+                                    _triggerShake();
+                                  });
+                                  if (_displayedStage == 4) {
+                                    _showTreeNamingDialog(category);
+                                  }
+                                }
+                              : () => _showTreeNamingDialog(category),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 200,
                                 ),
-                              )
-                            else
-                              Text(
-                                '$xp XP',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: AppFonts.micro,
-                                  color: AppColors.textSecondary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  hasPending
+                                      ? 'Tap me to grow!'
+                                      : 'Save me to forest!',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: AppFonts.badge,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: AppColors.border,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                AppColors.primary),
-                            minHeight: 6,
+                              const SizedBox(height: 6),
+                              CustomPaint(
+                                size: const Size(14, 8),
+                                painter: _TriangleDownPainter(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                hasPending
+                                    ? 'Tap to level up'
+                                    : 'Tap to name your tree',
+                                style: TextStyle(
+                                  fontSize: AppFonts.micro,
+                                  color: AppColors.textSecondary.withOpacity(
+                                    0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        if (stage < thresholds.length - 1)
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: 220,
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           Text(
-                            '$xpToNext XP to ${labels[stage + 1]}',
+                            labels[stage],
                             style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: AppFonts.micro,
-                              color: AppColors.textSecondary,
-                            ),
-                          )
-                        else
-                          const Text(
-                            'Fully grown!',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: AppFonts.micro,
-                              color: AppColors.success,
+                              fontWeight: FontWeight.w700,
+                              fontSize: AppFonts.badge,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                      ],
-                    ),
+                          if (stage < thresholds.length - 1)
+                            Text(
+                              '$xp / $nextMax XP',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: AppFonts.micro,
+                                color: AppColors.textSecondary,
+                              ),
+                            )
+                          else
+                            Text(
+                              '$xp XP',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: AppFonts.micro,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: AppColors.border,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                          minHeight: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (stage < thresholds.length - 1)
+                        Text(
+                          '$xpToNext XP to ${labels[stage + 1]}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: AppFonts.micro,
+                            color: AppColors.textSecondary,
+                          ),
+                        )
+                      else
+                        const Text(
+                          'Fully grown!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: AppFonts.micro,
+                            color: AppColors.success,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
           );
-            }),
-          ),
-        );
+        }),
+      ),
+    );
   }
 }
 
 /// Paints a downward-pointing triangle for a speech bubble tail.
 class _TriangleDownPainter extends CustomPainter {
-  const _TriangleDownPainter({this.color = Colors.white});
-
-  final Color color;
+  const _TriangleDownPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
     final path = Path()
       ..moveTo(0, 0)
@@ -793,6 +821,5 @@ class _TriangleDownPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _TriangleDownPainter oldDelegate) =>
-      oldDelegate.color != color;
+  bool shouldRepaint(covariant _TriangleDownPainter oldDelegate) => false;
 }
