@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants/color_constants.dart';
+import '../constants/font_constants.dart';
 
 /// Standardized dialog and snackbar utilities for the entire app.
 /// All dialogs share consistent styling: 16px rounded corners,
@@ -8,13 +9,10 @@ import '../constants/color_constants.dart';
 class AppDialogs {
   static Widget _buildContainer({required Widget child}) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: child,
     );
   }
-
 
   /// Shows a non-dismissible loading dialog with the given [message].
   static void showLoading({String message = 'Loading...'}) {
@@ -44,7 +42,6 @@ class AppDialogs {
     if (Get.isDialogOpen == true) Get.back();
   }
 
-
   /// Standard confirm/cancel dialog. Returns `true` when confirmed.
   static Future<bool?> confirm({
     required String title,
@@ -65,7 +62,7 @@ class AppDialogs {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 18,
+                  fontSize: AppFonts.title,
                 ),
               ),
               const SizedBox(height: 12),
@@ -131,7 +128,7 @@ class AppDialogs {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 18,
+                  fontSize: AppFonts.title,
                   color: AppColors.error,
                 ),
               ),
@@ -148,7 +145,7 @@ class AppDialogs {
                 'Type $confirmText to confirm:',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 12,
+                  fontSize: AppFonts.badge,
                 ),
               ),
               const SizedBox(height: 8),
@@ -196,7 +193,6 @@ class AppDialogs {
     );
   }
 
-
   /// Shows a dialog with a text field. Returns the entered text
   /// when confirmed, or `null` if cancelled.
   ///
@@ -217,7 +213,9 @@ class AppDialogs {
       _buildContainer(
         child: StatefulBuilder(
           builder: (context, setLocalState) {
-            final errorText = validator != null ? validator(textController.text) : null;
+            final errorText = validator != null
+                ? validator(textController.text)
+                : null;
 
             return Padding(
               padding: const EdgeInsets.all(24),
@@ -229,7 +227,7 @@ class AppDialogs {
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 18,
+                      fontSize: AppFonts.title,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -254,14 +252,17 @@ class AppDialogs {
                         onPressed: () => Get.back<String>(),
                         child: Text(
                           cancelLabel,
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       FilledButton(
                         onPressed: errorText != null
                             ? null
-                            : () => Get.back(result: textController.text.trim()),
+                            : () =>
+                                  Get.back(result: textController.text.trim()),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
@@ -282,7 +283,6 @@ class AppDialogs {
     );
   }
 
-
   /// Wraps custom [builder] content inside the standard dialog
   /// container. Use this for complex dialogs (feedback, share, etc.)
   static Future<T?> custom<T>({
@@ -294,7 +294,6 @@ class AppDialogs {
       barrierDismissible: barrierDismissible,
     );
   }
-
 
   /// Shows a dialog with a date picker button. Returns the selected
   /// date as `YYYY-MM-DD`, or `null` if cancelled.
@@ -309,7 +308,8 @@ class AppDialogs {
     final now = DateTime.now();
     DateTime selectedDate;
     if (initialValue.isNotEmpty) {
-      selectedDate = DateTime.tryParse(initialValue) ??
+      selectedDate =
+          DateTime.tryParse(initialValue) ??
           DateTime(now.year - 30, now.month, now.day);
     } else {
       selectedDate = DateTime(now.year - 30, now.month, now.day);
@@ -338,7 +338,7 @@ class AppDialogs {
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 18,
+                      fontSize: AppFonts.title,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -349,8 +349,11 @@ class AppDialogs {
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       isDense: true,
-                      prefixIcon: Icon(Icons.calendar_month_rounded,
-                          color: AppColors.primary, size: 20),
+                      prefixIcon: Icon(
+                        Icons.calendar_month_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                     ),
                     onTap: () async {
                       final picked = await showDatePicker(
@@ -361,8 +364,7 @@ class AppDialogs {
                         builder: (context, child) {
                           return Theme(
                             data: Theme.of(context).copyWith(
-                              colorScheme: Theme.of(context)
-                                  .colorScheme
+                              colorScheme: Theme.of(context).colorScheme
                                   .copyWith(primary: AppColors.primary),
                             ),
                             child: child!,
@@ -382,7 +384,9 @@ class AppDialogs {
                         onPressed: () => Get.back<String>(),
                         child: Text(
                           cancelLabel,
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -408,13 +412,8 @@ class AppDialogs {
     );
   }
 
-
   /// Green success toast.
-  static void success(
-    String title,
-    String message, {
-    int durationSeconds = 2,
-  }) {
+  static void success(String title, String message, {int durationSeconds = 2}) {
     Get.snackbar(
       title,
       message,
@@ -425,11 +424,7 @@ class AppDialogs {
   }
 
   /// Red error toast.
-  static void error(
-    String title,
-    String message, {
-    int durationSeconds = 2,
-  }) {
+  static void error(String title, String message, {int durationSeconds = 2}) {
     Get.snackbar(
       title,
       message,
@@ -440,11 +435,7 @@ class AppDialogs {
   }
 
   /// Amber warning toast.
-  static void warning(
-    String title,
-    String message, {
-    int durationSeconds = 3,
-  }) {
+  static void warning(String title, String message, {int durationSeconds = 3}) {
     Get.snackbar(
       title,
       message,
@@ -455,11 +446,7 @@ class AppDialogs {
   }
 
   /// Primary-coloured info toast.
-  static void info(
-    String title,
-    String message, {
-    int durationSeconds = 2,
-  }) {
+  static void info(String title, String message, {int durationSeconds = 2}) {
     Get.snackbar(
       title,
       message,

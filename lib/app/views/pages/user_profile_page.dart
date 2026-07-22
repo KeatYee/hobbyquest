@@ -20,8 +20,11 @@ class UserProfilePage extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -61,7 +64,8 @@ class UserProfilePage extends StatelessWidget {
             return const _PrivateProfileState();
           }
 
-          final totalXP = data['totalXP'] ??
+          final totalXP =
+              data['totalXP'] ??
               (((data['level'] ?? 1) - 1) * 1000 + (data['currentXp'] ?? 0));
           final level = (totalXP ~/ 1000) + 1;
           final xp = totalXP % 1000;
@@ -69,14 +73,13 @@ class UserProfilePage extends StatelessWidget {
           return FutureBuilder<QuerySnapshot?>(
             future: canViewStats
                 ? FirebaseFirestore.instance
-                    .collection('guild_posts')
-                    .where('userId', isEqualTo: userId)
-                    .get()
+                      .collection('guild_posts')
+                      .where('userId', isEqualTo: userId)
+                      .get()
                 : Future<QuerySnapshot?>.value(null),
             builder: (context, postSnap) {
-              final guildPostCount = (canViewStats &&
-                      postSnap.hasData &&
-                      postSnap.data != null)
+              final guildPostCount =
+                  (canViewStats && postSnap.hasData && postSnap.data != null)
                   ? postSnap.data!.docs.length
                   : 0;
 
@@ -88,11 +91,10 @@ class UserProfilePage extends StatelessWidget {
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.primary, width: 3),
+                        border: Border.all(color: AppColors.primary, width: 3),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: AppColors.textPrimary.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -111,8 +113,11 @@ class UserProfilePage extends StatelessWidget {
                                   alignment: Alignment.topCenter,
                                 ),
                               )
-                            : const Icon(Icons.person_rounded,
-                                size: 54, color: AppColors.primary),
+                            : const Icon(
+                                Icons.person_rounded,
+                                size: 54,
+                                color: AppColors.primary,
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -142,11 +147,12 @@ class UserProfilePage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border:
-                              Border.all(color: AppColors.border, width: 1),
+                          border: Border.all(color: AppColors.border, width: 1),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.04,
+                              ),
                               blurRadius: 12,
                               offset: const Offset(0, 3),
                             ),
@@ -170,8 +176,9 @@ class UserProfilePage extends StatelessWidget {
                                   child: _StatTile(
                                     icon: Icons.flash_on_rounded,
                                     iconColor: AppColors.warning,
-                                    bgColor:
-                                        AppColors.warning.withOpacity(0.12),
+                                    bgColor: AppColors.warning.withOpacity(
+                                      0.12,
+                                    ),
                                     value: totalXP.toString(),
                                     label: "Total XP",
                                   ),
@@ -194,9 +201,10 @@ class UserProfilePage extends StatelessWidget {
                                 Expanded(
                                   child: _StatTile(
                                     icon: Icons.forum_rounded,
-                                    iconColor: const Color(0xFF6C63FF),
-                                    bgColor: const Color(0xFF6C63FF)
-                                        .withOpacity(0.1),
+                                    iconColor: AppColors.info,
+                                    bgColor: AppColors.info.withValues(
+                                      alpha: 0.1,
+                                    ),
                                     value: guildPostCount.toString(),
                                     label: "Guild Posts",
                                     onTap: () => Get.toNamed(
@@ -290,7 +298,7 @@ class _StatsHiddenCard extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),

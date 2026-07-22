@@ -1,18 +1,21 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import 'guild_controller.dart';
 import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
 import '../../core/utils/dialog_utils.dart';
-import '../services/goal_history_service.dart';
-import '../services/growth_letter_service.dart';
 
 class ProfileController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-southeast1',
+  );
 
   final isLoading = true.obs;
   final isUpdatingNotifications = false.obs;
@@ -22,6 +25,7 @@ class ProfileController extends GetxController {
   final notificationsEnabled = true.obs;
   final profileVisible = true.obs;
   final postStatsVisible = true.obs;
+  bool _isDeletingAccount = false;
 
   int get totalXP => userModel.value?.totalXP ?? 0;
   int get level => userModel.value?.level ?? 1;
@@ -79,7 +83,6 @@ class ProfileController extends GetxController {
     }
   }
 
-
   /// Update the user's display name in Firestore.
   Future<bool> updateNickname(String newNickname) async {
     final user = _auth.currentUser;
@@ -130,11 +133,19 @@ class ProfileController extends GetxController {
       await user.verifyBeforeUpdateEmail(trimmed);
       await user.sendEmailVerification();
 
-      AppDialogs.success('Email Updated', 'Verification sent to $trimmed', durationSeconds: 3);
+      AppDialogs.success(
+        'Email Updated',
+        'Verification sent to $trimmed',
+        durationSeconds: 3,
+      );
       return true;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        AppDialogs.warning('Re-login Needed', 'Please logout and sign in again to change your email', durationSeconds: 3);
+        AppDialogs.warning(
+          'Re-login Needed',
+          'Please logout and sign in again to change your email',
+          durationSeconds: 3,
+        );
       } else {
         AppDialogs.error('Error', '${e.message ?? "Failed to update email"}');
       }
@@ -184,8 +195,7 @@ class ProfileController extends GetxController {
       });
 
       if (userModel.value != null) {
-        userModel.value =
-            userModel.value!.copyWith(birthDate: newBirthDate);
+        userModel.value = userModel.value!.copyWith(birthDate: newBirthDate);
       }
 
       AppDialogs.success('Updated', 'Birth date saved');
@@ -212,8 +222,9 @@ class ProfileController extends GetxController {
       }, SetOptions(merge: true));
 
       if (Get.isRegistered<PushNotificationService>()) {
-        await Get.find<PushNotificationService>()
-            .applyNotificationPreference(enabled);
+        await Get.find<PushNotificationService>().applyNotificationPreference(
+          enabled,
+        );
       }
 
       if (userModel.value != null) {
@@ -329,102 +340,59 @@ class ProfileController extends GetxController {
 
   /// Permanently delete the user's account and all their data.
   Future<bool> deleteAccount() async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
+    if (_auth.currentUser == null || _isDeletingAccount) return false;
+    _isDeletingAccount = true;
 
     try {
       AppDialogs.showLoading(message: 'Deleting account...');
 
-      await user.delete();
-
-      final uid = user.uid;
-      final batch = _firestore.batch();
-
-      final plansSnap = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('plans')
-          .get();
-      for (final planDoc in plansSnap.docs) {
-        final planId = planDoc.id;
-
-        final questsSnap = await _firestore
-            .collection('users').doc(uid)
-            .collection('plans').doc(planId)
-            .collection('quests')
-            .get();
-        for (final q in questsSnap.docs) {
-          batch.delete(q.reference);
-        }
-
-        final milestonesSnap = await _firestore
-            .collection('users').doc(uid)
-            .collection('plans').doc(planId)
-            .collection('milestones')
-            .get();
-        for (final m in milestonesSnap.docs) {
-          batch.delete(m.reference);
-        }
-
-        batch.delete(planDoc.reference);
-      }
-
-      final treeSnap = await _firestore
-          .collection('users').doc(uid)
-          .collection('tree')
-          .get();
-      for (final t in treeSnap.docs) {
-        batch.delete(t.reference);
-      }
-
-      final savedTreesSnap = await _firestore
-          .collection('users').doc(uid)
-          .collection('savedTrees')
-          .get();
-      for (final st in savedTreesSnap.docs) {
-        batch.delete(st.reference);
-      }
-
-      await GoalHistoryService.deleteAllGoalHistory(uid);
-
-      await GrowthLetterService.deleteAllGrowthLetters(uid);
-
-      final feedbackSnap = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('feedback')
-          .get();
-      for (final feedback in feedbackSnap.docs) {
-        batch.delete(feedback.reference);
-      }
-
-      batch.delete(_firestore.collection('users').doc(uid));
-
-      await batch.commit();
-
-      await GoogleSignIn.instance.signOut();
+      await _functions.httpsCallable('deleteAccount').call<void>();
+      await _clearLocalSessionAfterDeletion();
 
       AppDialogs.dismissLoading();
 
-      AppDialogs.error('Account Deleted', 'Your account has been permanently removed.', durationSeconds: 3);
+      AppDialogs.success(
+        'Account Deleted',
+        'Your account has been permanently removed.',
+        durationSeconds: 3,
+      );
 
       await Future.delayed(const Duration(milliseconds: 500));
       Get.offAllNamed(AppRoutes.WELCOME);
       return true;
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseFunctionsException catch (e) {
       AppDialogs.dismissLoading();
-
-      if (e.code == 'requires-recent-login') {
-        AppDialogs.warning('Re-login Needed', 'Please logout, sign in again, then retry account deletion', durationSeconds: 3);
-      } else {
-        AppDialogs.error('Error', '${e.message ?? "Failed to delete account"}');
-      }
+      print('--- DELETE ACCOUNT FUNCTION ERROR: ${e.code} ${e.message} ---');
+      final message = e.code == 'unauthenticated'
+          ? 'Your session expired. Please sign in again and retry.'
+          : e.code == 'failed-precondition'
+          ? 'For security, please log out, sign in again, and retry deletion.'
+          : e.message ?? 'Account deletion failed. Please try again.';
+      AppDialogs.error('Unable to Delete Account', message);
       return false;
     } catch (e) {
       AppDialogs.dismissLoading();
       print('--- DELETE ACCOUNT ERROR: $e ---');
       AppDialogs.error('Error', 'Failed to delete account: $e');
       return false;
+    } finally {
+      _isDeletingAccount = false;
+    }
+  }
+
+  Future<void> _clearLocalSessionAfterDeletion() async {
+    if (!kIsWeb) {
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (e) {
+        print('--- GOOGLE SESSION CLEANUP ERROR: $e ---');
+      }
+    }
+
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      print('--- FIREBASE SESSION CLEANUP ERROR: $e ---');
     }
   }
 }

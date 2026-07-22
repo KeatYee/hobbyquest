@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
+import '../../../../core/constants/color_constants.dart';
 
 /// Reusable Rive animation widget with basic loading/error handling.
 class RiveAnimationWidget extends StatefulWidget {
@@ -42,10 +43,7 @@ class _RiveAnimationWidgetState extends State<RiveAnimationWidget> {
   @override
   void initState() {
     super.initState();
-    _loader = FileLoader.fromAsset(
-      widget.assetPath,
-      riveFactory: Factory.rive,
-    );
+    _loader = FileLoader.fromAsset(widget.assetPath, riveFactory: Factory.rive);
   }
 
   @override
@@ -68,11 +66,11 @@ class _RiveAnimationWidgetState extends State<RiveAnimationWidget> {
         RiveLoading() => widget.loading ?? const SizedBox.shrink(),
         RiveFailed() => _buildError(state.error),
         RiveLoaded() => RiveWidget(
-            controller: state.controller,
-            fit: _mapFit(widget.fit),
-            alignment: widget.alignment,
-            useSharedTexture: widget.useSharedTexture,
-          ),
+          controller: state.controller,
+          fit: _mapFit(widget.fit),
+          alignment: widget.alignment,
+          useSharedTexture: widget.useSharedTexture,
+        ),
       },
     );
 
@@ -89,7 +87,7 @@ class _RiveAnimationWidgetState extends State<RiveAnimationWidget> {
 
   Widget _buildError(Object error) {
     widget.onFailed?.call(error);
-    return widget.error ?? const Icon(Icons.error, color: Colors.red);
+    return widget.error ?? const Icon(Icons.error, color: AppColors.error);
   }
 
   /// Map Flutter BoxFit to Rive Fit.

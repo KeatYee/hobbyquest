@@ -15,8 +15,8 @@ class OnboardingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(OnboardingController());
-    
-    const int totalSteps = 4; 
+
+    const int totalSteps = 4;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -40,26 +40,45 @@ class OnboardingView extends StatelessWidget {
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 10,
+                ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Obx(() => Text(
-                          "Step ${controller.currentPage.value + 1}",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: AppFonts.body),
-                        )),
-                        Text("of $totalSteps", style: TextStyle(color: AppColors.textSecondary, fontSize: AppFonts.bodyLg)),
+                        Obx(
+                          () => Text(
+                            "Step ${controller.currentPage.value + 1}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              fontSize: AppFonts.body,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          "of $totalSteps",
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: AppFonts.bodyLg,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Container(
                       height: 12,
                       width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.borderStrong,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Obx(() {
-                        double percent = (controller.currentPage.value + 1) / totalSteps;
+                        double percent =
+                            (controller.currentPage.value + 1) / totalSteps;
                         return FractionallySizedBox(
                           alignment: Alignment.centerLeft,
                           widthFactor: percent,
@@ -69,7 +88,15 @@ class OnboardingView extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(10),
-                              boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 6, offset: const Offset(0, 2))],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -83,7 +110,8 @@ class OnboardingView extends StatelessWidget {
                 child: PageView(
                   controller: controller.pageController,
                   physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (index) => controller.currentPage.value = index,
+                  onPageChanged: (index) =>
+                      controller.currentPage.value = index,
                   children: [
                     const Step1Profile(),
                     const Step2Category(),
@@ -94,9 +122,10 @@ class OnboardingView extends StatelessWidget {
               ),
             ],
           ),
-          Obx(() => controller.isGenerating.value
-              ? const LoadingScreen()
-              : const SizedBox.shrink()
+          Obx(
+            () => controller.isGenerating.value
+                ? const LoadingScreen()
+                : const SizedBox.shrink(),
           ),
         ],
       ),

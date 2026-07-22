@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../../core/constants/asset_constants.dart';
 
 class ShakingMailboxButton extends StatefulWidget {
   final bool isShaking;
@@ -66,7 +67,7 @@ class _ShakingMailboxButtonState extends State<ShakingMailboxButton>
           height: 56,
           child: Center(
             child: Image.asset(
-              'assets/images/fox_mailbox.png',
+              AppAssets.foxMailbox,
               width: 52,
               height: 52,
               fit: BoxFit.contain,
@@ -86,10 +87,7 @@ class _ShakingMailboxButtonState extends State<ShakingMailboxButton>
         final wave = math.sin(_controller.value * math.pi * 6);
         return Transform.translate(
           offset: Offset(wave * 2.4, 0),
-          child: Transform.rotate(
-            angle: wave * 0.08,
-            child: child,
-          ),
+          child: Transform.rotate(angle: wave * 0.08, child: child),
         );
       },
     );

@@ -16,7 +16,9 @@ class _Step1ProfileState extends State<Step1Profile> {
   final _formKey = GlobalKey<FormState>();
   bool showGenderError = false;
   bool showAvatarError = false;
-  final PageController _avatarCarouselController = PageController(viewportFraction: 0.45);
+  final PageController _avatarCarouselController = PageController(
+    viewportFraction: 0.45,
+  );
   int _prevAvatarCount = -1;
 
   @override
@@ -86,10 +88,18 @@ class _Step1ProfileState extends State<Step1Profile> {
                 padding: const EdgeInsets.only(top: 5.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 5),
-                    Text("Please select a character type",
-                      style: textTheme.bodyMedium?.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)
+                    Text(
+                      "Please select a character type",
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -99,11 +109,26 @@ class _Step1ProfileState extends State<Step1Profile> {
 
             Row(
               children: [
-                _buildGenderCard(controller, "Male", Icons.male_rounded, textTheme),
+                _buildGenderCard(
+                  controller,
+                  "Male",
+                  Icons.male_rounded,
+                  textTheme,
+                ),
                 const SizedBox(width: 12),
-                _buildGenderCard(controller, "Female", Icons.female_rounded, textTheme),
+                _buildGenderCard(
+                  controller,
+                  "Female",
+                  Icons.female_rounded,
+                  textTheme,
+                ),
                 const SizedBox(width: 12),
-                _buildGenderCard(controller, "Other", Icons.person_rounded, textTheme),
+                _buildGenderCard(
+                  controller,
+                  "Other",
+                  Icons.person_rounded,
+                  textTheme,
+                ),
               ],
             ),
 
@@ -121,12 +146,15 @@ class _Step1ProfileState extends State<Step1Profile> {
               onTap: () async {
                 DateTime? pickedDate = await showDatePicker(
                   context: context,
-                  initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+                  initialDate: DateTime.now().subtract(
+                    const Duration(days: 365 * 18),
+                  ),
                   firstDate: DateTime(1900),
                   lastDate: DateTime.now(),
                 );
                 if (pickedDate != null) {
-                  controller.age.text = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                  controller.age.text =
+                      "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
                 }
               },
             ),
@@ -164,63 +192,83 @@ class _Step1ProfileState extends State<Step1Profile> {
     );
   }
 
-  Widget _buildGenderCard(OnboardingController controller, String label, IconData icon, TextTheme textTheme) {
+  Widget _buildGenderCard(
+    OnboardingController controller,
+    String label,
+    IconData icon,
+    TextTheme textTheme,
+  ) {
     return Obx(() {
       bool isSelected = controller.gender.value == label;
       bool isError = showGenderError && controller.gender.value.isEmpty;
 
       return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            controller.gender.value = label;
-            controller.clearAvatarIfGenderMismatch(label);
-            if (showAvatarError) setState(() => showAvatarError = false);
-            if (showGenderError) setState(() => showGenderError = false);
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 100,
-            decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isError ? AppColors.error : (isSelected ? AppColors.primary : Colors.transparent),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                    color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              controller.gender.value = label;
+              controller.clearAvatarIfGenderMismatch(label);
+              if (showAvatarError) setState(() => showAvatarError = false);
+              if (showGenderError) setState(() => showGenderError = false);
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 100,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isError
+                      ? AppColors.error
+                      : (isSelected ? AppColors.primary : Colors.transparent),
+                  width: 2,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 32, color: isSelected ? Colors.white : Colors.grey),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  style: textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppFonts.bodyLg,
-                    color: isSelected ? Colors.white : Colors.grey,
+                boxShadow: [
+                  BoxShadow(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.2)
+                        : AppColors.textPrimary.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 32,
+                    color: isSelected
+                        ? AppColors.textOnPrimary
+                        : AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.bodyLg,
+                      color: isSelected
+                          ? AppColors.textOnPrimary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
       );
     });
   }
 
-  Widget _buildAvatarSection(OnboardingController controller, TextTheme textTheme) {
+  Widget _buildAvatarSection(
+    OnboardingController controller,
+    TextTheme textTheme,
+  ) {
     return Obx(() {
       final avatars = controller.getFilteredAvatars(controller.gender.value);
       final selectedPath = controller.avatarSvg.value;
@@ -237,11 +285,14 @@ class _Step1ProfileState extends State<Step1Profile> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("CHOOSE YOUR CHARACTER", style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            fontSize: AppFonts.title,
-            letterSpacing: 1.0,
-          )),
+          Text(
+            "CHOOSE YOUR CHARACTER",
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              fontSize: AppFonts.title,
+              letterSpacing: 1.0,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             "Pick the adventurer that feels like your learning style.",
@@ -261,7 +312,8 @@ class _Step1ProfileState extends State<Step1Profile> {
                 if (index >= 0 && index < avatars.length) {
                   final path = avatars[index]['assetPath']!;
                   if (controller.avatarSvg.value != path) {
-                    if (showAvatarError) setState(() => showAvatarError = false);
+                    if (showAvatarError)
+                      setState(() => showAvatarError = false);
                     controller.updateAvatar(path);
                   }
                 }
@@ -277,23 +329,22 @@ class _Step1ProfileState extends State<Step1Profile> {
                   builder: (context, child) {
                     double scale = isSelected ? 1.0 : 0.82;
                     if (_hasSingleAvatarCarouselClient) {
-                      final page = _avatarCarouselController.page ?? index.toDouble();
+                      final page =
+                          _avatarCarouselController.page ?? index.toDouble();
                       final offset = (page - index).abs();
                       scale = (1 - offset * 0.3).clamp(0.65, 1.0);
                     }
                     return Transform.scale(
                       scale: scale,
-                      child: Opacity(
-                        opacity: scale,
-                        child: child,
-                      ),
+                      child: Opacity(opacity: scale, child: child),
                     );
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: GestureDetector(
                       onTap: () {
-                        if (showAvatarError) setState(() => showAvatarError = false);
+                        if (showAvatarError)
+                          setState(() => showAvatarError = false);
                         controller.updateAvatar(path);
                       },
                       child: Column(
@@ -313,8 +364,14 @@ class _Step1ProfileState extends State<Step1Profile> {
                                         shape: BoxShape.circle,
                                         color: Colors.transparent,
                                         border: isSelected
-                                            ? Border.all(color: AppColors.primary, width: 3)
-                                            : Border.all(color: Colors.transparent, width: 3),
+                                            ? Border.all(
+                                                color: AppColors.primary,
+                                                width: 3,
+                                              )
+                                            : Border.all(
+                                                color: Colors.transparent,
+                                                width: 3,
+                                              ),
                                       ),
                                       child: ClipOval(
                                         child: Image.asset(
@@ -339,7 +396,7 @@ class _Step1ProfileState extends State<Step1Profile> {
                                           child: const Icon(
                                             Icons.check_rounded,
                                             size: 16,
-                                            color: Colors.white,
+                                            color: AppColors.textOnPrimary,
                                           ),
                                         ),
                                       ),
@@ -360,20 +417,22 @@ class _Step1ProfileState extends State<Step1Profile> {
                                   style: TextStyle(
                                     fontSize: AppFonts.badge,
                                     fontWeight: FontWeight.w700,
-                                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 4),
                               GestureDetector(
-                                onTap: () => _showAvatarMeaningDialog(
-                                  context,
-                                  avatar,
-                                ),
+                                onTap: () =>
+                                    _showAvatarMeaningDialog(context, avatar),
                                 child: Icon(
                                   Icons.info_outline_rounded,
                                   size: 14,
-                                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -395,10 +454,18 @@ class _Step1ProfileState extends State<Step1Profile> {
               padding: const EdgeInsets.only(top: 8.0),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 16,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(width: 5),
-                  Text("Please select a character",
-                    style: textTheme.bodyMedium?.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)
+                  Text(
+                    "Please select a character",
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

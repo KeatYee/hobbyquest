@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:rive/rive.dart';
 import 'core/themes/app_theme.dart';
+import 'core/constants/app_info.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/bindings/initial_binding.dart';
@@ -29,7 +30,7 @@ class HobbyQuestApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'HobbyQuest',
+      title: AppInfo.appName,
       debugShowCheckedModeBanner: false,
 
       theme: AppTheme.lightTheme,

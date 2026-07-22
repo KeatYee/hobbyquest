@@ -1,5 +1,6 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {HttpsError, onCall} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 
@@ -7,8 +8,85 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
+const ACCOUNT_DELETION_REGION = "asia-southeast1";
+const ACCOUNT_CLEANUP_CONCURRENCY = 20;
+const MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS = 5 * 60;
 
 setGlobalOptions({maxInstances: 10});
+
+/**
+ * Permanently delete the authenticated account and its application data.
+ * Firestore cleanup happens first so a failed attempt can be safely retried.
+ */
+exports.deleteAccount = onCall(
+    {
+      memory: "512MiB",
+      region: ACCOUNT_DELETION_REGION,
+      timeoutSeconds: 540,
+    },
+    async (request) => {
+      const uid = asTrimmedString(request.auth && request.auth.uid);
+
+      if (!uid) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to delete your account.",
+        );
+      }
+
+      if (!hasRecentAuthentication(request.auth.token)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Please sign out, sign in again, and retry account deletion.",
+        );
+      }
+
+      const userRef = db.collection("users").doc(uid);
+
+      try {
+        await userRef.set({
+          accountDeletionInProgress: true,
+          accountDeletionRequestedAt: FieldValue.serverTimestamp(),
+        }, {merge: true});
+
+        const guildCleanup = await cleanupGuildData(uid);
+        const deletedNotifications = await deleteActorNotifications(uid);
+
+        // recursiveDelete includes every current and future user subcollection.
+        await db.recursiveDelete(userRef);
+
+        // Keep Auth until cleanup succeeds so failures remain retryable.
+        await deleteAuthUser(uid);
+
+        logger.info("Account deleted.", {
+          deletedGuildPosts: guildCleanup.deletedPosts,
+          deletedNotifications,
+          removedGuildReferences: guildCleanup.updatedPosts,
+          uid,
+        });
+
+        return {deleted: true};
+      } catch (error) {
+        logger.error("Account deletion failed.", {error, uid});
+
+        // Do not recreate a profile if recursive deletion already removed it.
+        await userRef.update({
+          accountDeletionInProgress: FieldValue.delete(),
+          accountDeletionRequestedAt: FieldValue.delete(),
+        }).catch((markerError) => {
+          logger.warn("Could not clear account deletion marker.", {
+            markerError,
+            uid,
+          });
+        });
+
+        throw new HttpsError(
+            "internal",
+            "Account deletion could not be completed. Please try again.",
+        );
+      }
+    },
+);
 
 /**
  * Notify a post owner when another user reacts to or reviews their guild post.
@@ -127,7 +205,20 @@ function getNewReviewEvents(beforeReviews, afterReviews) {
  */
 async function writeNotification(params) {
   const {activity, post, postId, postOwnerId} = params;
-  const actorName = await getActorName(activity.actorId);
+  const [actorName, recipientCanReceive] = await Promise.all([
+    getActorName(activity.actorId),
+    canReceiveNotification(postOwnerId),
+  ]);
+
+  if (!actorName || !recipientCanReceive) {
+    logger.info("Skipped notification for an account being deleted.", {
+      actorId: activity.actorId,
+      postId,
+      postOwnerId,
+    });
+    return;
+  }
+
   const notification = buildNotification({
     activity,
     actorName,
@@ -153,6 +244,17 @@ async function writeNotification(params) {
       type: notification.type,
     });
   }
+}
+
+/**
+ * Check that the notification recipient still has an active profile.
+ * @param {string} recipientId Recipient user ID.
+ * @return {Promise<boolean>}
+ */
+async function canReceiveNotification(recipientId) {
+  const snapshot = await db.collection("users").doc(recipientId).get();
+  const data = snapshot.data() || {};
+  return snapshot.exists && data.accountDeletionInProgress !== true;
 }
 
 /**
@@ -305,12 +407,17 @@ function buildNotification(params) {
 /**
  * Resolve an actor display name from their user profile.
  * @param {string} actorId User ID of the actor.
- * @return {Promise<string>}
+ * @return {Promise<string|null>}
  */
 async function getActorName(actorId) {
   try {
     const snapshot = await db.collection("users").doc(actorId).get();
     const data = snapshot.data() || {};
+
+    if (!snapshot.exists || data.accountDeletionInProgress === true) {
+      return null;
+    }
+
     return truncate(
         asTrimmedString(data.nickname) ||
         asTrimmedString(data.displayName) ||
@@ -323,6 +430,208 @@ async function getActorName(actorId) {
       error,
     });
     return "Someone";
+  }
+}
+
+/**
+ * Remove the user from all guild posts they authored or interacted with.
+ * Each post uses a transaction so concurrent reactions are not overwritten.
+ * @param {string} uid User ID to remove.
+ * @return {Promise<{deletedPosts: number, updatedPosts: number}>}
+ */
+async function cleanupGuildData(uid) {
+  const snapshot = await db.collection("guild_posts")
+      .select("userId", "reactions", "peerReviews")
+      .get();
+  let deletedPosts = 0;
+  let updatedPosts = 0;
+
+  await forEachInChunks(snapshot.docs, ACCOUNT_CLEANUP_CONCURRENCY,
+      async (post) => {
+        const result = await db.runTransaction(async (transaction) => {
+          const current = await transaction.get(post.ref);
+          if (!current.exists) {
+            return "unchanged";
+          }
+
+          const data = current.data() || {};
+          if (asTrimmedString(data.userId) === uid) {
+            transaction.delete(current.ref);
+            return "deleted";
+          }
+
+          const reactions = removeUserFromReactions(data.reactions, uid);
+          const reviews = removeUserFromReviews(data.peerReviews, uid);
+          if (!reactions.changed && !reviews.changed) {
+            return "unchanged";
+          }
+
+          const update = {};
+          if (reactions.changed) {
+            update.reactions = reactions.value;
+          }
+          if (reviews.changed) {
+            update.peerReviews = reviews.value;
+          }
+          transaction.update(current.ref, update);
+          return "updated";
+        });
+
+        if (result === "deleted") {
+          deletedPosts += 1;
+        } else if (result === "updated") {
+          updatedPosts += 1;
+        }
+      });
+
+  return {deletedPosts, updatedPosts};
+}
+
+/**
+ * Require a fresh sign-in before this destructive operation.
+ * Refreshing an ID token does not change its original authentication time.
+ * @param {object} token Decoded Firebase Auth token.
+ * @return {boolean}
+ */
+function hasRecentAuthentication(token) {
+  const authTime = token && token.auth_time;
+  if (typeof authTime !== "number" || !Number.isFinite(authTime)) {
+    return false;
+  }
+
+  const ageSeconds = Math.floor(Date.now() / 1000) - authTime;
+  return ageSeconds >= 0 &&
+      ageSeconds <= MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS;
+}
+
+/**
+ * Delete an Auth user, treating an already deleted identity as success.
+ * This keeps concurrent/retried cleanup calls idempotent.
+ * @param {string} uid User ID to delete.
+ * @return {Promise<void>}
+ */
+async function deleteAuthUser(uid) {
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    if (error && error.code === "auth/user-not-found") {
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Delete notifications in other accounts that identify this user as actor.
+ * A collection-group query is preferred; older projects without its index
+ * fall back to collection-scoped queries that use automatic indexes.
+ * @param {string} uid Actor user ID.
+ * @return {Promise<number>}
+ */
+async function deleteActorNotifications(uid) {
+  try {
+    const snapshot = await db.collectionGroup("notifications")
+        .where("actorId", "==", uid)
+        .select()
+        .get();
+    return deleteDocuments(snapshot.docs);
+  } catch (error) {
+    logger.warn(
+        "Collection-group notification cleanup failed; using fallback.",
+        {error, uid},
+    );
+  }
+
+  const users = await db.collection("users").select().get();
+  let deletedCount = 0;
+
+  await forEachInChunks(users.docs, ACCOUNT_CLEANUP_CONCURRENCY,
+      async (user) => {
+        if (user.id === uid) {
+          return;
+        }
+
+        const notifications = await user.ref.collection("notifications")
+            .where("actorId", "==", uid)
+            .select()
+            .get();
+        deletedCount += notifications.size;
+        await deleteDocuments(notifications.docs);
+      });
+
+  return deletedCount;
+}
+
+/**
+ * Delete documents with BulkWriter so the cleanup is not limited to 500 writes.
+ * @param {Array<FirebaseFirestore.QueryDocumentSnapshot>} documents Documents.
+ * @return {Promise<number>}
+ */
+async function deleteDocuments(documents) {
+  if (documents.length === 0) {
+    return 0;
+  }
+
+  const writer = db.bulkWriter();
+  const writes = documents.map((document) => writer.delete(document.ref));
+  await Promise.all([writer.close(), ...writes]);
+  return documents.length;
+}
+
+/**
+ * Remove a user ID from every list in a reaction map.
+ * @param {unknown} value Reactions value.
+ * @param {string} uid User ID to remove.
+ * @return {{value: object, changed: boolean}}
+ */
+function removeUserFromReactions(value, uid) {
+  const reactions = {...asObject(value)};
+  let changed = false;
+
+  for (const [emoji, users] of Object.entries(reactions)) {
+    if (!Array.isArray(users) || !users.includes(uid)) {
+      continue;
+    }
+
+    const remainingUsers = users.filter((userId) => userId !== uid);
+    if (remainingUsers.length === 0) {
+      delete reactions[emoji];
+    } else {
+      reactions[emoji] = remainingUsers;
+    }
+    changed = true;
+  }
+
+  return {value: reactions, changed};
+}
+
+/**
+ * Remove a user's entry from a peer review map.
+ * @param {unknown} value Peer reviews value.
+ * @param {string} uid User ID to remove.
+ * @return {{value: object, changed: boolean}}
+ */
+function removeUserFromReviews(value, uid) {
+  const reviews = {...asObject(value)};
+  const changed = Object.prototype.hasOwnProperty.call(reviews, uid);
+
+  if (changed) {
+    delete reviews[uid];
+  }
+
+  return {value: reviews, changed};
+}
+
+/**
+ * Process items with bounded concurrency.
+ * @param {Array<unknown>} items Items to process.
+ * @param {number} size Maximum concurrent operations.
+ * @param {function(unknown): Promise<void>} callback Item callback.
+ * @return {Promise<void>}
+ */
+async function forEachInChunks(items, size, callback) {
+  for (const itemChunk of chunk(items, size)) {
+    await Promise.all(itemChunk.map(callback));
   }
 }
 

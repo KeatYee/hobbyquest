@@ -87,10 +87,7 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   Future<void> _submitPost() async {
     if (_titleController.text.trim().isEmpty ||
         _bodyController.text.trim().isEmpty) {
-      AppDialogs.error(
-        'Incomplete Form',
-        'Please fill in all fields',
-      );
+      AppDialogs.error('Incomplete Form', 'Please fill in all fields');
       return;
     }
 
@@ -113,10 +110,7 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
         'Your post has been shared with the guild!',
       );
     } else {
-      AppDialogs.error(
-        'Error',
-        'Failed to create post. Please try again.',
-      );
+      AppDialogs.error('Error', 'Failed to create post. Please try again.');
     }
   }
 
@@ -149,9 +143,9 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
               children: [
                 Text(
                   'Share with Guild',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   onPressed: () => Get.back(),
@@ -162,20 +156,34 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
           ),
           Flexible(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + MediaQuery.of(context).padding.bottom),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                20 + MediaQuery.of(context).padding.bottom,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.2),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.local_fire_department_rounded, size: 18, color: AppColors.primary),
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           widget.hobby,
@@ -198,7 +206,10 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     maxLines: 1,
                   ),
@@ -213,7 +224,10 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     maxLines: 4,
                   ),
@@ -241,10 +255,16 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: Colors.black54,
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.7,
+                                ),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Icon(Icons.close, color: Colors.white, size: 20),
+                              child: const Icon(
+                                Icons.close,
+                                color: AppColors.textOnPrimary,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -259,16 +279,26 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                         decoration: BoxDecoration(
                           color: AppColors.background,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                          border: Border.all(
+                            color: AppColors.border,
+                            style: BorderStyle.solid,
+                          ),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 32, color: AppColors.textSecondary),
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 32,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               'Tap to add an image',
-                              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -303,10 +333,13 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
                           ),
                           child: _isSubmitting
                               ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.textOnPrimary,
+                                  ),
+                                )
                               : const Text('Post'),
                         ),
                       ),
@@ -324,9 +357,9 @@ class _AddGuildPostDialogState extends State<AddGuildPostDialog> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 }

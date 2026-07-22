@@ -8,8 +8,6 @@ import '../../../core/constants/font_constants.dart';
 class HelpSupportPage extends StatefulWidget {
   const HelpSupportPage({super.key});
 
-  static const String supportEmail = 'hobbyquest@gmail.com';
-
   @override
   State<HelpSupportPage> createState() => _HelpSupportPageState();
 }
@@ -44,7 +42,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            _ContactCard(email: HelpSupportPage.supportEmail),
+            _ContactCard(email: AppInfo.supportEmail),
             SizedBox(height: 12),
             _VersionCard(),
           ],

@@ -99,6 +99,8 @@ class UserModel {
       'activePlanId': activePlanId,
       'currentStreak': currentStreak,
       'dailyQuestCompletionCount': dailyQuestCompletionCount,
+      'categoryXp': categoryXp,
+      'mapTutorialDone': mapTutorialDone,
       'notificationsEnabled': notificationsEnabled,
       'profileVisible': profileVisible,
       'postStatsVisible': postStatsVisible,

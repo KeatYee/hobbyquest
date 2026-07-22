@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/constants/asset_constants.dart';
 import '../routes/app_routes.dart';
 import '../models/quest_plan_model.dart';
 import '../models/milestone_model.dart';
@@ -9,7 +10,6 @@ import '../models/category_model.dart';
 import '../models/user_model.dart';
 import '../services/category_service.dart';
 import '../services/gemini_service.dart';
-import '../services/goal_history_service.dart';
 import '../services/push_notification_service.dart';
 import '../models/goal_history_model.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
@@ -83,7 +83,7 @@ class OnboardingController extends GetxController {
       for (final avatar in _avatarClasses) {
         result.add({
           'name': avatar['name']!,
-          'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'assetPath': AppAssets.avatar(avatar['asset']!, 'male'),
           'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
@@ -92,7 +92,7 @@ class OnboardingController extends GetxController {
       for (final avatar in _avatarClasses) {
         result.add({
           'name': avatar['name']!,
-          'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'assetPath': AppAssets.avatar(avatar['asset']!, 'female'),
           'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
@@ -101,13 +101,13 @@ class OnboardingController extends GetxController {
       for (final avatar in _avatarClasses) {
         result.add({
           'name': avatar['name']!,
-          'assetPath': "assets/images/avatar_${avatar['asset']}_m.png",
+          'assetPath': AppAssets.avatar(avatar['asset']!, 'male'),
           'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
         result.add({
           'name': avatar['name']!,
-          'assetPath': "assets/images/avatar_${avatar['asset']}_f.png",
+          'assetPath': AppAssets.avatar(avatar['asset']!, 'female'),
           'traits': avatar['traits']!,
           'description': avatar['description']!,
         });
@@ -133,9 +133,7 @@ class OnboardingController extends GetxController {
   /// Extract the avatar class name from the asset path (e.g., "Cultivator", "Wildseed").
   String get avatarClassName {
     if (avatarSvg.value.isEmpty) return "";
-    final filename = avatarSvg.value
-        .split('/')
-        .last;
+    final filename = avatarSvg.value.split('/').last;
     final parts = filename.split('_');
     if (parts.length >= 3) {
       final name = parts[1];
@@ -378,7 +376,17 @@ class OnboardingController extends GetxController {
           : UserModel.fromJson(existingUserData, uid);
 
       final planWithData = await _buildInitialPlanWithMilestoneQuests();
-      final planRef = userRef.collection('plans').doc();
+      if (planWithData.milestones.isEmpty || planWithData.quests.isEmpty) {
+        throw StateError(
+          'The learning plan is incomplete. Please generate it again.',
+        );
+      }
+      final existingPlanId = existingUser?.isOnboardingComplete == false
+          ? existingUser?.activePlanId.trim() ?? ''
+          : '';
+      final planRef = existingPlanId.isEmpty
+          ? userRef.collection('plans').doc()
+          : userRef.collection('plans').doc(existingPlanId);
       final planId = planRef.id;
 
       final milestones = planWithData.milestones.asMap().entries.map((e) {
@@ -391,6 +399,13 @@ class OnboardingController extends GetxController {
       final quests = planWithData.quests
           .map((q) => q.copyWith(isActive: true, isCompleted: false))
           .toList();
+      final questIds = quests.map((quest) => quest.nodeId.trim()).toList();
+      if (questIds.any((id) => id.isEmpty) ||
+          questIds.toSet().length != questIds.length) {
+        throw StateError(
+          'The generated learning plan contains invalid quests.',
+        );
+      }
 
       final existingCategoryXp =
           existingUser?.categoryXp ?? const <String, int>{};
@@ -400,6 +415,15 @@ class OnboardingController extends GetxController {
           cat.name: existingCategoryXp[cat.name] ?? 0,
       };
 
+      final savedPlan = planWithData.copyWith(
+        id: planId,
+        category: category.value,
+        currentMilestoneIndex: 0,
+        isActive: true,
+        startingXP: existingUser?.totalXP ?? 0,
+        milestones: milestones,
+        quests: quests,
+      );
       final userModel = UserModel(
         id: uid,
         nickname: nickname.text.trim(),
@@ -409,11 +433,7 @@ class OnboardingController extends GetxController {
         isOnboardingComplete: true,
         totalXP: existingUser?.totalXP ?? 0,
         activePlanId: planId,
-        currentPlan: planWithData.copyWith(
-          id: planId,
-          milestones: milestones,
-          quests: quests,
-        ),
+        currentPlan: savedPlan,
         currentStreak: existingUser?.currentStreak ?? 0,
         dailyQuestCompletionCount: existingUser?.dailyQuestCompletionCount ?? 0,
         categoryXp: categoryXp,
@@ -434,48 +454,43 @@ class OnboardingController extends GetxController {
       }
       userData['updatedAt'] = FieldValue.serverTimestamp();
 
-      await userRef.set(userData, SetOptions(merge: true));
-
-      await planRef.set(
-        planWithData
-            .copyWith(
-              id: planId,
-              category: category.value,
-              currentMilestoneIndex: 0,
-              isActive: true,
-              startingXP: existingUser?.totalXP ?? 0,
-            )
-            .toJson(),
-      );
+      final batch = FirebaseFirestore.instance.batch();
+      batch.set(userRef, userData, SetOptions(merge: true));
+      batch.set(planRef, savedPlan.toJson());
 
       for (final ms in milestones) {
-        await planRef.collection('milestones').doc(ms.id).set(ms.toJson());
+        batch.set(planRef.collection('milestones').doc(ms.id), ms.toJson());
       }
 
       for (final quest in quests) {
-        await planRef
-            .collection('quests')
-            .doc(quest.nodeId)
-            .set(quest.toJson());
+        batch.set(
+          planRef.collection('quests').doc(quest.nodeId),
+          quest.toJson(),
+        );
       }
 
-      await GoalHistoryService.saveGoalHistory(
-        uid,
-        GoalHistoryModel(
-          planId: planId,
-          status: 'active',
-          hobby: planWithData.hobby,
-          level: planWithData.level,
-          goal: planWithData.goal,
-          learningPace: planWithData.learningPace,
-          category: category.value,
-          createdAt: DateTime.now(),
-        ),
-        historyId: planId,
-      );
+      final historyData = GoalHistoryModel(
+        planId: planId,
+        status: 'active',
+        hobby: planWithData.hobby,
+        level: planWithData.level,
+        goal: planWithData.goal,
+        learningPace: planWithData.learningPace,
+        category: category.value,
+        createdAt: DateTime.now(),
+      ).toJson()..['createdAt'] = FieldValue.serverTimestamp();
+      batch.set(userRef.collection('goalHistory').doc(planId), historyData);
+
+      await batch.commit();
 
       if (Get.isRegistered<PushNotificationService>()) {
-        await Get.find<PushNotificationService>().registerCurrentDevice();
+        try {
+          await Get.find<PushNotificationService>().registerCurrentDevice();
+        } catch (e) {
+          print(
+            '--- WARNING: Onboarding saved, but push registration failed: $e ---',
+          );
+        }
       }
 
       print("--- SUCCESS: User profile, plan, and goal history saved ---");

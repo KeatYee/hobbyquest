@@ -68,12 +68,8 @@ class _MascotWidgetState extends State<MascotWidget> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          imagePath,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
-        
+        Image.asset(imagePath, height: 120, fit: BoxFit.contain),
+
         Stack(
           alignment: Alignment.topCenter,
           children: [
@@ -81,7 +77,7 @@ class _MascotWidgetState extends State<MascotWidget> {
               margin: const EdgeInsets.only(top: 12, left: 10, right: 10),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -102,9 +98,7 @@ class _MascotWidgetState extends State<MascotWidget> {
                     fontFamily: AppFonts.familyPrimary,
                   ),
                   children: [
-                    TextSpan(
-                      text: widget.message.substring(0, _currentIndex),
-                    ),
+                    TextSpan(text: widget.message.substring(0, _currentIndex)),
                     TextSpan(
                       text: widget.message.substring(_currentIndex),
                       style: const TextStyle(color: Colors.transparent),
@@ -113,11 +107,11 @@ class _MascotWidgetState extends State<MascotWidget> {
                 ),
               ),
             ),
-            
+
             Positioned(
-              top: 4, 
+              top: 4,
               child: CustomPaint(
-                painter: _BubbleTailPainter(color: Colors.white),
+                painter: _BubbleTailPainter(color: AppColors.surface),
                 size: const Size(24, 12),
               ),
             ),
@@ -134,14 +128,16 @@ class _BubbleTailPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    var paint = Paint()..color = color..style = PaintingStyle.fill;
+    var paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
     var path = Path();
-    
+
     path.moveTo(0, size.height);
     path.lineTo(size.width, size.height);
     path.lineTo(size.width / 2, 0);
     path.close();
-    
+
     canvas.drawPath(path, paint);
   }
 

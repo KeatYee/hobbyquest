@@ -20,7 +20,9 @@
 class AppFonts {
   AppFonts._();
 
-  static const String familyPrimary = 'OpenSans';
+  static const String familyPrimary = 'Open Sans';
+  static const String familyBrand = 'Fredoka';
+  static const String familyHandwritten = 'Caveat';
 
   static const double logo = 32.0;
 
@@ -45,4 +47,10 @@ class AppFonts {
   static const double micro = 11.0;
 
   static const double label = 10.0;
+
+  // Growth Letter's intentionally handwritten paper treatment.
+  static const double letterHeading = 30.0;
+  static const double letterGreeting = 27.0;
+  static const double letterSignature = 24.0;
+  static const double letterStamp = 8.5;
 }

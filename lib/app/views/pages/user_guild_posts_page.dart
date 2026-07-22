@@ -254,7 +254,7 @@ class _UserGuildPostCard extends StatelessWidget {
         border: Border.all(color: AppColors.border.withOpacity(0.6)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../core/utils/dialog_utils.dart';
 import '../services/category_service.dart';
+import '../services/quest_service.dart';
 import '../models/user_model.dart';
 import 'home_controller.dart';
 import '../../core/widgets/level_up_screen.dart';
@@ -59,113 +60,15 @@ class ProgressionController extends GetxController {
     }
   }
 
-  Future<void> completeQuest({
-    String? questId,
-    int xpReward = 100,
-    String? categoryName,
-  }) async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
+  void applyQuestCompletion(QuestCompletionResult result) {
+    totalXP.value = result.updatedTotalXP;
+    streak.value = result.updatedStreak;
+    categoryXp.value = Map<String, int>.from(result.updatedCategoryXp);
 
-    String? resolvedCategory = categoryName;
-    if (resolvedCategory == null) {
-      try {
-        resolvedCategory = await _resolveCurrentCategory();
-        print(
-          '--- DEBUG: _resolveCurrentCategory returned: $resolvedCategory ---',
-        );
-      } catch (e) {
-        print('--- ERROR: _resolveCurrentCategory threw: $e ---');
-      }
-    }
-    print(
-      '--- DEBUG: completeQuest resolvedCategory=$resolvedCategory, xpReward=$xpReward ---',
-    );
+    if (!result.didComplete) return;
 
-    final userRef = _firestore.collection('users').doc(user.uid);
-
-    int previousXP = totalXP.value;
-    int updatedXP = previousXP;
-    int updatedStreak = streak.value;
-
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(userRef);
-      final data = snapshot.data();
-      final currentXP = data == null ? 0 : _readTotalXP(data);
-      previousXP = currentXP;
-      updatedXP = currentXP + xpReward;
-
-      final currentStreak = data?['currentStreak'] as int? ?? 0;
-      final lastStreakDateData = data?['lastStreakDate'];
-      DateTime? lastStreakDate;
-
-      if (lastStreakDateData != null) {
-        if (lastStreakDateData is Timestamp) {
-          lastStreakDate = lastStreakDateData.toDate();
-        } else if (lastStreakDateData is String) {
-          lastStreakDate = DateTime.parse(lastStreakDateData);
-        }
-      }
-
-      final today = DateTime.now();
-      final todayDate = DateTime(today.year, today.month, today.day);
-
-      if (lastStreakDate == null) {
-        updatedStreak = 1;
-      } else {
-        final lastStreakDateOnly = DateTime(
-          lastStreakDate.year,
-          lastStreakDate.month,
-          lastStreakDate.day,
-        );
-        final daysDifference = todayDate.difference(lastStreakDateOnly).inDays;
-
-        if (daysDifference == 0) {
-          updatedStreak = currentStreak;
-        } else if (daysDifference == 1) {
-          updatedStreak = currentStreak + 1;
-        } else {
-          updatedStreak = 1;
-        }
-      }
-
-      final updatedCategoryXp = Map<String, int>.from(
-        (data?['categoryXp'] as Map?)?.map(
-              (k, v) => MapEntry(k.toString(), (v as num).toInt()),
-            ) ??
-            {},
-      );
-      if (resolvedCategory != null) {
-        updatedCategoryXp[resolvedCategory] =
-            (updatedCategoryXp[resolvedCategory] ?? 0) + xpReward;
-      }
-
-      transaction.set(userRef, {
-        'totalXP': updatedXP,
-        'currentStreak': updatedStreak,
-        'lastStreakDate': today,
-        'categoryXp': updatedCategoryXp,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    });
-
-    totalXP.value = updatedXP;
-    streak.value = updatedStreak;
-
-    if (resolvedCategory != null) {
-      categoryXp[resolvedCategory] =
-          (categoryXp[resolvedCategory] ?? 0) + xpReward;
-      print(
-        '--- DEBUG: categoryXp updated: [${resolvedCategory}] = ${categoryXp[resolvedCategory]} ---',
-      );
-    } else {
-      print('--- WARN: resolvedCategory is null, categoryXp NOT updated ---');
-    }
-
-    final previousLevel = (previousXP ~/ 1000) + 1;
-    final newLevel = (updatedXP ~/ 1000) + 1;
+    final previousLevel = (result.previousTotalXP ~/ 1000) + 1;
+    final newLevel = (result.updatedTotalXP ~/ 1000) + 1;
 
     if (newLevel > previousLevel) {
       _pendingLevelUpLevel = newLevel;
@@ -173,7 +76,8 @@ class ProgressionController extends GetxController {
 
     for (var i = 0; i < _milestoneThresholds.length; i++) {
       final threshold = _milestoneThresholds[i];
-      if (previousXP < threshold && updatedXP >= threshold) {
+      if (result.previousTotalXP < threshold &&
+          result.updatedTotalXP >= threshold) {
         showMilestoneUnlockedModal(i + 1, threshold);
       }
     }
@@ -206,7 +110,7 @@ class ProgressionController extends GetxController {
   }
 
   /// Resolves the current hobby's category name from Firestore categories.
-  Future<String?> _resolveCurrentCategory() async {
+  Future<String?> resolveCurrentCategoryName() async {
     try {
       final hobby = Get.find<HomeController>().hobby.value;
       print('--- DEBUG _resolveCurrentCategory: hobby="$hobby" ---');

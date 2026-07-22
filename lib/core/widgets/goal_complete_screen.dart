@@ -8,6 +8,7 @@ import '../../app/controllers/onboarding_controller.dart';
 import '../../app/routes/app_routes.dart';
 import '../constants/color_constants.dart';
 import '../constants/font_constants.dart';
+import '../constants/asset_constants.dart';
 import 'video_loader.dart';
 
 class GoalCompleteScreen extends StatefulWidget {
@@ -52,11 +53,12 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
     final planId = _safeString(() => plan?.id);
     final quests = plan?.quests ?? const [];
     final completedQuests = quests.where((quest) => quest.isCompleted).toList();
-    final completionDates = completedQuests
-        .map((quest) => quest.completedAt)
-        .whereType<DateTime>()
-        .toList()
-      ..sort();
+    final completionDates =
+        completedQuests
+            .map((quest) => quest.completedAt)
+            .whereType<DateTime>()
+            .toList()
+          ..sort();
     final startedAt = completionDates.isEmpty ? null : completionDates.first;
     final completedAt = completionDates.isEmpty ? null : completionDates.last;
     final totalTime = startedAt == null || completedAt == null
@@ -86,207 +88,212 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
     }).length;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       body: Stack(
         children: [
           SafeArea(
             child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-          child: Column(
-            children: [
-              const VideoLoader(
-                size: 190,
-                videoAsset: 'assets/videos/fox_jump.mp4',
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Goal Complete!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppFonts.titlePage,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight.withOpacity(0.45),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primaryLight),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      goal.isNotEmpty
-                          ? goal
-                          : hobby.isNotEmpty
-                          ? 'Complete my $hobby learning plan'
-                          : 'Complete my learning plan',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: AppFonts.title,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                        height: 1.3,
-                      ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+              child: Column(
+                children: [
+                  const VideoLoader(
+                    size: 190,
+                    videoAsset: AppAssets.foxJumpVideo,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Goal Complete!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppFonts.titlePage,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
                     ),
-                    if (startedAt != null && completedAt != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        '${_formatDate(startedAt)} - ${_formatDate(completedAt)}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: AppFonts.caption,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    Row(
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primaryLight),
+                    ),
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: _PlanDetailChip(
-                            label:
-                                category.isEmpty ? 'Uncategorized' : category,
+                        Text(
+                          goal.isNotEmpty
+                              ? goal
+                              : hobby.isNotEmpty
+                              ? 'Complete my $hobby learning plan'
+                              : 'Complete my learning plan',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: AppFonts.title,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                            height: 1.3,
                           ),
                         ),
-                        Container(
-                          width: 1,
-                          height: 28,
-                          color: AppColors.primaryLight,
-                        ),
-                        Expanded(
-                          child: _PlanDetailChip(
-                            label: learningPace.isEmpty ? 'Unavailable' : learningPace,
+                        if (startedAt != null && completedAt != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            '${_formatDate(startedAt)} - ${_formatDate(completedAt)}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: AppFonts.caption,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 28,
-                          color: AppColors.primaryLight,
-                        ),
-                        Expanded(
-                          child: _PlanDetailChip(
-                            label: goalLevel.isEmpty ? 'Unavailable' : goalLevel,
-                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _PlanDetailChip(
+                                label: category.isEmpty
+                                    ? 'Uncategorized'
+                                    : category,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 28,
+                              color: AppColors.primaryLight,
+                            ),
+                            Expanded(
+                              child: _PlanDetailChip(
+                                label: learningPace.isEmpty
+                                    ? 'Unavailable'
+                                    : learningPace,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 28,
+                              color: AppColors.primaryLight,
+                            ),
+                            Expanded(
+                              child: _PlanDetailChip(
+                                label: goalLevel.isEmpty
+                                    ? 'Unavailable'
+                                    : goalLevel,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.95,
-                children: [
-                  _CompletionStat(
-                    icon: Icons.timer_outlined,
-                    value: totalTime,
-                    label: 'Total time taken',
                   ),
-                  _CompletionStat(
-                    icon: Icons.task_alt_rounded,
-                    value: '${completedQuests.length}',
-                    label: 'Quests completed',
+                  const SizedBox(height: 16),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.95,
+                    children: [
+                      _CompletionStat(
+                        icon: Icons.timer_outlined,
+                        value: totalTime,
+                        label: 'Total time taken',
+                      ),
+                      _CompletionStat(
+                        icon: Icons.task_alt_rounded,
+                        value: '${completedQuests.length}',
+                        label: 'Quests completed',
+                      ),
+                      _CompletionStat(
+                        icon: Icons.bolt_rounded,
+                        value: '$earnedXP',
+                        label: 'XP earned',
+                      ),
+                      _CompletionStat(
+                        icon: Icons.calendar_today_rounded,
+                        value: '$activeLearningDays',
+                        label: 'Active learning days',
+                      ),
+                    ],
                   ),
-                  _CompletionStat(
-                    icon: Icons.bolt_rounded,
-                    value: '$earnedXP',
-                    label: 'XP earned',
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        _AchievementRow(
+                          icon: Icons.emoji_events_outlined,
+                          label: 'Milestones complete',
+                          value: '$completedMilestones/$totalMilestones',
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        _AchievementRow(
+                          icon: Icons.local_fire_department_outlined,
+                          label: 'Longest streak',
+                          value:
+                              '$longestStreak ${longestStreak == 1 ? 'day' : 'days'}',
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        _AchievementRow(
+                          icon: Icons.trending_up_rounded,
+                          label: 'Levels gained',
+                          value: 'Lvl $startingLevel -> Lvl $finalLevel',
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        _AchievementRow(
+                          icon: Icons.photo_camera_outlined,
+                          label: 'Photo submissions',
+                          value: '$photoSubmissions',
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        _TreeOutcomeRow(
+                          uid: uid,
+                          planId: planId,
+                          startedAt: startedAt,
+                          completedAt: completedAt,
+                        ),
+                      ],
+                    ),
                   ),
-                  _CompletionStat(
-                    icon: Icons.calendar_today_rounded,
-                    value: '$activeLearningDays',
-                    label: 'Active learning days',
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Choose a new goal to keep building your path.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppFonts.bodyLg,
+                      color: AppColors.textSecondary,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton.icon(
+                      onPressed: _isCelebrating ? null : _onChooseNewGoal,
+                      icon: const Icon(Icons.flag_rounded, size: 20),
+                      label: const Text('Choose New Goal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: AppFonts.button,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    _AchievementRow(
-                      icon: Icons.emoji_events_outlined,
-                      label: 'Milestones complete',
-                      value: '$completedMilestones/$totalMilestones',
-                    ),
-                    const Divider(height: 1, color: AppColors.border),
-                    _AchievementRow(
-                      icon: Icons.local_fire_department_outlined,
-                      label: 'Longest streak',
-                      value:
-                          '$longestStreak ${longestStreak == 1 ? 'day' : 'days'}',
-                    ),
-                    const Divider(height: 1, color: AppColors.border),
-                    _AchievementRow(
-                      icon: Icons.trending_up_rounded,
-                      label: 'Levels gained',
-                      value: 'Lvl $startingLevel -> Lvl $finalLevel',
-                    ),
-                    const Divider(height: 1, color: AppColors.border),
-                    _AchievementRow(
-                      icon: Icons.photo_camera_outlined,
-                      label: 'Photo submissions',
-                      value: '$photoSubmissions',
-                    ),
-                    const Divider(height: 1, color: AppColors.border),
-                    _TreeOutcomeRow(
-                      uid: uid,
-                      planId: planId,
-                      startedAt: startedAt,
-                      completedAt: completedAt,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Choose a new goal to keep building your path.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppFonts.bodyLg,
-                  color: AppColors.textSecondary,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: _isCelebrating ? null : _onChooseNewGoal,
-                  icon: const Icon(Icons.flag_rounded, size: 20),
-                  label: const Text('Choose New Goal'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: AppFonts.button,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
             ),
           ),
           _buildConfetti(Alignment.topLeft, _confettiControllers[0]),
@@ -322,10 +329,7 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
     );
   }
 
-  Widget _buildConfetti(
-    Alignment alignment,
-    ConfettiController controller,
-  ) {
+  Widget _buildConfetti(Alignment alignment, ConfettiController controller) {
     return Align(
       alignment: alignment,
       child: IgnorePointer(
@@ -333,13 +337,7 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
           confettiController: controller,
           blastDirectionality: BlastDirectionality.explosive,
           shouldLoop: false,
-          colors: const [
-            Colors.green,
-            Colors.blue,
-            Colors.pink,
-            Colors.orange,
-            Colors.purple,
-          ],
+          colors: AppColors.celebration,
           numberOfParticles: 20,
           gravity: 0.15,
         ),
@@ -384,17 +382,20 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
       return hours > 0 ? '${days}d ${hours}h' : '${days}d';
     }
     if (duration.inHours > 0) {
-      return minutes > 0 ? '${duration.inHours}h ${minutes}m' : '${duration.inHours}h';
+      return minutes > 0
+          ? '${duration.inHours}h ${minutes}m'
+          : '${duration.inHours}h';
     }
     return '${minutes}m';
   }
 
   static int _calculateLongestStreak(List<DateTime> dates) {
-    final days = dates
-        .map((date) => DateTime(date.year, date.month, date.day))
-        .toSet()
-        .toList()
-      ..sort();
+    final days =
+        dates
+            .map((date) => DateTime(date.year, date.month, date.day))
+            .toSet()
+            .toList()
+          ..sort();
     if (days.isEmpty) return 0;
 
     var longest = 1;
@@ -458,12 +459,12 @@ class _CompletionStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0D000000),
+            color: AppColors.softShadow,
             blurRadius: 10,
             offset: Offset(0, 4),
           ),

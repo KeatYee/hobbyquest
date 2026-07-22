@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'video_loader.dart';
 import '../constants/color_constants.dart';
 import '../constants/font_constants.dart';
+import '../constants/asset_constants.dart';
 
 /// A full-screen level-up celebration overlay with a jumping fox video.
 class LevelUpScreen extends StatefulWidget {
@@ -48,13 +49,7 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
     });
   }
 
-  static const _confettiColors = [
-    Colors.green,
-    Colors.blue,
-    Colors.pink,
-    Colors.orange,
-    Colors.purple,
-  ];
+  static const _confettiColors = AppColors.celebration;
 
   Widget _buildConfetti(Alignment alignment, ConfettiController controller) {
     return Align(
@@ -73,58 +68,61 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       body: Stack(
-      children: [
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Expanded(child: SizedBox.shrink()),
-            const VideoLoader(
-              size: 300,
-              videoAsset: 'assets/videos/fox_jump.mp4',
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Level Up!',
-              style: TextStyle(
-                fontSize: AppFonts.titlePage,
-                fontWeight: FontWeight.w900,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You reached Level ${widget.newLevel}',
-              style: const TextStyle(
-                fontSize: AppFonts.body,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 40),
-            FilledButton(
-              onPressed: _onContinue,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+        children: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Expanded(child: SizedBox.shrink()),
+              const VideoLoader(size: 300, videoAsset: AppAssets.foxJumpVideo),
+              const SizedBox(height: 24),
+              Text(
+                'Level Up!',
+                style: TextStyle(
+                  fontSize: AppFonts.titlePage,
+                  fontWeight: FontWeight.w900,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(fontSize: AppFonts.button, fontWeight: FontWeight.w700),
+              const SizedBox(height: 8),
+              Text(
+                'You reached Level ${widget.newLevel}',
+                style: const TextStyle(
+                  fontSize: AppFonts.body,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-            const Expanded(child: SizedBox.shrink()),
-          ],
-        ),
-        _buildConfetti(Alignment.topLeft, _ctrTL),
-        _buildConfetti(Alignment.topRight, _ctrTR),
-        _buildConfetti(Alignment.bottomLeft, _ctrBL),
-        _buildConfetti(Alignment.bottomRight, _ctrBR),
-      ],
-    ),
-  );
+              const SizedBox(height: 40),
+              FilledButton(
+                onPressed: _onContinue,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    fontSize: AppFonts.button,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Expanded(child: SizedBox.shrink()),
+            ],
+          ),
+          _buildConfetti(Alignment.topLeft, _ctrTL),
+          _buildConfetti(Alignment.topRight, _ctrTR),
+          _buildConfetti(Alignment.bottomLeft, _ctrBL),
+          _buildConfetti(Alignment.bottomRight, _ctrBR),
+        ],
+      ),
+    );
   }
 }

@@ -7,16 +7,18 @@ class AppTheme {
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    
+    fontFamily: AppFonts.familyPrimary,
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: AppColors.background,
-    
+
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
+      onPrimary: AppColors.textOnPrimary,
       secondary: AppColors.secondary,
+      onSecondary: AppColors.textPrimary,
       surface: AppColors.surface,
+      onSurface: AppColors.textPrimary,
       error: AppColors.error,
-      background: AppColors.background,
     ),
 
     textTheme: TextTheme(
@@ -26,24 +28,24 @@ class AppTheme {
         color: AppColors.primary,
         letterSpacing: 2.0,
       ),
-      
+
       headlineLarge: GoogleFonts.openSans(
         fontSize: AppFonts.titlePage,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      
+
       bodyLarge: GoogleFonts.openSans(
-        fontSize: 16,
+        fontSize: AppFonts.body,
         color: AppColors.textPrimary,
       ),
       bodyMedium: GoogleFonts.openSans(
-        fontSize: 14,
+        fontSize: AppFonts.bodyLg,
         color: AppColors.textSecondary,
       ),
-      
+
       labelLarge: GoogleFonts.openSans(
-        fontSize: 16,
+        fontSize: AppFonts.button,
         fontWeight: FontWeight.bold,
         letterSpacing: 0.5,
       ),
@@ -54,11 +56,9 @@ class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textOnPrimary,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.openSans(
-          fontSize: AppFonts.title, 
+          fontSize: AppFonts.title,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -69,11 +69,9 @@ class AppTheme {
         foregroundColor: AppColors.primary,
         side: const BorderSide(color: AppColors.primary, width: 2),
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.openSans(
-          fontSize: 16,
+          fontSize: AppFonts.button,
           fontWeight: FontWeight.w800,
         ),
       ),

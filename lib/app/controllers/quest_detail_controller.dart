@@ -15,7 +15,7 @@ import '../../core/utils/dialog_utils.dart';
 
 class QuestDetailController extends GetxController {
   /// Extra XP awarded when a reflection is completed with an image.
-  static const int reflectionImageBonusXp = 50;
+  static const int reflectionImageBonusXp = QuestService.reflectionImageBonusXP;
 
   final Rx<QuestNodeModel> currentQuest;
   final isSubmitting = false.obs;
@@ -23,8 +23,7 @@ class QuestDetailController extends GetxController {
   QuestDetailController({required QuestNodeModel initialQuest})
     : currentQuest = Rx<QuestNodeModel>(initialQuest);
 
-  /// Completes the quest using `HomeController.completeQuest` then
-  /// awards XP via `ProgressionController.completeQuest`.
+  /// Completes the quest and awards progression in one idempotent transaction.
   /// Returns true when successful.
   Future<bool> completeQuest(String reflectionNote, {XFile? imageFile}) async {
     print(
@@ -189,14 +188,16 @@ class QuestDetailController extends GetxController {
         print('--- DEBUG: No image file provided ---');
       }
 
-      final int totalXpReward =
-          currentQuest.value.xpReward +
-          (imageUrl != null ? reflectionImageBonusXp : 0);
       print(
         '--- DEBUG: Starting quest completion transaction for $questId ---',
       );
 
-      final updatedUser = await questService.completeQuestTransaction(
+      final storedCategory =
+          homeController.user.value?.currentPlan.category?.trim() ?? '';
+      final fallbackCategory = storedCategory.isNotEmpty
+          ? storedCategory
+          : await progressionController.resolveCurrentCategoryName();
+      final completion = await questService.completeQuestTransaction(
         uid: homeController.user.value?.id ?? '',
         planId: homeController.user.value?.activePlanId ?? '',
         questId: questId,
@@ -205,66 +206,45 @@ class QuestDetailController extends GetxController {
         greeting: greeting,
         observation: observation,
         tip: tip,
-        awardedXP: totalXpReward,
+        fallbackCategoryName: fallbackCategory,
       );
 
       print(
-        '--- DEBUG: completeQuestTransaction returned. updatedUser is ${updatedUser == null ? 'NULL' : 'NOT NULL'} ---',
+        '--- DEBUG: completeQuestTransaction returned. didComplete=${completion.didComplete}, awardedXP=${completion.awardedXP} ---',
       );
 
-      if (updatedUser == null) {
-        print('--- ERROR: updatedUser is null, returning false ---');
-        isSubmitting.value = false;
-        return false;
-      }
-
-      print(
-        '--- DEBUG: Calling progressionController.completeQuest with xpReward=$totalXpReward (base: ${currentQuest.value.xpReward}, bonus: ${imageUrl != null ? reflectionImageBonusXp : 0}) ---',
-      );
-      await progressionController.completeQuest(
-        questId: questId,
-        xpReward: totalXpReward,
-      );
-      print('--- DEBUG: progressionController.completeQuest completed ---');
-
-      print('--- DEBUG: Updating homeController.user ---');
-      homeController.user.value = updatedUser;
-      print(
-        '--- DEBUG: homeController.user updated. currentPlan quests count: ${updatedUser.currentPlan.quests.length} ---',
-      );
-
-      print('--- DEBUG: Calling getAllQuestNodes ---');
-      final allNodes = homeController.getAllQuestNodes(
-        updatedUser.currentPlan.quests,
-      );
-      print(
-        '--- DEBUG: getAllQuestNodes returned ${allNodes.length} quests ---',
-      );
-
-      homeController.dailyQuests.value = allNodes;
-      print('--- DEBUG: homeController.dailyQuests updated ---');
+      progressionController.applyQuestCompletion(completion);
+      homeController.applyQuestCompletion(completion);
       await homeController.refreshGrowthLetterAvailability();
 
       print(
-        '--- INFO: Quest $questId completed. Total quest nodes: ${allNodes.length} ---',
+        '--- INFO: Quest $questId synchronized. Total quest nodes: ${homeController.dailyQuests.length} ---',
       );
-      for (final q in allNodes) {
+      for (final q in homeController.dailyQuests) {
         print('  - ${q.nodeId}: ${q.title}');
       }
 
-      final updated = updatedUser.currentPlan.quests.firstWhere(
+      final updated = homeController.dailyQuests.firstWhere(
         (q) => q.nodeId == questId,
-        orElse: () => currentQuest.value,
+        orElse: () => completion.quest,
       );
       currentQuest.value = updated;
 
-      await _promptShareToGuild(
-        questTitle: currentQuest.value.title,
-        reflectionNote: reflectionNote,
-        hobby: homeController.user.value?.currentPlan.hobby ?? '',
-        imageUrl: imageUrl,
-        imageFile: imageFile,
-      );
+      if (completion.didComplete) {
+        try {
+          await _promptShareToGuild(
+            questTitle: currentQuest.value.title,
+            reflectionNote: reflectionNote,
+            hobby: homeController.user.value?.currentPlan.hobby ?? '',
+            imageUrl: imageUrl,
+            imageFile: imageFile,
+          );
+        } catch (e) {
+          print(
+            '--- WARNING: Quest completed, but guild sharing failed: $e ---',
+          );
+        }
+      }
 
       return true;
     } catch (e) {

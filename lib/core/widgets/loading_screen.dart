@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../constants/asset_constants.dart';
+import '../constants/color_constants.dart';
+import '../constants/font_constants.dart';
 import 'video_loader.dart';
 
 /// A full-screen white loading overlay with a looping video and "Loading..." text.
@@ -8,19 +11,19 @@ class LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: AppColors.surface,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Expanded(child: SizedBox.shrink()),
-          const VideoLoader(size: 300),
+          const VideoLoader(size: 300, videoAsset: AppAssets.foxRunVideo),
           const SizedBox(height: 24),
           const Text(
             'Loading...',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppFonts.body,
               fontWeight: FontWeight.w500,
-              color: Colors.grey,
+              color: AppColors.textSecondary,
             ),
           ),
           const Expanded(child: SizedBox.shrink()),

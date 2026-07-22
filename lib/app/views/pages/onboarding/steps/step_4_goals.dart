@@ -242,7 +242,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.textOnPrimary,
                   ),
                   child: isValidating
                       ? const Row(
@@ -253,7 +253,7 @@ class _Step4GoalsState extends State<Step4Goals> {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.textOnPrimary,
                               ),
                             ),
                             SizedBox(width: 10),
@@ -283,7 +283,8 @@ class _Step4GoalsState extends State<Step4Goals> {
     TextTheme textTheme,
   ) {
     bool isSelected = controller.learningPace.value == label;
-    bool isError = showLearningPaceError && controller.learningPace.value.isEmpty;
+    bool isError =
+        showLearningPaceError && controller.learningPace.value.isEmpty;
 
     return Material(
       color: Colors.transparent,
@@ -291,19 +292,20 @@ class _Step4GoalsState extends State<Step4Goals> {
         onTap: () {
           controller.learningPace.value = label;
           print("--- DATA: Learning pace selected: $label ---");
-          if (showLearningPaceError) setState(() => showLearningPaceError = false);
+          if (showLearningPaceError)
+            setState(() => showLearningPaceError = false);
         },
         borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.white,
+            color: isSelected ? AppColors.primary : AppColors.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isError
                   ? AppColors.error
-                  : (isSelected ? AppColors.primary : Colors.grey.shade300),
+                  : (isSelected ? AppColors.primary : AppColors.borderStrong),
               width: 1.5,
             ),
             boxShadow: isSelected
@@ -320,7 +322,9 @@ class _Step4GoalsState extends State<Step4Goals> {
             label,
             style: textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.white : AppColors.textPrimary,
+              color: isSelected
+                  ? AppColors.textOnPrimary
+                  : AppColors.textPrimary,
             ),
           ),
         ),

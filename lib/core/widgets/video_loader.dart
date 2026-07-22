@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import '../constants/asset_constants.dart';
 
 /// A looping video-based loading indicator.
 /// Plays [fox_run.mp4] from assets and loops it as a loader.
@@ -11,7 +12,7 @@ class VideoLoader extends StatefulWidget {
   const VideoLoader({
     super.key,
     this.size = 150,
-    this.videoAsset = 'assets/videos/fox_run.mp4',
+    this.videoAsset = AppAssets.foxRunVideo,
   });
 
   @override
@@ -31,16 +32,19 @@ class _VideoLoaderState extends State<VideoLoader> {
   void _initVideo() {
     try {
       _controller = VideoPlayerController.asset(widget.videoAsset);
-      _controller!.initialize().then((_) {
-        if (!mounted) return;
-        _controller!.setLooping(true);
-        _controller!.play();
-        setState(() {});
-      }).catchError((e) {
-        print('--- VideoLoader error: $e ---');
-        if (!mounted) return;
-        setState(() => _hasError = true);
-      });
+      _controller!
+          .initialize()
+          .then((_) {
+            if (!mounted) return;
+            _controller!.setLooping(true);
+            _controller!.play();
+            setState(() {});
+          })
+          .catchError((e) {
+            print('--- VideoLoader error: $e ---');
+            if (!mounted) return;
+            setState(() => _hasError = true);
+          });
     } catch (e) {
       print('--- VideoLoader init error: $e ---');
       if (!mounted) return;

@@ -36,7 +36,6 @@ class GuildPage extends StatelessWidget {
               ],
             );
           }),
-
         ],
       ),
     );
@@ -53,7 +52,9 @@ class GuildPage extends StatelessWidget {
     } catch (_) {}
 
     for (final category in controller.categories) {
-      if (category.hobbyNames.any((h) => h.toLowerCase() == hobby.toLowerCase())) {
+      if (category.hobbyNames.any(
+        (h) => h.toLowerCase() == hobby.toLowerCase(),
+      )) {
         categoryId = category.id;
         break;
       }
@@ -70,10 +71,7 @@ class GuildPage extends StatelessWidget {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: AddGuildPostDialog(
-          hobby: hobby,
-          categoryId: categoryId,
-        ),
+        child: AddGuildPostDialog(hobby: hobby, categoryId: categoryId),
       ),
     );
   }
@@ -192,8 +190,9 @@ class GuildPage extends StatelessWidget {
             Icon(
               icon,
               size: 15,
-              color:
-                  isSelected ? AppColors.textOnPrimary : AppColors.textSecondary,
+              color: isSelected
+                  ? AppColors.textOnPrimary
+                  : AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
             Text(
@@ -267,23 +266,30 @@ class GuildPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, GuildController controller, String message) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    GuildController controller,
+    String message,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.forum_outlined,
-                size: 42, color: AppColors.textSecondary),
+            const Icon(
+              Icons.forum_outlined,
+              size: 42,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -292,10 +298,11 @@ class GuildPage extends StatelessWidget {
               label: const Text('Create a post'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.textOnPrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -303,7 +310,6 @@ class GuildPage extends StatelessWidget {
       ),
     );
   }
-
 
   void _showPeerReviewSheet(BuildContext context, GuildPostModel post) {
     final controller = Get.find<GuildController>();
@@ -378,66 +384,81 @@ class GuildPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ...axes.map((axis) => Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: _buildRatingSlider(
-                        label: axis.label,
-                        icon: axis.icon,
-                        value: sliderValues[axis.label] ?? 3.0.obs,
+                    ...axes.map(
+                      (axis) => Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: _buildRatingSlider(
+                          label: axis.label,
+                          icon: axis.icon,
+                          value: sliderValues[axis.label] ?? 3.0.obs,
+                        ),
                       ),
-                    )),
+                    ),
                     const SizedBox(height: 8),
                     Center(
-                      child: Obx(() => SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: isSubmitting.value || sliderValues.isEmpty
-                              ? null
-                              : () async {
-                                  isSubmitting.value = true;
-                                  final ratings = sliderValues.map(
-                                    (k, v) => MapEntry(k, v.value),
-                                  );
-                                  final confirmed = await AppDialogs.confirm(
-                                    title: 'Submit Peer Review?',
-                                    message: 'You can only submit one review per post. This cannot be changed or undone.',
-                                    confirmLabel: 'Submit',
-                                    cancelLabel: 'Cancel',
-                                  );
-                                  if (confirmed != true) {
+                      child: Obx(
+                        () => SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed:
+                                isSubmitting.value || sliderValues.isEmpty
+                                ? null
+                                : () async {
+                                    isSubmitting.value = true;
+                                    final ratings = sliderValues.map(
+                                      (k, v) => MapEntry(k, v.value),
+                                    );
+                                    final confirmed = await AppDialogs.confirm(
+                                      title: 'Submit Peer Review?',
+                                      message:
+                                          'You can only submit one review per post. This cannot be changed or undone.',
+                                      confirmLabel: 'Submit',
+                                      cancelLabel: 'Cancel',
+                                    );
+                                    if (confirmed != true) {
+                                      isSubmitting.value = false;
+                                      return;
+                                    }
+                                    final success = await controller
+                                        .submitPeerReview(
+                                          postId: post.id,
+                                          hobby: post.hobby,
+                                          ratings: ratings,
+                                        );
+                                    if (success && context.mounted) {
+                                      Navigator.of(context).pop();
+                                      AppDialogs.success(
+                                        'Review Submitted',
+                                        'Your peer review has been recorded.',
+                                      );
+                                    } else if (!success && context.mounted) {
+                                      AppDialogs.warning(
+                                        'Already Reviewed',
+                                        'You have already reviewed this post.',
+                                      );
+                                    }
                                     isSubmitting.value = false;
-                                    return;
-                                  }
-                                  final success = await controller.submitPeerReview(
-                                    postId: post.id,
-                                    hobby: post.hobby,
-                                    ratings: ratings,
-                                  );
-                                  if (success && context.mounted) {
-                                    Navigator.of(context).pop();
-                                    AppDialogs.success('Review Submitted', 'Your peer review has been recorded.');
-                                  } else if (!success && context.mounted) {
-                                    AppDialogs.warning('Already Reviewed', 'You have already reviewed this post.');
-                                  }
-                                  isSubmitting.value = false;
-                                },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.textOnPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            isSubmitting.value ? 'Submitting...' : 'Submit Review',
-                            style: const TextStyle(
-                              fontSize: AppFonts.button,
-                              fontWeight: FontWeight.w700,
+                            child: Text(
+                              isSubmitting.value
+                                  ? 'Submitting...'
+                                  : 'Submit Review',
+                              style: const TextStyle(
+                                fontSize: AppFonts.button,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      )),
+                      ),
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -455,69 +476,73 @@ class GuildPage extends StatelessWidget {
     required IconData icon,
     required RxDouble value,
   }) {
-    return Obx(() => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  label,
+    return Obx(
+      () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: AppFonts.bodyLg,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  value.value.toStringAsFixed(1),
                   style: const TextStyle(
-                    fontSize: AppFonts.bodyLg,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    fontSize: AppFonts.body,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
                   ),
                 ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                value.value.toStringAsFixed(1),
-                style: const TextStyle(
-                  fontSize: AppFonts.body,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 8,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.border,
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withOpacity(0.2),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 8,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-            activeTrackColor: AppColors.primary,
-            inactiveTrackColor: AppColors.border,
-            thumbColor: AppColors.primary,
-            overlayColor: AppColors.primary.withOpacity(0.2),
+            child: Slider(
+              value: value.value,
+              min: 1,
+              max: 5,
+              divisions: 4,
+              onChanged: (newValue) {
+                value.value = newValue;
+              },
+            ),
           ),
-          child: Slider(
-            value: value.value,
-            min: 1,
-            max: 5,
-            divisions: 4,
-            onChanged: (newValue) {
-              value.value = newValue;
-            },
-          ),
-        ),
-      ],
-    ));
+        ],
+      ),
+    );
   }
 }
-
 
 String? _formatTime(DateTime? createdAt) {
   if (createdAt == null) return null;
@@ -544,8 +569,11 @@ Widget _buildPostImage(String imageUrl) {
   return const SizedBox.shrink();
 }
 
-
-void _showStatsDialog(BuildContext context, GuildController controller, GuildPostModel post) {
+void _showStatsDialog(
+  BuildContext context,
+  GuildController controller,
+  GuildPostModel post,
+) {
   final avg = _averageRatingsFrom(post);
   final axes = controller.fetchReviewAxes(post.hobby);
   final reviewerIds = post.peerReviews.keys.toList();
@@ -563,7 +591,10 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
               children: [
                 const Text(
                   'Peer Review Stats',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: AppFonts.title),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppFonts.title,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -605,10 +636,8 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                         }).toList(),
                       ),
                     ],
-                    getTitle: (index, _) => RadarChartTitle(
-                      text: axes[index].label,
-                      angle: 0,
-                    ),
+                    getTitle: (index, _) =>
+                        RadarChartTitle(text: axes[index].label, angle: 0),
                     titleTextStyle: TextStyle(
                       fontSize: AppFonts.badge,
                       fontWeight: FontWeight.w600,
@@ -618,13 +647,18 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                     borderData: FlBorderData(show: false),
                     radarBorderData: BorderSide.none,
                     tickBorderData: BorderSide.none,
-                    ticksTextStyle: TextStyle(color: Colors.transparent, fontSize: 0),
+                    ticksTextStyle: TextStyle(
+                      color: Colors.transparent,
+                      fontSize: 0,
+                    ),
                     gridBorderData: BorderSide.none,
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              if (reviewerIds.isNotEmpty) ...[const Divider(height: 1), const SizedBox(height: 8),
+              if (reviewerIds.isNotEmpty) ...[
+                const Divider(height: 1),
+                const SizedBox(height: 8),
                 Text(
                   'Reviewed by',
                   style: TextStyle(
@@ -638,9 +672,11 @@ void _showStatsDialog(BuildContext context, GuildController controller, GuildPos
                   spacing: 10,
                   runSpacing: 6,
                   children: reviewerIds.map((userId) {
-                    final nickname = controller.userNicknames[userId] ?? 'Anonymous';
+                    final nickname =
+                        controller.userNicknames[userId] ?? 'Anonymous';
                     final avatarSvg = controller.userAvatars[userId];
-                    final hasAvatar = avatarSvg != null && avatarSvg.trim().isNotEmpty;
+                    final hasAvatar =
+                        avatarSvg != null && avatarSvg.trim().isNotEmpty;
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -704,7 +740,6 @@ Map<String, double> _averageRatingsFrom(GuildPostModel post) {
   return totals.map((k, v) => MapEntry(k, v / counts[k]!));
 }
 
-
 class _GuildPostCard extends StatelessWidget {
   final GuildController controller;
   final GuildPostModel post;
@@ -743,7 +778,7 @@ class _GuildPostCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -756,7 +791,8 @@ class _GuildPostCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
-                onTap: () => Get.toNamed(AppRoutes.USER_PROFILE, arguments: post.userId),
+                onTap: () =>
+                    Get.toNamed(AppRoutes.USER_PROFILE, arguments: post.userId),
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: AppColors.primary.withOpacity(0.12),
@@ -805,7 +841,10 @@ class _GuildPostCard extends StatelessWidget {
               if (canViewStats)
                 PopupMenuButton<String>(
                   position: PopupMenuPosition.under,
-                  icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: AppColors.textSecondary,
+                  ),
                   onSelected: (value) {
                     if (value == 'stats') {
                       _showStatsDialog(context, controller, post);
@@ -814,12 +853,25 @@ class _GuildPostCard extends StatelessWidget {
                   itemBuilder: (_) => [
                     PopupMenuItem(
                       value: 'stats',
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.bar_chart, size: 14, color: AppColors.textPrimary),
+                          const Icon(
+                            Icons.bar_chart,
+                            size: 14,
+                            color: AppColors.textPrimary,
+                          ),
                           const SizedBox(width: 6),
-                          Text('View Stats', style: TextStyle(fontSize: AppFonts.caption, fontWeight: FontWeight.w600)),
+                          Text(
+                            'View Stats',
+                            style: TextStyle(
+                              fontSize: AppFonts.caption,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -831,42 +883,55 @@ class _GuildPostCard extends StatelessWidget {
           Text(
             post.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             post.body,
-            style: const TextStyle(
-              height: 1.4,
-              color: AppColors.textSecondary,
-            ),
+            style: const TextStyle(height: 1.4, color: AppColors.textSecondary),
           ),
-          if (hasImage) ...[const SizedBox(height: 12), _buildPostImage(post.imageUrl)],
+          if (hasImage) ...[
+            const SizedBox(height: 12),
+            _buildPostImage(post.imageUrl),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
               ...GuildController.reactionEmojis.map((emoji) {
-                final isReacted = (controller.userReactions[post.id] ?? <String>{}).contains(emoji);
+                final isReacted =
+                    (controller.userReactions[post.id] ?? <String>{}).contains(
+                      emoji,
+                    );
                 final count = post.reactions[emoji]?.length ?? 0;
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: GestureDetector(
                     onTap: () => controller.toggleReaction(post.id, emoji),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: isReacted ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                        color: isReacted
+                            ? AppColors.primary.withOpacity(0.15)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: isReacted ? AppColors.primary.withOpacity(0.5) : AppColors.border.withOpacity(0.6),
+                          color: isReacted
+                              ? AppColors.primary.withOpacity(0.5)
+                              : AppColors.border.withOpacity(0.6),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(emoji, style: TextStyle(fontSize: AppFonts.button)),
+                          Text(
+                            emoji,
+                            style: TextStyle(fontSize: AppFonts.button),
+                          ),
                           if (canViewStats) ...[
                             const SizedBox(width: 3),
                             Text(
@@ -874,7 +939,9 @@ class _GuildPostCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: AppFonts.caption,
                                 fontWeight: FontWeight.w700,
-                                color: isReacted ? AppColors.primaryDark : AppColors.textSecondary,
+                                color: isReacted
+                                    ? AppColors.primaryDark
+                                    : AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -891,7 +958,10 @@ class _GuildPostCard extends StatelessWidget {
                 return GestureDetector(
                   onTap: reviewed ? null : onPeerReviewTap,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: reviewed
                           ? AppColors.textSecondary.withOpacity(0.15)
@@ -901,13 +971,22 @@ class _GuildPostCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (reviewed) ...[const Icon(Icons.check_circle, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4)],
+                        if (reviewed) ...[
+                          const Icon(
+                            Icons.check_circle,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Text(
                           reviewed ? 'Reviewed' : 'Peer Review',
                           style: TextStyle(
                             fontSize: AppFonts.badge,
                             fontWeight: FontWeight.w700,
-                            color: reviewed ? AppColors.textSecondary : Colors.white,
+                            color: reviewed
+                                ? AppColors.textSecondary
+                                : AppColors.textOnPrimary,
                           ),
                         ),
                       ],
@@ -922,4 +1001,3 @@ class _GuildPostCard extends StatelessWidget {
     );
   }
 }
-

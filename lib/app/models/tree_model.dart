@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TreeModel {
+  static const int forestSpotCount = 9;
+  static const int maturityXp = 800;
+
   final String id;
   final String treeName;
   final String categoryId;
@@ -31,10 +34,10 @@ class TreeModel {
       treeName: json['treeName'] as String? ?? (json['name'] as String? ?? ''),
       categoryId: json['categoryId'] as String? ?? '',
       planId: json['planId'] as String? ?? '',
-      xpRequired: json['xpRequired'] as int? ?? 0,
-      treeIndex: json['treeIndex'] as int? ?? 0,
-      questsCompleted: json['questsCompleted'] as int? ?? 0,
-      learningMinutes: json['learningMinutes'] as int? ?? 0,
+      xpRequired: (json['xpRequired'] as num?)?.toInt() ?? 0,
+      treeIndex: (json['treeIndex'] as num?)?.toInt() ?? 0,
+      questsCompleted: (json['questsCompleted'] as num?)?.toInt() ?? 0,
+      learningMinutes: (json['learningMinutes'] as num?)?.toInt() ?? 0,
       createdAt: _readDateTime(json['createdAt']),
       grownAt: _readDateTime(json['grownAt']),
     );

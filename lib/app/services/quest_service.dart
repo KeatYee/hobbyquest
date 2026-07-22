@@ -4,23 +4,54 @@ import '../models/user_model.dart';
 import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
 import '../models/milestone_model.dart';
-import 'gemini_service.dart';
 
-class GoalCompletionTestSeedResult {
+class QuestCompletionResult {
   final String planId;
-  final QuestNodeModel finalQuest;
-  final int completedQuestCount;
-  final int totalXP;
+  final QuestNodeModel quest;
+  final bool didComplete;
+  final int awardedXP;
+  final int previousTotalXP;
+  final int updatedTotalXP;
+  final int updatedStreak;
+  final int dailyQuestCompletionCount;
+  final Map<String, int> updatedCategoryXp;
+  final DateTime completionTime;
+  final UserModel? updatedUser;
 
-  const GoalCompletionTestSeedResult({
+  const QuestCompletionResult({
     required this.planId,
-    required this.finalQuest,
-    required this.completedQuestCount,
-    required this.totalXP,
+    required this.quest,
+    required this.didComplete,
+    required this.awardedXP,
+    required this.previousTotalXP,
+    required this.updatedTotalXP,
+    required this.updatedStreak,
+    required this.dailyQuestCompletionCount,
+    required this.updatedCategoryXp,
+    required this.completionTime,
+    this.updatedUser,
   });
+
+  QuestCompletionResult copyWithUpdatedUser(UserModel user) {
+    return QuestCompletionResult(
+      planId: planId,
+      quest: quest,
+      didComplete: didComplete,
+      awardedXP: awardedXP,
+      previousTotalXP: previousTotalXP,
+      updatedTotalXP: updatedTotalXP,
+      updatedStreak: updatedStreak,
+      dailyQuestCompletionCount: dailyQuestCompletionCount,
+      updatedCategoryXp: updatedCategoryXp,
+      completionTime: completionTime,
+      updatedUser: user,
+    );
+  }
 }
 
 class QuestService {
+  static const int reflectionImageBonusXP = 50;
+
   static String _planDocPath(String uid, String planId) =>
       'users/$uid/plans/$planId';
 
@@ -98,252 +129,123 @@ class QuestService {
     }).toList();
   }
 
-  /// Seeds the current plan so only Milestone 4's final quest remains.
-  /// Intended solely for manually testing the goal-completion flow.
-  static Future<GoalCompletionTestSeedResult> seedGoalCompletionTestState(
-    String uid,
-  ) async {
-    final firestore = FirebaseFirestore.instance;
-    final userRef = firestore.collection('users').doc(uid);
-    final userSnapshot = await userRef.get();
-    final userData = userSnapshot.data();
-    if (userData == null) throw Exception('User profile not found.');
-
-    var planId = userData['activePlanId'] as String? ?? '';
-    if (planId.isEmpty) {
-      final activePlans = await userRef
-          .collection('plans')
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
-      if (activePlans.docs.isEmpty) {
-        throw Exception('No current test plan was found.');
-      }
-      planId = activePlans.docs.first.id;
-    }
-
-    final plan = await loadPlan(uid, planId);
-    final milestones = await loadMilestones(uid, planId);
-    var questSnapshot = await _questsCol(uid, planId).get();
-    if (milestones.length < 4) {
-      throw Exception('The test plan must contain at least four milestones.');
-    }
-
-    final generatedQuests = <QuestNodeModel>[];
-    final geminiService = GeminiService();
-    for (var index = 0; index < 4; index++) {
-      final milestoneNumber = (index + 1).toString();
-      final hasQuests = questSnapshot.docs.any((doc) {
-        final nodeId = QuestNodeModel.fromJson(doc.data()).nodeId;
-        return RegExp('^$milestoneNumber(?:_|\\b)').hasMatch(nodeId);
-      });
-      if (hasQuests) continue;
-
-      final milestoneQuests = await geminiService.generatePhaseDAG(
-        hobby: plan.hobby,
-        level: plan.level,
-        goal: plan.goal,
-        learningPace: plan.learningPace,
-        milestoneTitle: milestones[index].title,
-        milestoneNumber: milestoneNumber,
-      );
-      if (milestoneQuests.isEmpty) {
-        throw Exception('AI could not generate Milestone ${index + 1} quests.');
-      }
-      generatedQuests.addAll(milestoneQuests);
-    }
-
-    if (generatedQuests.isNotEmpty) {
-      final generationBatch = firestore.batch();
-      for (final quest in generatedQuests) {
-        generationBatch.set(
-          _questRef(uid, planId, quest.nodeId),
-          quest.copyWith(isCompleted: false, isActive: false).toJson(),
-        );
-      }
-      await generationBatch.commit();
-      questSnapshot = await _questsCol(uid, planId).get();
-    }
-
-    final milestoneFourQuests = questSnapshot.docs.where((doc) {
-      final nodeId = QuestNodeModel.fromJson(doc.data()).nodeId;
-      return RegExp(r'^4(?:_|\b)').hasMatch(nodeId);
-    }).toList();
-    if (milestoneFourQuests.isEmpty) {
-      throw Exception('Generated Milestone 4 quests could not be saved.');
-    }
-
-    final terminalQuests = milestoneFourQuests.where((candidate) {
-      final candidateId = QuestNodeModel.fromJson(candidate.data()).nodeId;
-      return !milestoneFourQuests.any((other) {
-        final otherQuest = QuestNodeModel.fromJson(other.data());
-        return otherQuest.dependsOn.contains(candidateId);
-      });
-    }).toList();
-    final finalCandidates = terminalQuests.isEmpty
-        ? milestoneFourQuests
-        : terminalQuests;
-    finalCandidates.sort((a, b) {
-      final aQuest = QuestNodeModel.fromJson(a.data());
-      final bQuest = QuestNodeModel.fromJson(b.data());
-      final challengeComparison = (aQuest.type == 'challenge' ? 1 : 0)
-          .compareTo(bQuest.type == 'challenge' ? 1 : 0);
-      if (challengeComparison != 0) return challengeComparison;
-      return _questSequence(
-        aQuest.nodeId,
-      ).compareTo(_questSequence(bQuest.nodeId));
-    });
-    final finalQuestDoc = finalCandidates.last;
-    final finalQuest = QuestNodeModel.fromJson(
-      finalQuestDoc.data(),
-    ).copyWith(isCompleted: false, isActive: true);
-
-    final completedAt = DateTime.now();
-    var seededXP = 0;
-    var completedQuestCount = 0;
-    final batch = firestore.batch();
-
-    for (final doc in questSnapshot.docs) {
-      final quest = QuestNodeModel.fromJson(doc.data());
-      final belongsToFirstFourMilestones = RegExp(
-        r'^[1-4](?:_|\b)',
-      ).hasMatch(quest.nodeId);
-      final shouldComplete =
-          belongsToFirstFourMilestones && quest.nodeId != finalQuest.nodeId;
-
-      if (shouldComplete) {
-        seededXP += quest.xpReward;
-        completedQuestCount += 1;
-      }
-
-      batch.set(doc.reference, {
-        'isCompleted': shouldComplete,
-        'isActive': quest.nodeId == finalQuest.nodeId,
-        'completedAt': shouldComplete ? completedAt : null,
-        'awardedXP': shouldComplete ? quest.xpReward : null,
-        if (!shouldComplete) 'reflectionNote': '',
-        if (!shouldComplete) 'imageUrl': null,
-        if (!shouldComplete) 'greeting': null,
-        if (!shouldComplete) 'observation': null,
-        if (!shouldComplete) 'tip': null,
-      }, SetOptions(merge: true));
-    }
-
-    final updatedMilestones = milestones.asMap().entries.map((entry) {
-      return entry.value.copyWith(completed: entry.key < 3);
-    }).toList();
-    final planRef = _planRef(uid, planId);
-    for (final milestone in updatedMilestones) {
-      batch.set(
-        _milestoneRef(uid, planId, milestone.id),
-        milestone.toJson(),
-        SetOptions(merge: true),
-      );
-    }
-    batch.set(
-      planRef,
-      plan
-          .copyWith(
-            progress: 3,
-            currentMilestoneIndex: 3,
-            isActive: true,
-            startingXP: 0,
-          )
-          .toJson(),
-      SetOptions(merge: true),
-    );
-    batch.set(userRef, {
-      'activePlanId': planId,
-      'totalXP': seededXP,
-      'dailyQuestCompletionCount': completedQuestCount,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    await batch.commit();
-    return GoalCompletionTestSeedResult(
-      planId: planId,
-      finalQuest: finalQuest,
-      completedQuestCount: completedQuestCount,
-      totalXP: seededXP,
-    );
-  }
-
-  static int _questSequence(String nodeId) {
-    final matches = RegExp(r'(\d+)').allMatches(nodeId).toList();
-    return matches.isEmpty ? 0 : int.tryParse(matches.last.group(1)!) ?? 0;
-  }
-
-  /// Writes quests, milestones, and plan metadata to subcollections.
-  /// Returns the updated [UserModel] with in-memory populated data, or null on failure.
-  Future<UserModel?> addQuestsToPlan({
+  /// Advances a completed milestone and writes the next milestone atomically.
+  Future<UserModel> addQuestsToPlan({
     required String uid,
     required String planId,
     required List<QuestNodeModel> newQuests,
-    int? currentMilestoneIndex,
+    required List<String> expectedCompletedQuestIds,
+    required int expectedCurrentMilestoneIndex,
+    required int currentMilestoneIndex,
     required List<MilestoneModel> milestones,
   }) async {
-    if (newQuests.isEmpty) return null;
+    if (uid.trim().isEmpty || planId.trim().isEmpty) {
+      throw ArgumentError('A user and plan are required for advancement.');
+    }
+    if (newQuests.isEmpty) {
+      throw ArgumentError('At least one quest is required for a milestone.');
+    }
+    if (expectedCompletedQuestIds.isEmpty) {
+      throw ArgumentError('Completed milestone quests are required.');
+    }
+    if (currentMilestoneIndex != expectedCurrentMilestoneIndex + 1 ||
+        expectedCurrentMilestoneIndex < 0 ||
+        currentMilestoneIndex >= milestones.length) {
+      throw ArgumentError('The milestone transition is invalid.');
+    }
+
+    final newQuestIds = newQuests.map((quest) => quest.nodeId.trim()).toList();
+    if (newQuestIds.any((id) => id.isEmpty) ||
+        newQuestIds.toSet().length != newQuestIds.length) {
+      throw ArgumentError('Next-milestone quest IDs must be unique.');
+    }
+    final completedQuestIds = expectedCompletedQuestIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (completedQuestIds.length != expectedCompletedQuestIds.length) {
+      throw ArgumentError('Completed-milestone quest IDs must be unique.');
+    }
 
     final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    UserModel? updatedUser;
+    late UserModel updatedUser;
 
-    try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(userRef);
-        final planSnapshot = await transaction.get(_planRef(uid, planId));
-        final data = snapshot.data();
-        if (data == null) return;
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      final planSnapshot = await transaction.get(_planRef(uid, planId));
+      final data = snapshot.data();
+      if (data == null) {
+        throw StateError('User profile not found.');
+      }
+      if (!planSnapshot.exists || planSnapshot.data() == null) {
+        throw StateError('Active plan not found.');
+      }
 
-        final loadedUser = UserModel.fromJson(data, uid);
-        final storedPlan = planSnapshot.data() == null
-            ? loadedUser.currentPlan.copyWith(id: planId)
-            : QuestPlanModel.fromJson(planSnapshot.data()!, docId: planId);
+      final loadedUser = UserModel.fromJson(data, uid);
+      final storedPlan = QuestPlanModel.fromJson(
+        planSnapshot.data()!,
+        docId: planId,
+      );
+      if (loadedUser.activePlanId != planId || !storedPlan.isActive) {
+        throw StateError('This is no longer the active learning plan.');
+      }
+      if (storedPlan.currentMilestoneIndex != expectedCurrentMilestoneIndex) {
+        throw StateError('The milestone has already changed.');
+      }
 
-        final questsToWrite = newQuests
-            .map((q) => q.copyWith(isActive: true, isCompleted: false))
-            .toList();
-
-        for (final quest in questsToWrite) {
-          transaction.set(_questRef(uid, planId, quest.nodeId), quest.toJson());
-        }
-
-        for (final milestone in milestones) {
-          transaction.set(
-            _milestoneRef(uid, planId, milestone.id),
-            milestone.toJson(),
-          );
-        }
-
-        final plan = storedPlan.copyWith(
-          id: planId,
-          currentMilestoneIndex: currentMilestoneIndex,
-          milestones: milestones,
-          quests: questsToWrite,
+      for (final questId in completedQuestIds) {
+        final questSnapshot = await transaction.get(
+          _questRef(uid, planId, questId),
         );
-        transaction.set(_planRef(uid, planId), plan.toJson());
+        if (!questSnapshot.exists ||
+            questSnapshot.data()?['isCompleted'] != true) {
+          throw StateError('The current milestone is not complete yet.');
+        }
+      }
 
-        transaction.set(userRef, {
-          'activePlanId': planId,
-          'updatedAt': DateTime.now(),
-        }, SetOptions(merge: true));
+      final questsToWrite = newQuests
+          .map((q) => q.copyWith(isActive: true, isCompleted: false))
+          .toList();
 
-        final normalizedUser = loadedUser.copyWith(
-          activePlanId: planId,
-          currentPlan: plan,
-          updatedAt: DateTime.now(),
+      for (final quest in questsToWrite) {
+        transaction.set(_questRef(uid, planId, quest.nodeId), quest.toJson());
+      }
+
+      for (final milestone in milestones) {
+        transaction.set(
+          _milestoneRef(uid, planId, milestone.id),
+          milestone.toJson(),
         );
-        updatedUser = normalizedUser;
-      });
-    } catch (e) {
-      return null;
-    }
+      }
+
+      final plan = storedPlan.copyWith(
+        id: planId,
+        currentMilestoneIndex: currentMilestoneIndex,
+        milestones: milestones,
+        quests: questsToWrite,
+      );
+      transaction.set(_planRef(uid, planId), plan.toJson());
+
+      transaction.set(userRef, {
+        'activePlanId': planId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      updatedUser = loadedUser.copyWith(
+        activePlanId: planId,
+        currentPlan: plan,
+        updatedAt: DateTime.now(),
+      );
+    });
 
     return updatedUser;
   }
 
-  /// Updates a single quest document in the subcollection + user doc timestamp.
-  /// Returns the updated [UserModel] with in-memory data, or null on failure.
-  Future<UserModel?> completeQuestTransaction({
+  /// Completes a quest and awards all progression state atomically.
+  ///
+  /// The quest document is read before any writes. A retry of an already
+  /// completed quest returns its current state without awarding XP again.
+  Future<QuestCompletionResult> completeQuestTransaction({
     required String uid,
     required String planId,
     required String questId,
@@ -352,75 +254,253 @@ class QuestService {
     String? greeting,
     String? observation,
     String? tip,
-    int? awardedXP,
+    String? fallbackCategoryName,
   }) async {
-    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-
-    UserModel? updatedUser;
-
-    try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(userRef);
-        final data = snapshot.data();
-        if (data == null) return;
-
-        final loadedUser = UserModel.fromJson(data, uid);
-        final resolvedPlanId = planId.isNotEmpty
-            ? planId
-            : loadedUser.activePlanId;
-        if (resolvedPlanId.isEmpty) return;
-
-        final questRef = _questRef(uid, resolvedPlanId, questId);
-        transaction.set(questRef, {
-          'isCompleted': true,
-          'isActive': false,
-          'reflectionNote': reflectionNote,
-          'completedAt': DateTime.now(),
-          if (imageUrl != null) 'imageUrl': imageUrl,
-          if (greeting != null) 'greeting': greeting,
-          if (observation != null) 'observation': observation,
-          if (tip != null) 'tip': tip,
-          if (awardedXP != null) 'awardedXP': awardedXP,
-        }, SetOptions(merge: true));
-
-        transaction.set(userRef, {
-          'updatedAt': DateTime.now(),
-          'lastQuestCompletionDate': DateTime.now(),
-        }, SetOptions(merge: true));
-      });
-    } catch (e) {
-      return null;
+    if (uid.trim().isEmpty) {
+      throw ArgumentError('A user ID is required to complete a quest.');
+    }
+    if (questId.trim().isEmpty) {
+      throw ArgumentError('A quest ID is required to complete a quest.');
     }
 
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final completionTime = DateTime.now();
+    final normalizedReflection = reflectionNote.trim();
+    final normalizedImageUrl = imageUrl?.trim();
+
+    final result = await FirebaseFirestore.instance
+        .runTransaction<QuestCompletionResult>((transaction) async {
+          final userSnapshot = await transaction.get(userRef);
+          final userData = userSnapshot.data();
+          if (userData == null) {
+            throw StateError('User profile not found.');
+          }
+
+          final storedActivePlanId =
+              userData['activePlanId']?.toString().trim() ?? '';
+          final requestedPlanId = planId.trim();
+          final resolvedPlanId = requestedPlanId.isNotEmpty
+              ? requestedPlanId
+              : storedActivePlanId;
+          if (resolvedPlanId.isEmpty) {
+            throw StateError('No active plan was found.');
+          }
+          if (storedActivePlanId.isNotEmpty &&
+              storedActivePlanId != resolvedPlanId) {
+            throw StateError('The requested quest is not in the active plan.');
+          }
+
+          final planRef = _planRef(uid, resolvedPlanId);
+          final questRef = _questRef(uid, resolvedPlanId, questId);
+          final planSnapshot = await transaction.get(planRef);
+          final questSnapshot = await transaction.get(questRef);
+          final planData = planSnapshot.data();
+          final rawQuestData = questSnapshot.data();
+          if (planData == null) {
+            throw StateError('Active plan not found.');
+          }
+          if (rawQuestData == null) {
+            throw StateError('Quest not found.');
+          }
+
+          final questData = Map<String, dynamic>.from(rawQuestData);
+          final storedNodeId = questData['node_id']?.toString().trim() ?? '';
+          if (storedNodeId.isEmpty) questData['node_id'] = questId;
+          final storedQuest = QuestNodeModel.fromJson(questData);
+          final currentTotalXP = _readTotalXP(userData);
+          final currentStreak = _readInt(userData['currentStreak']);
+          final currentCompletionCount = _readInt(
+            userData['dailyQuestCompletionCount'],
+          );
+          final currentCategoryXp = _readCategoryXp(userData['categoryXp']);
+
+          if (storedQuest.isCompleted) {
+            return QuestCompletionResult(
+              planId: resolvedPlanId,
+              quest: storedQuest,
+              didComplete: false,
+              awardedXP: storedQuest.awardedXP ?? 0,
+              previousTotalXP: currentTotalXP,
+              updatedTotalXP: currentTotalXP,
+              updatedStreak: currentStreak,
+              dailyQuestCompletionCount: currentCompletionCount,
+              updatedCategoryXp: currentCategoryXp,
+              completionTime: storedQuest.completedAt ?? completionTime,
+            );
+          }
+
+          if (planData['isActive'] == false) {
+            throw StateError('This learning plan is no longer active.');
+          }
+          if (normalizedReflection.length < 15) {
+            throw ArgumentError(
+              'A reflection of at least 15 characters is required.',
+            );
+          }
+          if (storedQuest.type == 'challenge' &&
+              (normalizedImageUrl == null || normalizedImageUrl.isEmpty)) {
+            throw ArgumentError('Photo evidence is required for this quest.');
+          }
+
+          for (final dependencyId in storedQuest.dependsOn.toSet()) {
+            if (dependencyId == questId) {
+              throw StateError('Quest dependencies contain a cycle.');
+            }
+            final dependencySnapshot = await transaction.get(
+              _questRef(uid, resolvedPlanId, dependencyId),
+            );
+            final dependencyData = dependencySnapshot.data();
+            if (dependencyData == null ||
+                dependencyData['isCompleted'] != true) {
+              throw StateError(
+                'Complete all prerequisite quests before this quest.',
+              );
+            }
+          }
+
+          final baseXP = storedQuest.xpReward;
+          if (baseXP < 0) {
+            throw StateError('Quest XP cannot be negative.');
+          }
+          final imageBonus = normalizedImageUrl?.isNotEmpty == true
+              ? reflectionImageBonusXP
+              : 0;
+          final awardedXP = baseXP + imageBonus;
+          final updatedTotalXP = currentTotalXP + awardedXP;
+          final updatedStreak = _updatedStreak(
+            currentStreak: currentStreak,
+            lastStreakDate: _readDateTime(userData['lastStreakDate']),
+            completionTime: completionTime,
+          );
+          final updatedCategoryXp = Map<String, int>.from(currentCategoryXp);
+          final storedCategory = planData['category']?.toString().trim() ?? '';
+          final categoryName = storedCategory.isNotEmpty
+              ? storedCategory
+              : fallbackCategoryName?.trim() ?? '';
+          if (categoryName.isNotEmpty) {
+            updatedCategoryXp[categoryName] =
+                (updatedCategoryXp[categoryName] ?? 0) + awardedXP;
+          }
+
+          transaction.set(questRef, {
+            'isCompleted': true,
+            'isActive': false,
+            'reflectionNote': normalizedReflection,
+            'completedAt': FieldValue.serverTimestamp(),
+            if (normalizedImageUrl?.isNotEmpty == true)
+              'imageUrl': normalizedImageUrl,
+            if (greeting?.trim().isNotEmpty == true)
+              'greeting': greeting!.trim(),
+            if (observation?.trim().isNotEmpty == true)
+              'observation': observation!.trim(),
+            if (tip?.trim().isNotEmpty == true) 'tip': tip!.trim(),
+            'awardedXP': awardedXP,
+          }, SetOptions(merge: true));
+
+          transaction.set(userRef, {
+            'totalXP': updatedTotalXP,
+            'currentStreak': updatedStreak,
+            'lastStreakDate': FieldValue.serverTimestamp(),
+            'lastQuestCompletionDate': FieldValue.serverTimestamp(),
+            'dailyQuestCompletionCount': currentCompletionCount + 1,
+            'categoryXp': updatedCategoryXp,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          return QuestCompletionResult(
+            planId: resolvedPlanId,
+            quest: storedQuest.copyWith(
+              isCompleted: true,
+              isActive: false,
+              reflectionNote: normalizedReflection,
+              completedAt: completionTime,
+              imageUrl: normalizedImageUrl,
+              greeting: greeting?.trim(),
+              observation: observation?.trim(),
+              tip: tip?.trim(),
+              awardedXP: awardedXP,
+            ),
+            didComplete: true,
+            awardedXP: awardedXP,
+            previousTotalXP: currentTotalXP,
+            updatedTotalXP: updatedTotalXP,
+            updatedStreak: updatedStreak,
+            dailyQuestCompletionCount: currentCompletionCount + 1,
+            updatedCategoryXp: updatedCategoryXp,
+            completionTime: completionTime,
+          );
+        });
+
     try {
-      final resolvedPlanId = planId.isNotEmpty
-          ? planId
-          : (await userRef.get()).data()?['activePlanId'] as String? ?? '';
-      if (resolvedPlanId.isEmpty) return null;
-
-      final planSnapshot = await _planRef(uid, resolvedPlanId).get();
-      if (!planSnapshot.exists) return null;
-
-      final plan = QuestPlanModel.fromJson(
-        planSnapshot.data()!,
-        docId: resolvedPlanId,
-      );
-      final milestones = await loadMilestones(uid, resolvedPlanId);
-      final quests = await loadQuests(uid, resolvedPlanId);
-
+      final plan = await loadPlan(uid, result.planId);
+      final milestones = await loadMilestones(uid, result.planId);
+      final quests = await loadQuests(uid, result.planId);
       final userSnapshot = await userRef.get();
       final userData = userSnapshot.data();
-      if (userData == null) return null;
+      if (userData == null) return result;
 
       final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
-      updatedUser = UserModel.fromJson(
+      final updatedUser = UserModel.fromJson(
         userData,
         uid,
-      ).copyWith(activePlanId: resolvedPlanId, currentPlan: fullPlan);
+      ).copyWith(activePlanId: result.planId, currentPlan: fullPlan);
+      return result.copyWithUpdatedUser(updatedUser);
     } catch (e) {
-      return null;
+      print(
+        '--- WARNING: Quest completed, but refreshed profile loading failed: $e ---',
+      );
+      return result;
     }
+  }
 
-    return updatedUser;
+  static int _readTotalXP(Map<String, dynamic> data) {
+    final totalXP = data['totalXP'];
+    if (totalXP is num) return totalXP.toInt();
+
+    final legacyLevel = _readInt(data['level'], fallback: 1);
+    final legacyCurrentXP = _readInt(data['currentXp']);
+    return ((legacyLevel - 1) * 1000) + legacyCurrentXP;
+  }
+
+  static int _readInt(dynamic value, {int fallback = 0}) {
+    return value is num ? value.toInt() : fallback;
+  }
+
+  static Map<String, int> _readCategoryXp(dynamic value) {
+    if (value is! Map) return <String, int>{};
+
+    return value.map(
+      (key, xp) => MapEntry(key.toString(), xp is num ? xp.toInt() : 0),
+    );
+  }
+
+  static DateTime? _readDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
+  static int _updatedStreak({
+    required int currentStreak,
+    required DateTime? lastStreakDate,
+    required DateTime completionTime,
+  }) {
+    if (lastStreakDate == null) return 1;
+
+    final completionDay = DateTime(
+      completionTime.year,
+      completionTime.month,
+      completionTime.day,
+    );
+    final lastCompletionDay = DateTime(
+      lastStreakDate.year,
+      lastStreakDate.month,
+      lastStreakDate.day,
+    );
+    final dayDifference = completionDay.difference(lastCompletionDay).inDays;
+    if (dayDifference == 0) return currentStreak;
+    if (dayDifference == 1) return currentStreak + 1;
+    return 1;
   }
 }

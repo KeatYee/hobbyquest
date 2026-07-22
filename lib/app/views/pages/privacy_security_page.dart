@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/constants/app_info.dart';
 import '../../controllers/profile_controller.dart';
 
 class PrivacySecurityPage extends StatelessWidget {
@@ -67,7 +68,7 @@ class PrivacySecurityPage extends StatelessWidget {
                 icon: Icons.policy_outlined,
                 iconColor: AppColors.success,
                 title: "Privacy Policy",
-                subtitle: "How HobbyQuest uses your data",
+                subtitle: 'How ${AppInfo.appName} uses your data',
                 onTap: () => _showPrivacyPolicyDialog(context),
               ),
             ],
@@ -111,11 +112,11 @@ void _showPrivacyPolicyDialog(BuildContext context) {
                 ],
               ),
               const SizedBox(height: 12),
-              const SizedBox(
+              SizedBox(
                 height: 280,
                 child: SingleChildScrollView(
                   child: Text(
-                    "HobbyQuest stores your account profile, quest progress, guild posts, reactions, reviews, notification preference, and privacy settings so the app can run your learning journey.\n\nYour profile visibility setting controls whether other users can view your public profile. Your post stats visibility setting controls whether other users can see reaction and review stats on your guild posts.\n\nWe use Firebase services for authentication, database storage, cloud functions, and push notifications. We do not sell your personal data.\n\nYou can update these privacy settings anytime from this screen. You can also delete your account from the profile page, which removes your account data handled by the app.",
+                    '${AppInfo.appName} stores your account profile, quest progress, guild posts, reactions, reviews, notification preference, and privacy settings so the app can run your learning journey.\n\nYour profile visibility setting controls whether other users can view your public profile. Your post stats visibility setting controls whether other users can see reaction and review stats on your guild posts.\n\nWe use Firebase services for authentication, database storage, cloud functions, and push notifications. We do not sell your personal data.\n\nYou can update these privacy settings anytime from this screen. You can also delete your account from the profile page, which removes your account data handled by the app.',
                     style: TextStyle(
                       fontSize: AppFonts.badge,
                       height: 1.45,
@@ -133,7 +134,6 @@ void _showPrivacyPolicyDialog(BuildContext context) {
     ),
   );
 }
-
 
 class _PrivacySwitchTile extends StatelessWidget {
   final IconData icon;

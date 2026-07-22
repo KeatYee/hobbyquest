@@ -11,7 +11,6 @@ import '../services/quest_service.dart';
 import '../models/user_model.dart';
 import '../models/goal_history_model.dart';
 import '../services/goal_history_service.dart';
-import 'progression_controller.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
@@ -19,6 +18,7 @@ class HomeController extends GetxController {
   final QuestService _questService = QuestService();
   StreamSubscription<GrowthLetterModel?>? _growthLetterSubscription;
   Timer? _growthLetterAvailabilityTimer;
+  bool _isAdvancingMilestone = false;
 
   var user = Rx<UserModel?>(null);
   var nickname = "Hero".obs;
@@ -30,7 +30,6 @@ class HomeController extends GetxController {
 
   var isLoadingProfile = true.obs;
   var hasAvailableGrowthLetter = false.obs;
-  var isSeedingGoalCompletionTest = false.obs;
 
   var dailyQuests = <QuestNodeModel>[].obs;
   var isCompletedExpanded = false.obs;
@@ -314,67 +313,48 @@ class HomeController extends GetxController {
     );
   }
 
-  Future<GoalCompletionTestSeedResult> seedGoalCompletionTestState() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) throw Exception('User not logged in.');
-    if (isSeedingGoalCompletionTest.value) {
-      throw Exception('The test plan is already being prepared.');
-    }
+  void applyQuestCompletion(QuestCompletionResult result) {
+    var nextUser = result.updatedUser;
+    final currentUser = user.value;
 
-    try {
-      isSeedingGoalCompletionTest.value = true;
-      final result = await QuestService.seedGoalCompletionTestState(
-        currentUser.uid,
+    if (nextUser == null && currentUser != null) {
+      var replacedQuest = false;
+      final updatedQuests = currentUser.currentPlan.quests.map((quest) {
+        if (quest.nodeId != result.quest.nodeId) return quest;
+        replacedQuest = true;
+        return result.quest;
+      }).toList();
+      if (!replacedQuest) updatedQuests.add(result.quest);
+
+      nextUser = currentUser.copyWith(
+        totalXP: result.updatedTotalXP,
+        currentStreak: result.updatedStreak,
+        dailyQuestCompletionCount: result.dailyQuestCompletionCount,
+        categoryXp: result.updatedCategoryXp,
+        currentPlan: currentUser.currentPlan.copyWith(quests: updatedQuests),
+        updatedAt: result.didComplete
+            ? result.completionTime
+            : currentUser.updatedAt,
+        lastStreakDate: result.didComplete
+            ? result.completionTime
+            : currentUser.lastStreakDate,
+        lastQuestCompletionDate: result.didComplete
+            ? result.completionTime
+            : currentUser.lastQuestCompletionDate,
       );
-      await _loadUserProfile();
-      if (Get.isRegistered<ProgressionController>()) {
-        await Get.find<ProgressionController>().loadProgress();
-      }
-      return result;
-    } finally {
-      isSeedingGoalCompletionTest.value = false;
-    }
-  }
-
-  Future<bool> completeQuest(
-    String questId, {
-    String reflectionNote = '',
-  }) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      print("--- ERROR: User not logged in ---");
-      return false;
     }
 
-    final planId = user.value?.activePlanId ?? '';
-    if (planId.isEmpty) {
-      print("--- ERROR: No active plan ---");
-      return false;
-    }
+    if (nextUser == null) return;
 
-    final updatedUser = await _questService.completeQuestTransaction(
-      uid: currentUser.uid,
-      planId: planId,
-      questId: questId,
-      reflectionNote: reflectionNote,
-    );
-
-    if (updatedUser == null) return false;
-
-    final updatedPlan = updatedUser.currentPlan;
-
-    user.value = updatedUser;
+    final updatedPlan = nextUser.currentPlan;
+    user.value = nextUser;
+    nickname.value = nextUser.nickname;
+    avatarSvg.value = nextUser.avatarSvg;
     hobby.value = updatedPlan.hobby;
     goal.value = updatedPlan.goal;
     learningPace.value = updatedPlan.learningPace;
     level.value = updatedPlan.level;
-
     dailyQuests.value = getAllQuestNodes(updatedPlan.quests);
-    await refreshGrowthLetterAvailability();
-
-    print('--- INFO: Quest $questId completed via HomeController ---');
-
-    return true;
   }
 
   /// Reroll a single quest card and persist the updated title/description.
@@ -587,6 +567,7 @@ class HomeController extends GetxController {
   bool hasCompletedMilestone() {
     final plan = user.value?.currentPlan;
     if (plan == null) return false;
+    if (plan.quests.isEmpty) return false;
     if (!plan.quests.every((q) => q.isCompleted)) return false;
     final nextIndex = plan.currentMilestoneIndex + 1;
     return nextIndex < plan.milestones.length;
@@ -597,6 +578,7 @@ class HomeController extends GetxController {
   bool hasCompletedFinalMilestone() {
     final plan = user.value?.currentPlan;
     if (plan == null || plan.milestones.isEmpty) return false;
+    if (plan.quests.isEmpty) return false;
     if (!plan.quests.every((q) => q.isCompleted)) return false;
     return plan.currentMilestoneIndex >= plan.milestones.length - 1;
   }
@@ -687,16 +669,20 @@ class HomeController extends GetxController {
   /// Generates the next milestone's quests, replaces the old quests in Firestore,
   /// and refreshes the local state. Should be called after the user confirms on
   /// the milestone-complete screen.
-  Future<void> advanceToNextMilestone() async {
+  Future<bool> advanceToNextMilestone() async {
+    if (_isAdvancingMilestone) return false;
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) return false;
     final plan = user.value?.currentPlan;
     final uid = currentUser.uid;
     final planId = user.value?.activePlanId ?? '';
-    if (plan == null || planId.isEmpty) return;
+    if (plan == null || planId.isEmpty || !hasCompletedMilestone()) {
+      return false;
+    }
 
+    final currentIndex = plan.currentMilestoneIndex;
     final nextIndex = plan.currentMilestoneIndex + 1;
-    if (nextIndex >= plan.milestones.length) return;
+    if (nextIndex >= plan.milestones.length) return false;
 
     final nextMilestone = plan.milestones[nextIndex];
     final milestoneNumber = (nextIndex + 1).toString();
@@ -718,9 +704,9 @@ class HomeController extends GetxController {
       );
     }
 
-    List<QuestNodeModel> newQuests;
+    _isAdvancingMilestone = true;
     try {
-      newQuests = await _geminiService.generatePhaseDAG(
+      final newQuests = await _geminiService.generatePhaseDAG(
         hobby: hobby.value,
         level: level.value,
         goal: goal.value,
@@ -728,25 +714,38 @@ class HomeController extends GetxController {
         milestoneTitle: nextMilestone.title,
         milestoneNumber: milestoneNumber,
       );
-    } catch (e) {
-      print(
-        '--- ERROR: Gemini API failed during milestone advancement: $e ---',
+      if (newQuests.isEmpty) {
+        throw StateError('No quests were generated for the next milestone.');
+      }
+
+      final updatedUser = await _questService.addQuestsToPlan(
+        uid: uid,
+        planId: planId,
+        newQuests: newQuests,
+        expectedCompletedQuestIds: plan.quests
+            .map((quest) => quest.nodeId)
+            .toList(),
+        expectedCurrentMilestoneIndex: currentIndex,
+        currentMilestoneIndex: nextIndex,
+        milestones: updatedMilestones,
       );
-      print('--- WARNING: Using fallback quests ---');
+
+      user.value = updatedUser;
+      dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
+      return true;
+    } catch (_) {
+      // A lost client response can hide a committed transaction. Reload before
+      // deciding whether the transition genuinely failed.
+      await _loadUserProfile();
+      final refreshedIndex = user.value?.currentPlan.currentMilestoneIndex;
+      if (user.value?.activePlanId == planId &&
+          refreshedIndex != null &&
+          refreshedIndex >= nextIndex) {
+        return true;
+      }
       rethrow;
+    } finally {
+      _isAdvancingMilestone = false;
     }
-
-    final updatedUser = await _questService.addQuestsToPlan(
-      uid: uid,
-      planId: planId,
-      newQuests: newQuests,
-      currentMilestoneIndex: nextIndex,
-      milestones: updatedMilestones,
-    );
-
-    if (updatedUser == null) return;
-
-    user.value = updatedUser;
-    dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
   }
 }

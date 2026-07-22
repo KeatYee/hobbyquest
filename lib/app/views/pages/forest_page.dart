@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/constants/asset_constants.dart';
 import '../../models/tree_model.dart';
 import '../../../core/utils/dialog_utils.dart';
 
@@ -15,7 +16,7 @@ class ForestPage extends StatefulWidget {
 }
 
 class _ForestPageState extends State<ForestPage> {
-  static const int _spotCount = 9;
+  static const int _spotCount = TreeModel.forestSpotCount;
 
   Future<void> _onSwap(
     TreeModel dragged,
@@ -25,11 +26,28 @@ class _ForestPageState extends State<ForestPage> {
     if (dragged.id == target.tree.id) return;
     try {
       final draggedEntry = items.firstWhere((e) => e.tree.id == dragged.id);
-      final batch = FirebaseFirestore.instance.batch();
-      batch.update(draggedEntry.ref, {'treeIndex': target.tree.treeIndex});
-      batch.update(target.ref, {'treeIndex': dragged.treeIndex});
-      await batch.commit();
-    } catch (_) {}
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final draggedSnapshot = await transaction.get(draggedEntry.ref);
+        final targetSnapshot = await transaction.get(target.ref);
+        if (!draggedSnapshot.exists || !targetSnapshot.exists) {
+          throw StateError('One of the trees no longer exists.');
+        }
+
+        final draggedData = Map<String, dynamic>.from(
+          draggedSnapshot.data() as Map,
+        );
+        final targetData = Map<String, dynamic>.from(
+          targetSnapshot.data() as Map,
+        );
+        final draggedIndex = (draggedData['treeIndex'] as num?)?.toInt() ?? 0;
+        final targetIndex = (targetData['treeIndex'] as num?)?.toInt() ?? 0;
+
+        transaction.update(draggedEntry.ref, {'treeIndex': targetIndex});
+        transaction.update(target.ref, {'treeIndex': draggedIndex});
+      });
+    } catch (e) {
+      AppDialogs.error('Could not move tree', e.toString());
+    }
   }
 
   Future<void> _onAssignToEmptySpot(
@@ -38,10 +56,55 @@ class _ForestPageState extends State<ForestPage> {
     List<({TreeModel tree, DocumentReference ref})> items,
   ) async {
     if (dragged.treeIndex == spotIndex) return;
+    if (spotIndex < 0 || spotIndex >= _spotCount) return;
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
       final draggedEntry = items.firstWhere((e) => e.tree.id == dragged.id);
-      await draggedEntry.ref.update({'treeIndex': spotIndex});
-    } catch (_) {}
+      final firestore = FirebaseFirestore.instance;
+      final userRef = firestore.collection('users').doc(uid);
+
+      await firestore.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(userRef);
+        final draggedSnapshot = await transaction.get(draggedEntry.ref);
+        final userData = userSnapshot.data();
+        if (userData == null || !draggedSnapshot.exists) {
+          throw StateError('The forest changed. Please try again.');
+        }
+
+        final draggedData = Map<String, dynamic>.from(
+          draggedSnapshot.data() as Map,
+        );
+        final currentIndex =
+            (draggedData['treeIndex'] as num?)?.toInt() ?? dragged.treeIndex;
+        final occupiedSlots = _readOccupiedSlots(userData['occupiedTreeSlots'])
+          ..addAll(items.map((entry) => entry.tree.treeIndex));
+
+        if (occupiedSlots.contains(spotIndex) && spotIndex != currentIndex) {
+          throw StateError('That forest spot is no longer empty.');
+        }
+
+        occupiedSlots
+          ..remove(currentIndex)
+          ..add(spotIndex);
+        transaction.update(draggedEntry.ref, {'treeIndex': spotIndex});
+        transaction.update(userRef, {
+          'occupiedTreeSlots': occupiedSlots.toList()..sort(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      AppDialogs.error('Could not move tree', e.toString());
+    }
+  }
+
+  Set<int> _readOccupiedSlots(dynamic value) {
+    if (value is! List) return <int>{};
+    return value
+        .whereType<num>()
+        .map((item) => item.toInt())
+        .where((index) => index >= 0 && index < _spotCount)
+        .toSet();
   }
 
   Widget _buildEmptySpot(bool isHovered) {
@@ -147,13 +210,16 @@ class _ForestPageState extends State<ForestPage> {
             const SizedBox(height: 12),
             Text(
               tree.treeName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontSize: AppFonts.title,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               'XP Required: ${tree.xpRequired}',
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: AppFonts.bodyLg,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -161,7 +227,7 @@ class _ForestPageState extends State<ForestPage> {
             Text(
               'Grown At: ${tree.grownAt != null ? '${tree.grownAt!.year}-${tree.grownAt!.month.toString().padLeft(2, '0')}-${tree.grownAt!.day.toString().padLeft(2, '0')}' : 'N/A'}',
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: AppFonts.bodyLg,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -169,7 +235,7 @@ class _ForestPageState extends State<ForestPage> {
             Text(
               'Quests Completed: ${tree.questsCompleted}',
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: AppFonts.bodyLg,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -177,7 +243,7 @@ class _ForestPageState extends State<ForestPage> {
             Text(
               'Learning Time: ${tree.learningMinutes ~/ 60}h ${tree.learningMinutes % 60}m',
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: AppFonts.bodyLg,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -237,14 +303,14 @@ class _ForestPageState extends State<ForestPage> {
               value,
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
-                fontSize: 16,
+                fontSize: AppFonts.body,
                 color: AppColors.textPrimary,
               ),
             ),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFonts.micro,
                 color: AppColors.textPrimary.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w500,
               ),
@@ -257,7 +323,7 @@ class _ForestPageState extends State<ForestPage> {
 
   Widget _buildTreeAsset({double width = 140, double height = 140}) {
     return Image.asset(
-      'assets/images/mature_tree.png',
+      AppAssets.treeMature,
       width: width,
       height: height,
       fit: BoxFit.contain,
@@ -299,7 +365,7 @@ class _ForestPageState extends State<ForestPage> {
                   child: Opacity(
                     opacity: 0.5,
                     child: Image.asset(
-                      'assets/images/forestBG.jpg',
+                      AppAssets.forestBackground,
                       fit: BoxFit.cover,
                     ),
                   ),

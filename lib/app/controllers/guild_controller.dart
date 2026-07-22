@@ -48,7 +48,7 @@ class GuildController extends GetxController {
       }
     });
 
-    seedGuildPosts().then((_) => loadAllData());
+    loadAllData();
   }
 
   @override
@@ -385,10 +385,12 @@ class GuildController extends GetxController {
         reactions: {},
         createdAt: DateTime.now(),
       );
+      final postData = newPost.toJson()
+        ..['createdAt'] = FieldValue.serverTimestamp();
 
       final docRef = await _firestore
           .collection(_guildPostsCollection)
-          .add(newPost.toJson());
+          .add(postData);
 
       print('--- SUCCESS: Guild post created with ID: ${docRef.id} ---');
 
@@ -404,385 +406,55 @@ class GuildController extends GetxController {
   /// Toggle a reaction emoji on a post
   Future<void> toggleReaction(String postId, String emoji) async {
     final uid = currentUserId.value;
-    if (uid == null) return;
+    if (uid == null || !reactionEmojis.contains(emoji)) return;
 
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      final index = posts.indexWhere((p) => p.id == postId);
-      if (index < 0) return;
+      final updatedReactions = await _firestore
+          .runTransaction<Map<String, List<String>>>((transaction) async {
+            final snapshot = await transaction.get(postRef);
+            final data = snapshot.data();
+            if (data == null) {
+              throw StateError('Guild post not found.');
+            }
 
-      final post = posts[index];
-      final currentUserEmojis = Set<String>.from(userReactions[postId] ?? {});
-      final alreadyReacted = currentUserEmojis.contains(emoji);
+            final reactions = _readReactions(data['reactions']);
+            final users = List<String>.from(reactions[emoji] ?? const []);
+            if (users.contains(uid)) {
+              users.removeWhere((userId) => userId == uid);
+            } else {
+              users.add(uid);
+            }
 
-      if (alreadyReacted) {
-        await postRef.update({
-          'reactions.$emoji': FieldValue.arrayRemove([uid]),
-        });
+            if (users.isEmpty) {
+              reactions.remove(emoji);
+            } else {
+              reactions[emoji] = users;
+            }
+            transaction.update(postRef, {'reactions': reactions});
+            return reactions;
+          });
 
-        final updatedReactions = Map<String, List<String>>.from(post.reactions);
-        final currentList = List<String>.from(updatedReactions[emoji] ?? []);
-        currentList.remove(uid);
-        if (currentList.isEmpty) {
-          updatedReactions.remove(emoji);
-        } else {
-          updatedReactions[emoji] = currentList;
-        }
-
-        posts[index] = post.copyWith(reactions: updatedReactions);
-
-        currentUserEmojis.remove(emoji);
-        if (currentUserEmojis.isEmpty) {
-          userReactions.remove(postId);
-        } else {
-          userReactions[postId] = currentUserEmojis;
-        }
-
-        print('--- SUCCESS: Removed reaction $emoji from post $postId ---');
-      } else {
-        await postRef.update({
-          'reactions.$emoji': FieldValue.arrayUnion([uid]),
-        });
-
-        final updatedReactions = Map<String, List<String>>.from(post.reactions);
-        final currentList = List<String>.from(updatedReactions[emoji] ?? []);
-        currentList.add(uid);
-        updatedReactions[emoji] = currentList;
-
-        posts[index] = post.copyWith(reactions: updatedReactions);
-
-        currentUserEmojis.add(emoji);
-        userReactions[post.id] = currentUserEmojis;
-
-        print('--- SUCCESS: Added reaction $emoji to post $postId ---');
+      final index = posts.indexWhere((post) => post.id == postId);
+      if (index >= 0) {
+        posts[index] = posts[index].copyWith(reactions: updatedReactions);
+        posts.refresh();
       }
 
-      posts.refresh();
+      final reactedEmojis = updatedReactions.entries
+          .where((entry) => entry.value.contains(uid))
+          .map((entry) => entry.key)
+          .toSet();
+      if (reactedEmojis.isEmpty) {
+        userReactions.remove(postId);
+      } else {
+        userReactions[postId] = reactedEmojis;
+      }
+
+      print('--- SUCCESS: Synchronized reaction $emoji on post $postId ---');
     } catch (e) {
       print('--- ERROR: Failed to toggle reaction on post $postId: $e ---');
     }
-  }
-
-  /// Demo user IDs used across seeded posts and peer reviews.
-  /// Documents for these users are also created in Firestore
-  /// via [seedDemoUsers] so avatars and nicknames resolve correctly.
-  static const _demoUsers = [
-    'demo_mia',
-    'demo_jay',
-    'demo_lee',
-    'demo_sam',
-    'demo_ray',
-    'demo_tess',
-  ];
-
-  /// Profile data for each demo user.
-  /// Order matches [_demoUsers].
-  static const _demoUserProfiles = [
-    {
-      'nickname': 'Mia',
-      'avatarSvg': 'assets/images/avatar_cultivator_f.png',
-      'hobby': 'Painting',
-    },
-    {
-      'nickname': 'Jay',
-      'avatarSvg': 'assets/images/avatar_earthbreaker_m.png',
-      'hobby': 'Photography',
-    },
-    {
-      'nickname': 'Lee',
-      'avatarSvg': 'assets/images/avatar_wildseed_m.png',
-      'hobby': 'Drawing',
-    },
-    {
-      'nickname': 'Sam',
-      'avatarSvg': 'assets/images/avatar_grovekeeper_m.png',
-      'hobby': 'Guitar',
-    },
-    {
-      'nickname': 'Ray',
-      'avatarSvg': 'assets/images/avatar_harvester_m.png',
-      'hobby': 'Coding',
-    },
-    {
-      'nickname': 'Tess',
-      'avatarSvg': 'assets/images/avatar_nurturer_f.png',
-      'hobby': 'Yoga',
-    },
-  ];
-
-  /// Seed user documents for all demo users so that
-  /// avatar and nickname lookups resolve correctly in the guild feed.
-  Future<void> seedDemoUsers() async {
-    print("--- SEEDING DEMO USERS ---");
-    final usersRef = _firestore.collection('users');
-
-    for (var i = 0; i < _demoUsers.length; i++) {
-      final userId = _demoUsers[i];
-      final profile = _demoUserProfiles[i];
-
-      final doc = await usersRef.doc(userId).get();
-      if (!doc.exists) {
-        await usersRef.doc(userId).set({
-          'nickname': profile['nickname'],
-          'avatarSvg': profile['avatarSvg'],
-          'isOnboardingComplete': true,
-          'totalXP': 0,
-          'currentStreak': 0,
-          'dailyQuestCompletionCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'currentPlan': {
-            'hobby': profile['hobby'],
-            'level': 'Novice',
-            'goal': '',
-            'learningPace': 'Steady Learner',
-            'progress': 0,
-            'currentMilestoneIndex': 0,
-            'milestones': <dynamic>[],
-            'quests': <dynamic>[],
-          },
-        });
-        print("✅ Created user: ${profile['nickname']} ($userId)");
-      } else {
-        print("⚠️ Skipped user $userId (Already exists)");
-      }
-    }
-    print("--- SEEDING DEMO USERS COMPLETE ---");
-  }
-
-  Future<void> seedGuildPosts() async {
-    print("--- SEEDING GUILD POSTS ---");
-    final collection = _firestore.collection(_guildPostsCollection);
-
-    await seedDemoUsers();
-
-    final refreshedCategories = await _firestore.collection('categories').get();
-    Map<String, String> categoryMap = {};
-    for (var doc in refreshedCategories.docs) {
-      final name = doc.data()['name'] as String? ?? '';
-      if (name.isNotEmpty) {
-        categoryMap[name] = doc.id;
-      }
-    }
-
-    final creativeArtsId = categoryMap['Creative Arts'] ?? '';
-    final musicId = categoryMap['Music & Performing'] ?? '';
-    final wellnessId = categoryMap['Lifestyle & Wellness'] ?? '';
-    final strategyId = categoryMap['Skill & Strategy'] ?? '';
-
-    List<Map<String, dynamic>> initialData = [
-      {
-        'userId': _demoUsers[0],
-        'hobby': 'Painting',
-        'categoryId': creativeArtsId,
-        'title': 'Best watercolor techniques for beginners',
-        'body':
-            'I have been experimenting with wet-on-wet and wet-on-dry techniques. Would love to hear what everyone else recommends for someone just starting out!',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [_demoUsers[1], _demoUsers[2]],
-          '👏': [_demoUsers[3]],
-        },
-        'peerReviews': {
-          _demoUsers[1]: {
-            'Creativity': 4.0,
-            'Technique': 3.5,
-            'Color Theory': 5.0,
-          },
-          _demoUsers[3]: {
-            'Creativity': 5.0,
-            'Technique': 4.0,
-            'Color Theory': 4.5,
-          },
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 2)),
-      },
-      {
-        'userId': _demoUsers[1],
-        'hobby': 'Photography',
-        'categoryId': creativeArtsId,
-        'title': 'Golden hour photography spots in town',
-        'body':
-            'I compiled a list of the best locations for sunset and sunrise shots around the city. Drop your favorite spots below and I will add them to the map!',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [_demoUsers[0], _demoUsers[4]],
-          '👏': [_demoUsers[2], _demoUsers[3]],
-          '💡': [_demoUsers[5]],
-        },
-        'peerReviews': {
-          _demoUsers[2]: {'Composition': 5.0, 'Lighting': 4.5, 'Editing': 3.0},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 3)),
-      },
-      {
-        'userId': _demoUsers[2],
-        'hobby': 'Drawing',
-        'categoryId': creativeArtsId,
-        'title': 'Daily sketch challenge — day 30 reflection',
-        'body':
-            'Just finished my 30-day daily sketch challenge! I focused on gesture drawing and saw huge improvement in my line work. Highly recommend this to anyone looking to level up.',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [_demoUsers[0], _demoUsers[1], _demoUsers[4]],
-          '👏': [_demoUsers[3]],
-        },
-        'peerReviews': {
-          _demoUsers[4]: {'Composition': 4.5, 'Line Work': 4.0, 'Shading': 3.5},
-          _demoUsers[5]: {'Composition': 5.0, 'Line Work': 5.0, 'Shading': 4.0},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 6)),
-      },
-
-      {
-        'userId': _demoUsers[3],
-        'hobby': 'Guitar',
-        'categoryId': musicId,
-        'title': 'Learning my first chord progression',
-        'body':
-            'Just mastered G-C-D progression! Any song recommendations that use these chords so I can practice transitioning between them?',
-        'imageUrl': '',
-        'reactions': {
-          '👏': [_demoUsers[0], _demoUsers[1]],
-        },
-        'peerReviews': {
-          _demoUsers[0]: {'Rhythm': 3.0, 'Technique': 2.5, 'Musicality': 3.5},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 5)),
-      },
-      {
-        'userId': _demoUsers[4],
-        'hobby': 'Singing',
-        'categoryId': musicId,
-        'title': 'Overcoming stage fright — my journey so far',
-        'body':
-            'I used to freeze up before every open mic. After 6 months of practice and small performances, I can finally sing in front of a crowd without my voice shaking. Here is what helped me.',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[5]],
-          '👏': [_demoUsers[1], _demoUsers[2]],
-        },
-        'peerReviews': {
-          _demoUsers[2]: {'Pitch': 4.0, 'Tone': 4.5, 'Breath Control': 3.5},
-          _demoUsers[3]: {'Pitch': 3.5, 'Tone': 5.0, 'Breath Control': 4.0},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 4)),
-      },
-
-      {
-        'userId': _demoUsers[5],
-        'hobby': 'Yoga',
-        'categoryId': wellnessId,
-        'title': '30-day yoga challenge — who is in?',
-        'body':
-            'Starting a 30-day yoga challenge next Monday. Minimum 15 minutes each day. I will post daily prompts. Comment if you want to join!',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [_demoUsers[0], _demoUsers[3], _demoUsers[4], _demoUsers[1]],
-          '👏': [_demoUsers[2]],
-        },
-        'peerReviews': {},
-        'createdAt': DateTime.now().subtract(const Duration(days: 1)),
-      },
-      {
-        'userId': _demoUsers[0],
-        'hobby': 'Cooking',
-        'categoryId': wellnessId,
-        'title': 'Share your favorite quick weeknight dinner',
-        'body':
-            'Busy schedule means I need dinners under 30 minutes. Please share your go-to recipes — bonus points if they use 5 ingredients or fewer!',
-        'imageUrl': '',
-        'reactions': {
-          '🔥': [
-            _demoUsers[1],
-            _demoUsers[2],
-            _demoUsers[3],
-            _demoUsers[4],
-            _demoUsers[5],
-          ],
-          '👏': [],
-        },
-        'peerReviews': {
-          _demoUsers[3]: {'Taste': 4.0, 'Presentation': 3.5, 'Technique': 4.0},
-          _demoUsers[4]: {'Taste': 5.0, 'Presentation': 4.5, 'Technique': 4.5},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 4)),
-      },
-
-      {
-        'userId': _demoUsers[1],
-        'hobby': 'Coding',
-        'categoryId': strategyId,
-        'title': 'Best resources for learning Flutter',
-        'body':
-            'I am diving into Flutter development and looking for the best courses, YouTube channels, and books. What has worked for you?',
-        'imageUrl': '',
-        'reactions': {
-          '💡': [_demoUsers[0], _demoUsers[2], _demoUsers[3]],
-          '🔥': [_demoUsers[4]],
-        },
-        'peerReviews': {
-          _demoUsers[5]: {
-            'Code Quality': 4.0,
-            'Efficiency': 3.0,
-            'Readability': 4.5,
-          },
-        },
-        'createdAt': DateTime.now().subtract(const Duration(hours: 12)),
-      },
-      {
-        'userId': _demoUsers[2],
-        'hobby': 'Chess',
-        'categoryId': strategyId,
-        'title': 'Chess tactics puzzle of the day',
-        'body':
-            'White to move and win material in 3 moves. I will post the solution tomorrow! Hint: look for a forcing sequence.',
-        'imageUrl': '',
-        'reactions': {
-          '💡': [_demoUsers[0]],
-          '🔥': [_demoUsers[1], _demoUsers[3]],
-        },
-        'peerReviews': {
-          _demoUsers[0]: {'Strategy': 5.0, 'Tactics': 4.5, 'Endgame': 3.0},
-          _demoUsers[4]: {'Strategy': 4.0, 'Tactics': 5.0, 'Endgame': 3.5},
-        },
-        'createdAt': DateTime.now().subtract(const Duration(hours: 6)),
-      },
-      {
-        'userId': _demoUsers[4],
-        'hobby': 'Language',
-        'categoryId': strategyId,
-        'title': 'How I learned 50 new words in a week',
-        'body':
-            'I used the spaced repetition method with physical flashcards. Writing each word in a sentence helped way more than just memorizing definitions. Try it!',
-        'imageUrl': '',
-        'reactions': {
-          '👏': [_demoUsers[0], _demoUsers[1], _demoUsers[5]],
-          '💡': [_demoUsers[2]],
-        },
-        'peerReviews': {
-          _demoUsers[3]: {
-            'Vocabulary': 4.5,
-            'Grammar': 4.0,
-            'Pronunciation': 3.5,
-          },
-        },
-        'createdAt': DateTime.now().subtract(const Duration(days: 7)),
-      },
-    ];
-
-    for (var data in initialData) {
-      var snapshot = await collection
-          .where('title', isEqualTo: data['title'])
-          .get();
-      if (snapshot.docs.isEmpty) {
-        await collection.add(data);
-        print("✅ Added '${data['title']}'");
-      } else {
-        print("⚠️ Skipped '${data['title']}' (Already exists)");
-      }
-    }
-    print("--- SEEDING GUILD POSTS COMPLETE ---");
   }
 
   /// Whether the current user has already reviewed a given post.
@@ -812,30 +484,43 @@ class GuildController extends GetxController {
   }) async {
     final uid = currentUserId.value;
     if (uid == null) return false;
-
-    final postIndex = posts.indexWhere((p) => p.id == postId);
-    if (postIndex >= 0 && posts[postIndex].peerReviews.containsKey(uid)) {
-      print('--- SKIP: User $uid already reviewed post $postId ---');
+    if (ratings.isEmpty ||
+        ratings.values.any(
+          (rating) => !rating.isFinite || rating < 1 || rating > 5,
+        )) {
       return false;
     }
 
     try {
       final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
+      final updatedReviews = await _firestore
+          .runTransaction<Map<String, Map<String, double>>?>((
+            transaction,
+          ) async {
+            final snapshot = await transaction.get(postRef);
+            final data = snapshot.data();
+            if (data == null) {
+              throw StateError('Guild post not found.');
+            }
 
-      final snapshot = await postRef.get();
-      final currentPeerReviews = Map<String, dynamic>.from(
-        (snapshot.data()?['peerReviews'] as Map?) ?? {},
-      );
-      currentPeerReviews[uid] = ratings;
-      await postRef.update({'peerReviews': currentPeerReviews});
+            final reviews = _readPeerReviews(data['peerReviews']);
+            if (reviews.containsKey(uid)) {
+              return null;
+            }
 
+            reviews[uid] = Map<String, double>.from(ratings);
+            transaction.update(postRef, {'peerReviews': reviews});
+            return reviews;
+          });
+      if (updatedReviews == null) {
+        print('--- SKIP: User $uid already reviewed post $postId ---');
+        return false;
+      }
+
+      final postIndex = posts.indexWhere((post) => post.id == postId);
       if (postIndex >= 0) {
-        final existingReviews = Map<String, Map<String, double>>.from(
-          posts[postIndex].peerReviews,
-        );
-        existingReviews[uid] = ratings;
         posts[postIndex] = posts[postIndex].copyWith(
-          peerReviews: existingReviews,
+          peerReviews: updatedReviews,
         );
         posts.refresh();
 
@@ -850,6 +535,39 @@ class GuildController extends GetxController {
       print('--- ERROR: Failed to submit peer review: $e ---');
       return false;
     }
+  }
+
+  Map<String, List<String>> _readReactions(dynamic value) {
+    if (value is! Map) return <String, List<String>>{};
+
+    final reactions = <String, List<String>>{};
+    for (final entry in value.entries) {
+      if (entry.value is! List) continue;
+      reactions[entry.key.toString()] = (entry.value as List)
+          .map((userId) => userId.toString().trim())
+          .where((userId) => userId.isNotEmpty)
+          .toSet()
+          .toList();
+    }
+    return reactions;
+  }
+
+  Map<String, Map<String, double>> _readPeerReviews(dynamic value) {
+    if (value is! Map) return <String, Map<String, double>>{};
+
+    final reviews = <String, Map<String, double>>{};
+    for (final entry in value.entries) {
+      if (entry.value is! Map) continue;
+      final ratings = <String, double>{};
+      for (final rating in (entry.value as Map).entries) {
+        final score = rating.value;
+        if (score is num) {
+          ratings[rating.key.toString()] = score.toDouble();
+        }
+      }
+      reviews[entry.key.toString()] = ratings;
+    }
+    return reviews;
   }
 
   /// Fallback default axes.

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/constants/asset_constants.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/progression_controller.dart';
@@ -35,6 +36,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Animation<double>? _shakeAnimation;
   int _displayedStage = 0;
   String _displayedStageCategory = '';
+  bool _isSavingTree = false;
 
   final List<String> _speechMessages = [
     "Oh, hello! Who's that? Are you my new gardener?",
@@ -44,11 +46,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   String _treeImageForStage(int stage) {
     const images = [
-      'assets/images/seed.png',
-      'assets/images/sprout.png',
-      'assets/images/seedling.png',
-      'assets/images/young_tree.png',
-      'assets/images/mature_tree.png',
+      AppAssets.treeSeed,
+      AppAssets.treeSprout,
+      AppAssets.treeSeedling,
+      AppAssets.treeYoung,
+      AppAssets.treeMature,
     ];
     return images[stage.clamp(0, 4)];
   }
@@ -154,74 +156,145 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.forward(from: 0.0);
   }
 
-  Future<void> _saveTreeToForest(
+  Future<bool> _saveTreeToForest(
     CategoryModel category,
     String treeName,
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null || _isSavingTree) return false;
+    _isSavingTree = true;
+
+    final firestore = FirebaseFirestore.instance;
+    final userRef = firestore.collection('users').doc(uid);
+    final treeCollection = userRef.collection('tree');
     final progressionController = Get.find<ProgressionController>();
+    final homeController = Get.find<HomeController>();
 
     try {
-      final existingDocs = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('tree')
-          .get();
-      final usedIndices = existingDocs.docs
-          .map((doc) => doc['treeIndex'] as int? ?? 0)
-          .toSet();
-      int firstFree = 0;
-      while (usedIndices.contains(firstFree) && firstFree < 6) {
-        firstFree++;
+      final userSnapshot = await userRef.get();
+      final userData = userSnapshot.data();
+      if (userData == null) {
+        throw StateError('User profile not found.');
+      }
+      final planId = userData['activePlanId']?.toString().trim() ?? '';
+      if (planId.isEmpty) {
+        throw StateError('No active learning plan was found.');
       }
 
-      final userSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final rawPlan = userSnap.data()?['currentPlan'] as Map<String, dynamic>?;
-      final rawQuests = rawPlan?['quests'] as List<dynamic>? ?? [];
-      final completedCount = rawQuests
-          .where((q) => q is Map<String, dynamic> && q['isCompleted'] == true)
-          .length;
-      final totalMinutes = rawQuests
-          .where((q) => q is Map<String, dynamic> && q['isCompleted'] == true)
-          .fold<int>(
-            0,
-            (acc, q) =>
-                acc +
-                ((q['durationMinutes'] as int?) ??
-                    (q['duration_minutes'] as int?) ??
-                    0),
+      final existingDocs = await treeCollection.get();
+      final existingIndices = existingDocs.docs
+          .map((doc) => (doc.data()['treeIndex'] as num?)?.toInt() ?? 0)
+          .where((index) => index >= 0 && index < TreeModel.forestSpotCount)
+          .toSet();
+      var completedCount = 0;
+      var totalMinutes = 0;
+      if (planId.isNotEmpty) {
+        final questSnapshot = await userRef
+            .collection('plans')
+            .doc(planId)
+            .collection('quests')
+            .get();
+        for (final quest in questSnapshot.docs) {
+          final data = quest.data();
+          if (data['isCompleted'] != true) continue;
+          completedCount += 1;
+          totalMinutes +=
+              (data['durationMinutes'] as num?)?.toInt() ??
+              (data['duration_minutes'] as num?)?.toInt() ??
+              0;
+        }
+      }
+
+      final treeRef = treeCollection.doc();
+      await firestore.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(userRef);
+        final userData = userSnapshot.data();
+        if (userData == null) {
+          throw StateError('User profile not found.');
+        }
+        final storedPlanId = userData['activePlanId']?.toString().trim() ?? '';
+        if (storedPlanId != planId) {
+          throw StateError('The active learning plan changed. Please retry.');
+        }
+
+        final categoryXp = <String, dynamic>{};
+        final storedCategoryXp = userData['categoryXp'];
+        if (storedCategoryXp is Map) {
+          categoryXp.addAll(Map<String, dynamic>.from(storedCategoryXp));
+        }
+        final currentXp =
+            (categoryXp[category.name] as num?)?.toInt() ??
+            (userData['categoryXp.${category.name}'] as num?)?.toInt() ??
+            0;
+        if (currentXp < TreeModel.maturityXp) {
+          throw StateError('This tree has not reached maturity yet.');
+        }
+
+        final occupiedSlots = <int>{...existingIndices};
+        final storedSlots = userData['occupiedTreeSlots'];
+        if (storedSlots is List) {
+          occupiedSlots.addAll(
+            storedSlots
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where(
+                  (index) => index >= 0 && index < TreeModel.forestSpotCount,
+                ),
           );
+        }
 
-      final tree = TreeModel(
-        treeName: treeName,
-        categoryId: category.id,
-        planId: Get.find<HomeController>().user.value?.activePlanId ?? '',
-        xpRequired: 800,
-        treeIndex: firstFree,
-        questsCompleted: completedCount,
-        learningMinutes: totalMinutes,
-        createdAt: DateTime.now(),
-        grownAt: DateTime.now(),
-      );
+        int? firstFree;
+        for (var index = 0; index < TreeModel.forestSpotCount; index++) {
+          if (!occupiedSlots.contains(index)) {
+            firstFree = index;
+            break;
+          }
+        }
+        if (firstFree == null) {
+          throw StateError('Your forest is full.');
+        }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('tree')
-          .add(tree.toJson());
+        final tree = TreeModel(
+          treeName: treeName,
+          categoryId: category.id,
+          planId: planId,
+          xpRequired: TreeModel.maturityXp,
+          treeIndex: firstFree,
+          questsCompleted: completedCount,
+          learningMinutes: totalMinutes,
+          createdAt: DateTime.now(),
+          grownAt: DateTime.now(),
+        );
+        final treeData = tree.toJson()
+          ..['createdAt'] = FieldValue.serverTimestamp()
+          ..['grownAt'] = FieldValue.serverTimestamp();
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'categoryXp.${category.name}': 0,
+        occupiedSlots.add(firstFree);
+        categoryXp[category.name] = 0;
+        transaction.set(treeRef, treeData);
+        transaction.update(userRef, {
+          'categoryXp': categoryXp,
+          'occupiedTreeSlots': occupiedSlots.toList()..sort(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
+
       progressionController.categoryXp[category.name] = 0;
+      final currentUser = homeController.user.value;
+      if (currentUser != null) {
+        homeController.user.value = currentUser.copyWith(
+          categoryXp: {...currentUser.categoryXp, category.name: 0},
+        );
+      }
 
       print('--- Tree saved to forest: ${category.name} ---');
+      return true;
     } catch (e) {
       print('--- Error saving tree to forest: $e ---');
+      AppDialogs.error('Could not plant tree', e.toString());
+      return false;
+    } finally {
+      _isSavingTree = false;
     }
   }
 
@@ -295,7 +368,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.textOnPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -317,8 +390,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
 
     if (result == true && nameController.text.trim().isNotEmpty) {
-      await _saveTreeToForest(category, nameController.text.trim());
-      Get.toNamed(AppRoutes.FOREST);
+      final saved = await _saveTreeToForest(
+        category,
+        nameController.text.trim(),
+      );
+      if (saved) {
+        Get.toNamed(AppRoutes.FOREST);
+      }
     }
     nameController.dispose();
   }
@@ -591,11 +669,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.textOnPrimary,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.1,
+                                ),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -679,11 +759,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.textOnPrimary,
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: AppColors.textPrimary.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     ),
@@ -810,7 +892,7 @@ class _TriangleDownPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = AppColors.textOnPrimary
       ..style = PaintingStyle.fill;
     final path = Path()
       ..moveTo(0, 0)

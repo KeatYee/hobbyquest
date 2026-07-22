@@ -53,7 +53,11 @@ class _Step2CategoryState extends State<Step2Category> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 5),
                     Text(
                       "Select a hobby to continue",
@@ -98,16 +102,24 @@ class _Step2CategoryState extends State<Step2Category> {
                         categoryName,
                         style: GoogleFonts.openSans(
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          color: isSelected
+                              ? AppColors.textOnPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
-                      avatar: Icon(category.icon, size: 20,
-                        color: isSelected ? Colors.white : Colors.grey,
+                      avatar: Icon(
+                        category.icon,
+                        size: 20,
+                        color: isSelected
+                            ? AppColors.textOnPrimary
+                            : AppColors.textSecondary,
                       ),
                       selectedColor: AppColors.primary,
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.surface,
                       side: BorderSide(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.borderStrong,
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -138,101 +150,134 @@ class _Step2CategoryState extends State<Step2Category> {
                 ),
                 itemCount: currentHobbies.length,
                 itemBuilder: (context, index) {
-                    final hobby = currentHobbies[index];
-                    final isSelected = controller.hobby.value == hobby;
-                    final isLocked = hobby != "Drawing";
+                  final hobby = currentHobbies[index];
+                  final isSelected = controller.hobby.value == hobby;
+                  final isLocked = hobby != "Drawing";
 
-                    return Material(
-                      color: Colors.transparent,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: isLocked ? null : () {
-                              controller.category.value = activeCategoryName;
-                              controller.hobby.value = hobby;
-                              if (showError) {
-                                setState(() => showError = false);
-                              }
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
+                  return Material(
+                    color: Colors.transparent,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: isLocked
+                              ? null
+                              : () {
+                                  controller.category.value =
+                                      activeCategoryName;
+                                  controller.hobby.value = hobby;
+                                  if (showError) {
+                                    setState(() => showError = false);
+                                  }
+                                },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isLocked
+                                  ? AppColors.textSecondary.withValues(
+                                      alpha: 0.08,
+                                    )
+                                  : (isSelected
+                                        ? AppColors.primary
+                                        : AppColors.surface),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
                                 color: isLocked
-                                    ? Colors.grey.withValues(alpha: 0.08)
-                                    : (isSelected ? AppColors.primary : Colors.white),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isLocked
-                                      ? Colors.grey.withValues(alpha: 0.15)
-                                      : (isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.2)),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isLocked
-                                        ? Colors.black.withValues(alpha: 0.02)
-                                        : (isSelected
-                                            ? AppColors.primary.withValues(alpha: 0.25)
-                                            : Colors.black.withValues(alpha: 0.05)),
-                                    blurRadius: isSelected ? 14 : 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                    ? AppColors.textSecondary.withValues(
+                                        alpha: 0.15,
+                                      )
+                                    : (isSelected
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary.withValues(
+                                              alpha: 0.2,
+                                            )),
+                                width: 2,
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    isLocked ? Icons.lock_rounded : Icons.local_fire_department_rounded,
-                                    size: 30,
-                                    color: isLocked
-                                        ? Colors.grey.withValues(alpha: 0.4)
-                                        : (isSelected ? Colors.white : Colors.grey),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isLocked
+                                      ? AppColors.textPrimary.withValues(
+                                          alpha: 0.02,
+                                        )
+                                      : (isSelected
+                                            ? AppColors.primary.withValues(
+                                                alpha: 0.25,
+                                              )
+                                            : AppColors.textPrimary.withValues(
+                                                alpha: 0.05,
+                                              )),
+                                  blurRadius: isSelected ? 14 : 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isLocked
+                                      ? Icons.lock_rounded
+                                      : Icons.local_fire_department_rounded,
+                                  size: 30,
+                                  color: isLocked
+                                      ? AppColors.textSecondary.withValues(
+                                          alpha: 0.4,
+                                        )
+                                      : (isSelected
+                                            ? AppColors.textOnPrimary
+                                            : AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text(
-                                      hobby,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.openSans(
-                                        fontSize: AppFonts.bodyLg,
-                                        fontWeight: FontWeight.w700,
-                                        color: isLocked
-                                            ? Colors.grey.withValues(alpha: 0.5)
-                                            : (isSelected ? Colors.white : AppColors.textPrimary),
-                                      ),
+                                  child: Text(
+                                    hobby,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.openSans(
+                                      fontSize: AppFonts.bodyLg,
+                                      fontWeight: FontWeight.w700,
+                                      color: isLocked
+                                          ? AppColors.textSecondary.withValues(
+                                              alpha: 0.5,
+                                            )
+                                          : (isSelected
+                                                ? AppColors.textOnPrimary
+                                                : AppColors.textPrimary),
                                     ),
                                   ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (isLocked)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.7,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock,
+                                size: 14,
+                                color: AppColors.textOnPrimary,
                               ),
                             ),
                           ),
-                          if (isLocked)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withValues(alpha: 0.7),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.lock,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
             const SizedBox(height: 30),
             SizedBox(
@@ -240,7 +285,8 @@ class _Step2CategoryState extends State<Step2Category> {
               height: 55,
               child: ElevatedButton(
                 onPressed: () {
-                  if (controller.category.value.isEmpty && activeCategoryName.isNotEmpty) {
+                  if (controller.category.value.isEmpty &&
+                      activeCategoryName.isNotEmpty) {
                     controller.category.value = activeCategoryName;
                   }
                   if (controller.hobby.value.isEmpty) {
@@ -250,12 +296,20 @@ class _Step2CategoryState extends State<Step2Category> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("NEXT STEP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFonts.body)),
+                    Text(
+                      "NEXT STEP",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppFonts.body,
+                      ),
+                    ),
                     SizedBox(width: 8),
                     Icon(Icons.arrow_forward_rounded, size: 20),
                   ],

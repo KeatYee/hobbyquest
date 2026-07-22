@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
+import '../../../core/constants/app_info.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../controllers/growth_letter_controller.dart';
 import '../../controllers/guild_controller.dart';
@@ -19,10 +20,10 @@ import '../dialogs/add_guild_post_dialog.dart';
 class GrowthLetterPage extends StatefulWidget {
   const GrowthLetterPage({super.key});
 
-  static const Color _paper = Color(0xFFFFFBEE);
-  static const Color _paperEdge = Color(0xFFE8D8B8);
-  static const Color _ink = Color(0xFF3B342D);
-  static const Color _faintLine = Color(0xFFEEDFC3);
+  static const Color _paper = AppColors.letterPaper;
+  static const Color _paperEdge = AppColors.letterPaperEdge;
+  static const Color _ink = AppColors.letterInk;
+  static const Color _faintLine = AppColors.letterRule;
 
   @override
   State<GrowthLetterPage> createState() => _GrowthLetterPageState();
@@ -146,7 +147,8 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
         ? Get.find<GuildController>()
         : Get.put(GuildController(), permanent: true);
 
-    if (guildController.categories.isEmpty && !guildController.isLoading.value) {
+    if (guildController.categories.isEmpty &&
+        !guildController.isLoading.value) {
       await guildController.loadAllData();
       if (!mounted) return;
     }
@@ -160,7 +162,9 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
       return;
     }
 
-    final hobby = letter.hobby.trim().isNotEmpty ? letter.hobby.trim() : 'Growth';
+    final hobby = letter.hobby.trim().isNotEmpty
+        ? letter.hobby.trim()
+        : 'Growth';
     var categoryId = '';
     for (final category in guildController.categories) {
       if (category.hobbyNames.any(
@@ -178,7 +182,8 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
     if (!mounted || imageFile == null) return;
 
     final title = 'My weekly Growth Letter';
-    final body = 'Sharing my weekly Growth Letter from HobbyQuest.\n\n'
+    final body =
+        'Sharing my weekly Growth Letter from ${AppInfo.appName}.\n\n'
         '${letter.questCount} quest${letter.questCount == 1 ? '' : 's'} - '
         '${letter.weeklyStreakDays} day${letter.weeklyStreakDays == 1 ? '' : 's'} week streak';
 
@@ -230,11 +235,7 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
       final file = File(path);
       await file.writeAsBytes(bytes, flush: true);
 
-      return XFile(
-        file.path,
-        name: 'growth_letter.png',
-        mimeType: 'image/png',
-      );
+      return XFile(file.path, name: 'growth_letter.png', mimeType: 'image/png');
     } catch (e) {
       AppDialogs.error(
         'Image Not Ready',
@@ -287,7 +288,7 @@ class _EmptyLetterCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            'After a Monday-to-Sunday week is complete, HobbyQuest can turn that week\'s completed quests and reflections into a growth letter.',
+            'After a Monday-to-Sunday week is complete, ${AppInfo.appName} can turn that week\'s completed quests and reflections into a growth letter.',
             style: GoogleFonts.openSans(
               height: 1.45,
               fontSize: AppFonts.body,
@@ -344,7 +345,7 @@ class _LetterCard extends StatelessWidget {
             'Your weekly letter',
             style: GoogleFonts.caveat(
               fontWeight: FontWeight.w700,
-              fontSize: 30,
+              fontSize: AppFonts.letterHeading,
               color: GrowthLetterPage._ink,
             ),
           ),
@@ -400,7 +401,7 @@ class _LetterCard extends StatelessWidget {
                       greeting,
                       style: GoogleFonts.caveat(
                         color: GrowthLetterPage._ink,
-                        fontSize: 27,
+                        fontSize: AppFonts.letterGreeting,
                         height: 1.1,
                         fontWeight: FontWeight.w700,
                       ),
@@ -426,10 +427,10 @@ class _LetterCard extends StatelessWidget {
             child: Transform.rotate(
               angle: -0.08,
               child: Text(
-                'HobbyQuest',
+                AppInfo.appName,
                 style: GoogleFonts.caveat(
                   color: AppColors.primary,
-                  fontSize: 24,
+                  fontSize: AppFonts.letterSignature,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -477,12 +478,12 @@ class _LetterSurface extends StatelessWidget {
         border: Border.all(color: GrowthLetterPage._paperEdge, width: 1.2),
         boxShadow: [
           const BoxShadow(
-            color: Color(0x1A6E4D2A),
+            color: AppColors.letterStampShadow,
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.55),
+            color: AppColors.surface.withValues(alpha: 0.55),
             blurRadius: 0,
             spreadRadius: -1,
             offset: const Offset(-2, -2),
@@ -551,7 +552,7 @@ class _GrowthStampChop extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.openSans(
                         color: stampColor.withOpacity(0.76),
-                        fontSize: 8.5,
+                        fontSize: AppFonts.letterStamp,
                         height: 1,
                         fontWeight: FontWeight.w900,
                       ),
@@ -612,11 +613,7 @@ class _StampChopPainter extends CustomPainter {
       ..strokeWidth = 1.1
       ..strokeCap = StrokeCap.round;
     const markLength = 8.0;
-    canvas.drawLine(
-      const Offset(8, 5),
-      Offset(8 + markLength, 5),
-      markPaint,
-    );
+    canvas.drawLine(const Offset(8, 5), Offset(8 + markLength, 5), markPaint);
     canvas.drawLine(
       Offset(size.width - 8 - markLength, size.height - 5),
       Offset(size.width - 8, size.height - 5),
