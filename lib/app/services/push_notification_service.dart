@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/user_profile_state.dart';
 import '../routes/app_routes.dart';
 
 @pragma('vm:entry-point')
@@ -43,7 +44,7 @@ class PushNotificationService extends GetxService {
       }
 
       await registerCurrentDevice();
-      _openPendingTapArguments();
+      await _openPendingTapArguments();
     });
 
     _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((token) async {
@@ -71,7 +72,7 @@ class PushNotificationService extends GetxService {
       return;
     }
 
-    _openPendingTapArguments();
+    await _openPendingTapArguments();
   }
 
   Future<void> registerCurrentDevice() async {
@@ -111,11 +112,7 @@ class PushNotificationService extends GetxService {
 
   Future<void> _requestPermission() async {
     try {
-      await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      await _messaging.requestPermission(alert: true, badge: true, sound: true);
 
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: true,
@@ -123,7 +120,9 @@ class PushNotificationService extends GetxService {
         sound: true,
       );
     } catch (e) {
-      print('--- ERROR: Failed to initialize push notification permission: $e ---');
+      print(
+        '--- ERROR: Failed to initialize push notification permission: $e ---',
+      );
     }
   }
 
@@ -131,11 +130,13 @@ class PushNotificationService extends GetxService {
     if (_messageHandlersBound) return;
     _messageHandlersBound = true;
 
-    _foregroundMessageSubscription =
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
+      _handleForegroundMessage,
+    );
 
-    _messageOpenedSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+    _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleNotificationTap,
+    );
 
     _pendingInitialMessage = await _messaging.getInitialMessage();
     if (_pendingInitialMessage != null) {
@@ -190,7 +191,12 @@ class PushNotificationService extends GetxService {
       return;
     }
 
-    _openDashboard(arguments);
+    if (await _hasCompletedProfile()) {
+      _openDashboard(arguments);
+    } else {
+      _pendingTapArguments = null;
+      Get.offAllNamed(AppRoutes.ONBOARDING);
+    }
   }
 
   Map<String, dynamic>? _routeArgumentsFor(RemoteMessage message) {
@@ -219,7 +225,10 @@ class PushNotificationService extends GetxService {
   }
 
   String _postIdFromPath(String path) {
-    final parts = path.split('/').where((part) => part.trim().isNotEmpty).toList();
+    final parts = path
+        .split('/')
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
     if (parts.length >= 2 && parts.first == 'guild_posts') {
       return parts[1];
     }
@@ -240,12 +249,31 @@ class PushNotificationService extends GetxService {
     ].map((value) => value?.toString() ?? '').join('|');
   }
 
-  void _openPendingTapArguments() {
+  Future<void> _openPendingTapArguments() async {
     final arguments = _pendingTapArguments;
     if (arguments == null || _auth.currentUser == null) return;
 
+    if (!await _hasCompletedProfile()) {
+      _pendingTapArguments = null;
+      Get.offAllNamed(AppRoutes.ONBOARDING);
+      return;
+    }
+
     _pendingTapArguments = null;
     _openDashboard(arguments);
+  }
+
+  Future<bool> _hasCompletedProfile() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return false;
+
+    try {
+      final snapshot = await _firestore.collection('users').doc(uid).get();
+      return hasCompletedUserProfile(snapshot.data());
+    } catch (e) {
+      print('--- ERROR: Failed to verify onboarding state: $e ---');
+      return false;
+    }
   }
 
   void _openDashboard(Map<String, dynamic> arguments) {
@@ -256,10 +284,11 @@ class PushNotificationService extends GetxService {
 
   Future<void> _saveToken(String uid, String token) async {
     try {
-      await _firestore.collection('users').doc(uid).set({
+      // update() deliberately refuses to create a token-only user document.
+      await _firestore.collection('users').doc(uid).update({
         'fcmTokens': FieldValue.arrayUnion([token]),
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
 
       _lastUid = uid;
       _lastToken = token;
@@ -272,11 +301,12 @@ class PushNotificationService extends GetxService {
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
       final data = doc.data();
+      if (!hasCompletedUserProfile(data)) return false;
       final value = data?['notificationsEnabled'];
       return value is bool ? value : true;
     } catch (e) {
       print('--- ERROR: Failed to read notification preference: $e ---');
-      return true;
+      return false;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,6 +16,9 @@ enum GuildFeedFilter { forYou, sameHobby, sameCharacter }
 class GuildController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-southeast1',
+  );
 
   static const String _guildPostsCollection = 'guild_posts';
 
@@ -91,7 +95,7 @@ class GuildController extends GetxController {
       return;
     }
     _firestore
-        .collection('users')
+        .collection('publicProfiles')
         .doc(userId)
         .get()
         .then((doc) {
@@ -155,7 +159,10 @@ class GuildController extends GetxController {
       final loadedUserNicknames = <String, String>{};
       final loadedUserPostStatsVisible = <String, bool>{};
       for (var userId in userIds) {
-        final userDoc = await _firestore.collection('users').doc(userId).get();
+        final userDoc = await _firestore
+            .collection('publicProfiles')
+            .doc(userId)
+            .get();
         final data = userDoc.data();
         final avatarSvg = data?['avatarSvg'] as String? ?? '';
         final nickname = data?['nickname'] as String? ?? '';
@@ -409,31 +416,11 @@ class GuildController extends GetxController {
     if (uid == null || !reactionEmojis.contains(emoji)) return;
 
     try {
-      final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      final updatedReactions = await _firestore
-          .runTransaction<Map<String, List<String>>>((transaction) async {
-            final snapshot = await transaction.get(postRef);
-            final data = snapshot.data();
-            if (data == null) {
-              throw StateError('Guild post not found.');
-            }
-
-            final reactions = _readReactions(data['reactions']);
-            final users = List<String>.from(reactions[emoji] ?? const []);
-            if (users.contains(uid)) {
-              users.removeWhere((userId) => userId == uid);
-            } else {
-              users.add(uid);
-            }
-
-            if (users.isEmpty) {
-              reactions.remove(emoji);
-            } else {
-              reactions[emoji] = users;
-            }
-            transaction.update(postRef, {'reactions': reactions});
-            return reactions;
-          });
+      final result = await _functions.httpsCallable('toggleGuildReaction').call(
+        {'postId': postId, 'emoji': emoji},
+      );
+      final resultData = Map<String, dynamic>.from(result.data as Map);
+      final updatedReactions = _readReactions(resultData['reactions']);
 
       final index = posts.indexWhere((post) => post.id == postId);
       if (index >= 0) {
@@ -492,30 +479,15 @@ class GuildController extends GetxController {
     }
 
     try {
-      final postRef = _firestore.collection(_guildPostsCollection).doc(postId);
-      final updatedReviews = await _firestore
-          .runTransaction<Map<String, Map<String, double>>?>((
-            transaction,
-          ) async {
-            final snapshot = await transaction.get(postRef);
-            final data = snapshot.data();
-            if (data == null) {
-              throw StateError('Guild post not found.');
-            }
-
-            final reviews = _readPeerReviews(data['peerReviews']);
-            if (reviews.containsKey(uid)) {
-              return null;
-            }
-
-            reviews[uid] = Map<String, double>.from(ratings);
-            transaction.update(postRef, {'peerReviews': reviews});
-            return reviews;
-          });
-      if (updatedReviews == null) {
+      final result = await _functions
+          .httpsCallable('submitGuildPeerReview')
+          .call({'postId': postId, 'ratings': ratings});
+      final resultData = Map<String, dynamic>.from(result.data as Map);
+      if (resultData['created'] != true) {
         print('--- SKIP: User $uid already reviewed post $postId ---');
         return false;
       }
+      final updatedReviews = _readPeerReviews(resultData['peerReviews']);
 
       final postIndex = posts.indexWhere((post) => post.id == postId);
       if (postIndex >= 0) {

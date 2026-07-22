@@ -1,0 +1,365 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Assumed data model:
+    // users: private identity, preferences, and progression.
+    // publicProfiles: non-sensitive guild identity and visibility fields.
+    // user subcollections: plans, milestones, quests, tree, goalHistory,
+    // growthLetters, and notifications.
+    // categories: trusted application configuration.
+    // guild_posts: authenticated community posts; server-owned engagement maps.
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function uidNotModified(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function parentUserExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function validString(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function validNullableString(value, maxLength) {
+      return value == null || validString(value, maxLength);
+    }
+
+    function validNullableTimestamp(value) {
+      return value == null || value is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly([
+        'nickname', 'birthDate', 'gender', 'avatarSvg',
+        'isOnboardingComplete', 'totalXP', 'activePlanId',
+        'currentStreak', 'dailyQuestCompletionCount', 'categoryXp',
+        'currentGroveIndex', 'completedGroveIndexes',
+        'occupiedTreeSlotsByGrove', 'occupiedTreeSlots',
+        'mapTutorialDone', 'notificationsEnabled', 'profileVisible',
+        'postStatsVisible', 'createdAt', 'updatedAt', 'lastRerollDate',
+        'lastStreakDate', 'lastQuestCompletionDate', 'fcmTokens',
+        'fcmToken', 'fcmTokenUpdatedAt', 'currentPlan', 'level',
+        'currentXp', 'hobby', 'hobbyName', 'skillLevel', 'goal',
+        'customGoal', 'learningPace', 'frequency', 'dailyCommitment',
+        'progress', 'currentMilestoneIndex',
+        'accountDeletionInProgress', 'accountDeletionRequestedAt'
+      ]) &&
+      data.keys().hasAll([
+        'nickname', 'isOnboardingComplete', 'totalXP', 'activePlanId'
+      ]) &&
+      validString(data.nickname, 50) &&
+      validNullableString(data.birthDate, 20) &&
+      validNullableString(data.gender, 40) &&
+      validNullableString(data.avatarSvg, 300) &&
+      data.isOnboardingComplete is bool &&
+      data.totalXP is int && data.totalXP >= 0 && data.totalXP <= 100000000 &&
+      validString(data.activePlanId, 128) &&
+      data.currentStreak is int && data.currentStreak >= 0 &&
+      data.currentStreak <= 100000 &&
+      data.dailyQuestCompletionCount is int &&
+      data.dailyQuestCompletionCount >= 0 &&
+      data.dailyQuestCompletionCount <= 10000000 &&
+      data.categoryXp is map && data.categoryXp.size() <= 100 &&
+      data.currentGroveIndex is int && data.currentGroveIndex >= 1 &&
+      data.currentGroveIndex <= 100000 &&
+      data.completedGroveIndexes is list &&
+      data.completedGroveIndexes.size() <= 10000 &&
+      data.occupiedTreeSlotsByGrove is map &&
+      data.occupiedTreeSlotsByGrove.size() <= 10000 &&
+      data.mapTutorialDone is bool &&
+      data.notificationsEnabled is bool &&
+      data.profileVisible is bool &&
+      data.postStatsVisible is bool &&
+      validNullableTimestamp(data.createdAt) &&
+      validNullableTimestamp(data.updatedAt) &&
+      validNullableTimestamp(data.lastRerollDate) &&
+      validNullableTimestamp(data.lastStreakDate) &&
+      validNullableTimestamp(data.lastQuestCompletionDate) &&
+      (!('fcmTokens' in data) ||
+        (data.fcmTokens is list && data.fcmTokens.size() <= 20));
+    }
+
+    function isValidPublicProfile(data) {
+      return data.keys().hasOnly([
+        'nickname', 'avatarSvg', 'profileVisible', 'postStatsVisible',
+        'totalXP', 'updatedAt'
+      ]) &&
+      data.keys().hasAll([
+        'nickname', 'avatarSvg', 'profileVisible', 'postStatsVisible',
+        'totalXP', 'updatedAt'
+      ]) &&
+      validString(data.nickname, 50) &&
+      validString(data.avatarSvg, 300) &&
+      data.profileVisible is bool && data.postStatsVisible is bool &&
+      data.totalXP is int && data.totalXP >= 0 && data.totalXP <= 100000000 &&
+      data.updatedAt is timestamp;
+    }
+
+    function publicProfileMatchesPrivate(userId, data) {
+      let privateProfile = getAfter(
+        /databases/$(database)/documents/users/$(userId)
+      ).data;
+      return data.nickname == privateProfile.nickname &&
+        data.avatarSvg == privateProfile.avatarSvg &&
+        data.profileVisible == privateProfile.profileVisible &&
+        data.postStatsVisible == privateProfile.postStatsVisible &&
+        data.totalXP == privateProfile.totalXP;
+    }
+
+    function isValidPlan(data) {
+      return data.keys().hasOnly([
+        'id', 'hobby', 'category', 'level', 'goal', 'learningPace',
+        'progress', 'currentMilestoneIndex', 'isActive', 'startingXP'
+      ]) &&
+      data.keys().hasAll([
+        'id', 'hobby', 'level', 'goal', 'learningPace', 'progress',
+        'currentMilestoneIndex', 'isActive', 'startingXP'
+      ]) &&
+      validString(data.id, 128) && validString(data.hobby, 120) &&
+      validNullableString(data.category, 120) &&
+      validString(data.level, 80) && validString(data.goal, 500) &&
+      validString(data.learningPace, 120) &&
+      data.progress is int && data.progress >= 0 && data.progress <= 1000 &&
+      data.currentMilestoneIndex is int &&
+      data.currentMilestoneIndex >= 0 && data.currentMilestoneIndex <= 1000 &&
+      data.isActive is bool && data.startingXP is int && data.startingXP >= 0;
+    }
+
+    function isValidMilestone(data) {
+      return data.keys().hasOnly(['id', 'title', 'task', 'completed', 'order']) &&
+        data.keys().hasAll(['id', 'title', 'completed', 'order']) &&
+        validString(data.id, 128) && validString(data.title, 300) &&
+        validNullableString(data.task, 300) && data.completed is bool &&
+        data.order is int && data.order >= 0 && data.order <= 1000;
+    }
+
+    function isValidQuest(data) {
+      return data.keys().hasOnly([
+        'node_id', 'title', 'desc', 'steps', 'xp_reward', 'type',
+        'duration_minutes', 'depends_on', 'isCompleted', 'isActive',
+        'reflectionNote', 'completedAt', 'imageUrl', 'greeting',
+        'observation', 'tip', 'youtube_search_query', 'awardedXP'
+      ]) &&
+      data.keys().hasAll([
+        'node_id', 'title', 'desc', 'steps', 'xp_reward', 'type',
+        'duration_minutes', 'depends_on', 'isCompleted', 'isActive',
+        'reflectionNote'
+      ]) &&
+      validString(data.node_id, 128) && validString(data.title, 300) &&
+      validString(data.desc, 2000) &&
+      data.steps is list && data.steps.size() <= 20 &&
+      data.xp_reward is int && data.xp_reward >= 0 && data.xp_reward <= 1000 &&
+      validString(data.type, 40) &&
+      data.duration_minutes is int && data.duration_minutes >= 1 &&
+      data.duration_minutes <= 600 &&
+      data.depends_on is list && data.depends_on.size() <= 50 &&
+      data.isCompleted is bool && data.isActive is bool &&
+      validString(data.reflectionNote, 5000) &&
+      validNullableTimestamp(data.completedAt) &&
+      validNullableString(data.imageUrl, 2000) &&
+      validNullableString(data.greeting, 200) &&
+      validNullableString(data.observation, 500) &&
+      validNullableString(data.tip, 500) &&
+      validNullableString(data.youtube_search_query, 300) &&
+      (data.awardedXP == null ||
+        (data.awardedXP is int && data.awardedXP >= 0 &&
+          data.awardedXP <= 1100));
+    }
+
+    function isValidTree(data) {
+      return data.keys().hasOnly([
+        'treeName', 'categoryId', 'planId', 'xpRequired', 'groveIndex',
+        'treeIndex', 'questsCompleted', 'learningMinutes', 'createdAt', 'grownAt'
+      ]) &&
+      data.keys().hasAll([
+        'treeName', 'categoryId', 'planId', 'xpRequired', 'groveIndex',
+        'treeIndex', 'questsCompleted', 'learningMinutes', 'createdAt', 'grownAt'
+      ]) &&
+      validString(data.treeName, 80) && validString(data.categoryId, 128) &&
+      validString(data.planId, 128) &&
+      data.xpRequired is int && data.xpRequired >= 0 &&
+      data.groveIndex is int && data.groveIndex >= 1 &&
+      data.treeIndex is int && data.treeIndex >= 0 && data.treeIndex < 9 &&
+      data.questsCompleted is int && data.questsCompleted >= 0 &&
+      data.learningMinutes is int && data.learningMinutes >= 0 &&
+      validNullableTimestamp(data.createdAt) &&
+      validNullableTimestamp(data.grownAt);
+    }
+
+    function isValidGoalHistory(data) {
+      return data.keys().hasOnly([
+        'hobby', 'level', 'goal', 'learningPace', 'category', 'planId',
+        'status', 'createdAt', 'completedAt'
+      ]) &&
+      data.keys().hasAll([
+        'hobby', 'level', 'goal', 'learningPace', 'category', 'planId', 'status'
+      ]) &&
+      validString(data.hobby, 120) && validString(data.level, 80) &&
+      validString(data.goal, 500) && validString(data.learningPace, 120) &&
+      validString(data.category, 120) && validString(data.planId, 128) &&
+      data.status in ['active', 'completed'] &&
+      validNullableTimestamp(data.createdAt) &&
+      validNullableTimestamp(data.completedAt);
+    }
+
+    function isValidGrowthLetter(data) {
+      return data.keys().hasOnly([
+        'uid', 'planId', 'hobby', 'nickname', 'letter', 'questCount',
+        'reflectionCount', 'weeklyStreakDays', 'questIds', 'strongestGrowth',
+        'focusArea', 'nextWeekFocus', 'hasPersonalizedInsights',
+        'periodStart', 'periodEnd', 'createdAt', 'readAt'
+      ]) &&
+      data.keys().hasAll([
+        'uid', 'planId', 'hobby', 'nickname', 'letter', 'questCount',
+        'reflectionCount', 'weeklyStreakDays', 'questIds', 'strongestGrowth',
+        'focusArea', 'nextWeekFocus', 'hasPersonalizedInsights',
+        'periodStart', 'periodEnd', 'createdAt'
+      ]) &&
+      validString(data.uid, 128) && validString(data.planId, 128) &&
+      validString(data.hobby, 120) && validString(data.nickname, 50) &&
+      validString(data.letter, 5000) &&
+      data.questCount is int && data.questCount >= 0 &&
+      data.reflectionCount is int && data.reflectionCount >= 0 &&
+      data.weeklyStreakDays is int && data.weeklyStreakDays >= 0 &&
+      data.questIds is list && data.questIds.size() <= 100 &&
+      validString(data.strongestGrowth, 300) &&
+      validString(data.focusArea, 300) &&
+      validString(data.nextWeekFocus, 300) &&
+      data.hasPersonalizedInsights is bool &&
+      data.periodStart is timestamp && data.periodEnd is timestamp &&
+      data.createdAt is timestamp && validNullableTimestamp(data.readAt);
+    }
+
+    function isValidGuildPost(data) {
+      return data.keys().hasOnly([
+        'userId', 'hobby', 'categoryId', 'title', 'body', 'imageUrl',
+        'reactions', 'peerReviews', 'createdAt'
+      ]) &&
+      data.keys().hasAll([
+        'userId', 'hobby', 'categoryId', 'title', 'body', 'imageUrl',
+        'reactions', 'peerReviews', 'createdAt'
+      ]) &&
+      validString(data.userId, 128) && validString(data.hobby, 120) &&
+      validString(data.categoryId, 128) && validString(data.title, 200) &&
+      validString(data.body, 5000) && validString(data.imageUrl, 2000) &&
+      data.reactions is map && data.reactions.size() <= 3 &&
+      data.peerReviews is map && data.peerReviews.size() <= 1000 &&
+      data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && uidUnchanged(userId) &&
+        isValidUser(request.resource.data) &&
+        !request.resource.data.keys().hasAny([
+          'accountDeletionInProgress', 'accountDeletionRequestedAt'
+        ]);
+      allow update: if isOwner(userId) && uidNotModified(userId) &&
+        isValidUser(request.resource.data) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'accountDeletionInProgress', 'accountDeletionRequestedAt'
+        ]);
+      allow delete: if false;
+
+      match /plans/{planId} {
+        allow read: if isOwner(userId) && parentUserExists(userId);
+        allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+          isValidPlan(request.resource.data);
+        allow delete: if isOwner(userId) && parentUserExists(userId);
+
+        match /milestones/{milestoneId} {
+          allow read: if isOwner(userId) && parentUserExists(userId);
+          allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+            isValidMilestone(request.resource.data);
+          allow delete: if isOwner(userId) && parentUserExists(userId);
+        }
+
+        match /quests/{questId} {
+          allow read: if isOwner(userId) && parentUserExists(userId);
+          allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+            isValidQuest(request.resource.data);
+          allow delete: if isOwner(userId) && parentUserExists(userId);
+        }
+      }
+
+      match /tree/{treeId} {
+        allow read: if isOwner(userId) && parentUserExists(userId);
+        allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+          isValidTree(request.resource.data);
+        allow delete: if isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /goalHistory/{historyId} {
+        allow read: if isOwner(userId) && parentUserExists(userId);
+        allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+          isValidGoalHistory(request.resource.data);
+        allow delete: if isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /growthLetters/{letterId} {
+        allow read: if isOwner(userId) && parentUserExists(userId);
+        allow create, update: if isOwner(userId) && parentUserExists(userId) &&
+          isValidGrowthLetter(request.resource.data) &&
+          request.resource.data.uid == userId;
+        allow delete: if isOwner(userId) && parentUserExists(userId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId) && parentUserExists(userId);
+        allow create: if false;
+        allow update: if isOwner(userId) && parentUserExists(userId) &&
+          request.resource.data.keys().hasOnly([
+            'actorId', 'actorName', 'body', 'createdAt', 'guildPostPath',
+            'isRead', 'postId', 'postTitle', 'recipientId', 'reaction',
+            'title', 'type'
+          ]) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isRead']) && request.resource.data.isRead is bool;
+        allow delete: if isOwner(userId) && parentUserExists(userId);
+      }
+    }
+
+    match /publicProfiles/{userId} {
+      allow read: if isOwner(userId) ||
+        (isAuthenticated() && resource.data.profileVisible == true);
+      allow create, update: if isOwner(userId) &&
+        isValidPublicProfile(request.resource.data) &&
+        publicProfileMatchesPrivate(userId, request.resource.data);
+      allow delete: if false;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /guild_posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        isValidGuildPost(request.resource.data) &&
+        request.resource.data.reactions.size() == 0 &&
+        request.resource.data.peerReviews.size() == 0;
+      allow update: if false;
+      allow delete: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

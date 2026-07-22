@@ -10,7 +10,6 @@ import '../services/growth_letter_service.dart';
 import '../services/quest_service.dart';
 import '../models/user_model.dart';
 import '../models/goal_history_model.dart';
-import '../services/goal_history_service.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
@@ -30,6 +29,7 @@ class HomeController extends GetxController {
 
   var isLoadingProfile = true.obs;
   var hasAvailableGrowthLetter = false.obs;
+  var isCompletingGoal = false.obs;
 
   var dailyQuests = <QuestNodeModel>[].obs;
   var isCompletedExpanded = false.obs;
@@ -226,6 +226,21 @@ class HomeController extends GetxController {
         }
 
         user.value = loadedUser;
+        try {
+          await FirebaseFirestore.instance
+              .collection('publicProfiles')
+              .doc(uid)
+              .set({
+                'nickname': loadedUser.nickname,
+                'avatarSvg': loadedUser.avatarSvg,
+                'profileVisible': loadedUser.profileVisible,
+                'postStatsVisible': loadedUser.postStatsVisible,
+                'totalXP': loadedUser.totalXP,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+        } catch (e) {
+          print('--- WARNING: Could not synchronize public profile: $e ---');
+        }
         final currentPlan = loadedUser.currentPlan;
 
         nickname.value = loadedUser.nickname;
@@ -584,62 +599,48 @@ class HomeController extends GetxController {
   }
 
   /// Marks the active learning goal as complete without creating another phase.
-  Future<void> completeCurrentGoal() async {
+  Future<bool> completeCurrentGoal() async {
+    if (isCompletingGoal.value) return false;
+
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) return false;
 
     final current = user.value;
     final plan = current?.currentPlan;
     final uid = currentUser.uid;
     final planId = current?.activePlanId ?? '';
-    if (current == null || plan == null || planId.isEmpty) return;
-    if (plan.milestones.isEmpty) return;
+    if (current == null || plan == null || planId.isEmpty) return false;
+    if (plan.milestones.isEmpty || plan.quests.isEmpty) return false;
+    if (!plan.quests.every((quest) => quest.isCompleted)) return false;
 
     final currentIndex = plan.currentMilestoneIndex;
-    if (currentIndex < 0 || currentIndex >= plan.milestones.length) return;
-
-    final completedMilestones = plan.milestones.asMap().entries.map((entry) {
-      final shouldBeComplete = entry.key <= currentIndex;
-      return shouldBeComplete
-          ? entry.value.copyWith(completed: true)
-          : entry.value;
-    }).toList();
-
-    final completedPlan = plan.copyWith(
-      isActive: false,
-      progress: completedMilestones.length,
-      milestones: completedMilestones,
-    );
-
-    final firestore = FirebaseFirestore.instance;
-    final userRef = firestore.collection('users').doc(uid);
-    final planRef = userRef.collection('plans').doc(planId);
-    final batch = firestore.batch();
-
-    batch.set(planRef, completedPlan.toJson(), SetOptions(merge: true));
-    for (final milestone in completedMilestones) {
-      if (milestone.id.isEmpty) continue;
-      batch.set(
-        planRef.collection('milestones').doc(milestone.id),
-        milestone.toJson(),
-        SetOptions(merge: true),
-      );
+    if (currentIndex < plan.milestones.length - 1 ||
+        currentIndex >= plan.milestones.length) {
+      return false;
     }
-    batch.set(userRef, {
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
 
-    await batch.commit();
+    isCompletingGoal.value = true;
+    try {
+      final completedMilestones = plan.milestones.asMap().entries.map((entry) {
+        final shouldBeComplete = entry.key <= currentIndex;
+        return shouldBeComplete
+            ? entry.value.copyWith(completed: true)
+            : entry.value;
+      }).toList();
 
-    final completionDates =
-        completedPlan.quests
-            .map((quest) => quest.completedAt)
-            .whereType<DateTime>()
-            .toList()
-          ..sort();
-    await GoalHistoryService.markGoalCompleted(
-      uid,
-      GoalHistoryModel(
+      final completedPlan = plan.copyWith(
+        isActive: false,
+        progress: completedMilestones.length,
+        milestones: completedMilestones,
+      );
+
+      final completionDates =
+          completedPlan.quests
+              .map((quest) => quest.completedAt)
+              .whereType<DateTime>()
+              .toList()
+            ..sort();
+      final completedHistory = GoalHistoryModel(
         planId: planId,
         status: 'completed',
         hobby: completedPlan.hobby,
@@ -655,15 +656,40 @@ class HomeController extends GetxController {
         completedAt: completionDates.isEmpty
             ? DateTime.now()
             : completionDates.last,
-      ),
-    );
+      );
 
-    final updatedUser = current.copyWith(
-      currentPlan: completedPlan,
-      updatedAt: DateTime.now(),
-    );
-    user.value = updatedUser;
-    dailyQuests.value = getAllQuestNodes(completedPlan.quests);
+      final firestore = FirebaseFirestore.instance;
+      final userRef = firestore.collection('users').doc(uid);
+      final planRef = userRef.collection('plans').doc(planId);
+      final historyRef = userRef.collection('goalHistory').doc(planId);
+      final batch = firestore.batch();
+
+      batch.set(planRef, completedPlan.toJson(), SetOptions(merge: true));
+      for (final milestone in completedMilestones) {
+        if (milestone.id.isEmpty) continue;
+        batch.set(
+          planRef.collection('milestones').doc(milestone.id),
+          milestone.toJson(),
+          SetOptions(merge: true),
+        );
+      }
+      batch.set(historyRef, completedHistory.toJson(), SetOptions(merge: true));
+      batch.set(userRef, {
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await batch.commit();
+
+      final updatedUser = current.copyWith(
+        currentPlan: completedPlan,
+        updatedAt: DateTime.now(),
+      );
+      user.value = updatedUser;
+      dailyQuests.value = getAllQuestNodes(completedPlan.quests);
+      return true;
+    } finally {
+      isCompletingGoal.value = false;
+    }
   }
 
   /// Generates the next milestone's quests, replaces the old quests in Firestore,

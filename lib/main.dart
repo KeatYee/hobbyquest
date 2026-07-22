@@ -9,18 +9,12 @@ import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/bindings/initial_binding.dart';
 import 'app/services/push_notification_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await RiveNative.init();
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    print("Warning: .env file not found. Falling back to mock AI data.");
-  }
   runApp(const HobbyQuestApp());
 }
 

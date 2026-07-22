@@ -98,10 +98,17 @@ class ProfileController extends GetxController {
       return false;
     }
     try {
-      await _firestore.collection('users').doc(user.uid).update({
+      final batch = _firestore.batch();
+      batch.update(_firestore.collection('users').doc(user.uid), {
         'nickname': trimmed,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      batch.set(
+        _firestore.collection('publicProfiles').doc(user.uid),
+        {'nickname': trimmed, 'updatedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
 
       if (userModel.value != null) {
         userModel.value = userModel.value!.copyWith(nickname: trimmed);
@@ -297,10 +304,17 @@ class ProfileController extends GetxController {
     isUpdatingPrivacy.value = true;
 
     try {
-      await _firestore.collection('users').doc(user.uid).set({
+      final batch = _firestore.batch();
+      batch.set(_firestore.collection('users').doc(user.uid), {
         field: value,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      batch.set(
+        _firestore.collection('publicProfiles').doc(user.uid),
+        {field: value, 'updatedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
 
       if (userModel.value != null) {
         userModel.value = applyToModel(userModel.value!);

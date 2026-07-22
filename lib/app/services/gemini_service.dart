@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/milestone_model.dart';
 import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
@@ -41,15 +40,27 @@ class GoalValidationResult {
 }
 
 class GeminiService {
-  String get _apiKey {
-    return _envValue(const ['GEMINI_API_KEY', 'API_KEY']);
-  }
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-southeast1',
+  );
 
-  GenerativeModel get _model {
-    return GenerativeModel(model: 'gemini-3.1-flash-lite', apiKey: _apiKey);
-  }
+  bool get hasApiKey => true;
 
-  bool get hasApiKey => _apiKey.isNotEmpty;
+  Future<String> _generateText(
+    String prompt, {
+    String? mimeType,
+    Uint8List? imageBytes,
+  }) async {
+    final result = await _functions.httpsCallable('generateWithGemini').call({
+      'prompt': prompt,
+      if (mimeType != null && imageBytes != null) ...{
+        'mimeType': mimeType,
+        'imageBase64': base64Encode(imageBytes),
+      },
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    return data['text']?.toString().trim() ?? '';
+  }
 
   ValidationResult validateOnboardingStep({
     required int step,
@@ -149,9 +160,8 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this
 }
 ''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
+      final rawText = await _generateText(prompt);
       print('[GeminiService] Quest plan API call succeeded');
-      final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
       final milestonesDynamic = jsonMap['milestones'] as List<dynamic>?;
       final milestones = (milestonesDynamic ?? const <dynamic>[])
@@ -251,8 +261,7 @@ Use this exact schema:
 }
 ''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
-      final rawText = response.text?.trim() ?? '';
+      final rawText = await _generateText(prompt);
       final jsonMap = _extractJsonObject(rawText);
 
       final isValid = _readBool(jsonMap['is_valid'] ?? jsonMap['isValid']);
@@ -344,9 +353,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
 }
 ''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
-
-      final rawText = response.text?.trim() ?? '';
+      final rawText = await _generateText(prompt);
 
       debugPrint(
         '[GeminiService] RAW API OUTPUT:\n$rawText\n-------------------',
@@ -544,10 +551,8 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
 }
 ''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
+      final rawText = await _generateText(prompt);
       print('[GeminiService] Alternative task title API call succeeded');
-
-      final rawText = response.text?.trim() ?? '';
       final jsonMap = _extractJsonObject(rawText);
 
       debugPrint(
@@ -662,8 +667,7 @@ Instructions:
 9. Keep chip values short, natural, and specific. Do not use markdown, bullets, headings, or emojis.
 ''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
-      final text = response.text?.trim() ?? '';
+      final text = await _generateText(prompt);
       if (text.isEmpty) {
         throw const FormatException('Empty growth letter response');
       }
@@ -760,11 +764,11 @@ Instructions:
     "tip": "String (Max 15 words. Specific actionable improvement based on steps)"
   }''';
 
-      final response = await _model.generateContent([
-        Content.multi([TextPart(prompt), DataPart(mimeType, bytes)]),
-      ]);
-
-      final rawText = response.text?.trim() ?? '';
+      final rawText = await _generateText(
+        prompt,
+        mimeType: mimeType,
+        imageBytes: bytes,
+      );
       if (rawText.isEmpty) {
         return null;
       }
@@ -863,25 +867,6 @@ Instructions:
 
     final raw = trimmed.substring(start, end + 1);
     return jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  String _envValue(List<String> names) {
-    for (final name in names) {
-      final directValue = dotenv.env[name]?.trim() ?? '';
-      if (directValue.isNotEmpty) {
-        return directValue;
-      }
-    }
-
-    for (final entry in dotenv.env.entries) {
-      final keyMatches = names.contains(entry.key.trim());
-      final value = entry.value.trim();
-      if (keyMatches && value.isNotEmpty) {
-        return value;
-      }
-    }
-
-    return '';
   }
 
   QuestPlanModel _buildFallbackQuestPlan({

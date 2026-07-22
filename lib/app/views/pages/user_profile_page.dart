@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
-import '../../models/user_model.dart';
 import '../../routes/app_routes.dart';
 
 class UserProfilePage extends StatelessWidget {
@@ -40,7 +39,7 @@ class UserProfilePage extends StatelessWidget {
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
-            .collection('users')
+            .collection('publicProfiles')
             .doc(userId)
             .get(),
         builder: (context, snapshot) {
@@ -54,11 +53,14 @@ class UserProfilePage extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          final userModel = UserModel.fromJson(data, userId);
           final currentUid = FirebaseAuth.instance.currentUser?.uid;
           final isOwnProfile = currentUid == userId;
-          final canViewProfile = isOwnProfile || userModel.profileVisible;
-          final canViewStats = isOwnProfile || userModel.postStatsVisible;
+          final profileVisible = data['profileVisible'] as bool? ?? true;
+          final postStatsVisible = data['postStatsVisible'] as bool? ?? true;
+          final nickname = data['nickname']?.toString().trim() ?? 'Hero';
+          final avatarSvg = data['avatarSvg']?.toString().trim() ?? '';
+          final canViewProfile = isOwnProfile || profileVisible;
+          final canViewStats = isOwnProfile || postStatsVisible;
 
           if (!canViewProfile) {
             return const _PrivateProfileState();
@@ -103,10 +105,10 @@ class UserProfilePage extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 54,
                         backgroundColor: AppColors.primaryLight,
-                        child: userModel.avatarSvg.isNotEmpty
+                        child: avatarSvg.isNotEmpty
                             ? ClipOval(
                                 child: Image.asset(
-                                  userModel.avatarSvg,
+                                  avatarSvg,
                                   width: 108,
                                   height: 108,
                                   fit: BoxFit.cover,
@@ -123,7 +125,7 @@ class UserProfilePage extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     Text(
-                      userModel.nickname,
+                      nickname,
                       style: TextStyle(
                         fontSize: AppFonts.titlePage,
                         fontWeight: FontWeight.w800,
@@ -211,7 +213,7 @@ class UserProfilePage extends StatelessWidget {
                                       AppRoutes.USER_GUILD_POSTS,
                                       arguments: {
                                         'userId': userId,
-                                        'title': '${userModel.nickname} Posts',
+                                        'title': '$nickname Posts',
                                       },
                                     ),
                                   ),

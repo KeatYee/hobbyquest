@@ -437,6 +437,11 @@ class OnboardingController extends GetxController {
         currentStreak: existingUser?.currentStreak ?? 0,
         dailyQuestCompletionCount: existingUser?.dailyQuestCompletionCount ?? 0,
         categoryXp: categoryXp,
+        currentGroveIndex: existingUser?.currentGroveIndex ?? 1,
+        completedGroveIndexes:
+            existingUser?.completedGroveIndexes ?? const <int>[],
+        occupiedTreeSlotsByGrove:
+            existingUser?.occupiedTreeSlotsByGrove ?? const <int, List<int>>{},
         mapTutorialDone: existingUser?.mapTutorialDone ?? false,
         notificationsEnabled: existingUser?.notificationsEnabled ?? true,
         profileVisible: existingUser?.profileVisible ?? true,
@@ -456,6 +461,18 @@ class OnboardingController extends GetxController {
 
       final batch = FirebaseFirestore.instance.batch();
       batch.set(userRef, userData, SetOptions(merge: true));
+      batch.set(
+        FirebaseFirestore.instance.collection('publicProfiles').doc(uid),
+        {
+          'nickname': userModel.nickname,
+          'avatarSvg': userModel.avatarSvg,
+          'profileVisible': userModel.profileVisible,
+          'postStatsVisible': userModel.postStatsVisible,
+          'totalXP': userModel.totalXP,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
       batch.set(planRef, savedPlan.toJson());
 
       for (final ms in milestones) {

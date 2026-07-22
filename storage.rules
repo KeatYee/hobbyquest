@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Uploads and cleanup are performed only by authenticated Cloud Functions.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

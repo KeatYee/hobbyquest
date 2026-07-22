@@ -11,6 +11,7 @@ import '../../models/quest_plan_model.dart';
 import '../../models/milestone_model.dart';
 import '../../models/quest_node_model.dart';
 import '../widgets/shaking_mailbox_button.dart';
+import '../../../core/widgets/goal_complete_screen.dart';
 import '../../../core/widgets/milestone_complete_screen.dart';
 
 class HomePage extends StatelessWidget {
@@ -97,6 +98,46 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Widget _buildGoalRecoveryButton(HomeController controller) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        key: const Key('goal-recovery-cta'),
+        onPressed: controller.isCompletingGoal.value
+            ? null
+            : () async {
+                try {
+                  final completed = await controller.completeCurrentGoal();
+                  if (!completed) return;
+                  await Get.generalDialog(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        const GoalCompleteScreen(),
+                    barrierDismissible: false,
+                    barrierLabel: 'Goal Complete',
+                  );
+                } catch (_) {
+                  AppDialogs.error(
+                    'Could not finish goal',
+                    'Your quest progress is safe. Please try again.',
+                  );
+                }
+              },
+        icon: controller.isCompletingGoal.value
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.emoji_events_rounded),
+        label: Text(
+          controller.isCompletingGoal.value
+              ? 'FINISHING GOAL...'
+              : 'CELEBRATE COMPLETED GOAL',
+        ),
+      ),
+    );
+  }
+
   Widget _buildPrimaryAction(HomeController controller) {
     return Obx(() {
       if (controller.isLoadingProfile.value) {
@@ -110,6 +151,10 @@ class HomePage extends StatelessWidget {
 
       if (controller.hasCompletedMilestone()) {
         return _buildMilestoneRecoveryButton(controller);
+      }
+
+      if (controller.hasCompletedFinalMilestone()) {
+        return _buildGoalRecoveryButton(controller);
       }
 
       final activeQuests = controller.dailyQuests

@@ -103,7 +103,7 @@ Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
 
   final currentUid = FirebaseAuth.instance.currentUser?.uid;
   final ownerSnapshot = await FirebaseFirestore.instance
-      .collection('users')
+      .collection('publicProfiles')
       .doc(trimmedUserId)
       .get();
   final ownerProfile = _UserSummary.fromFirestore(
@@ -155,7 +155,7 @@ Future<_UserGuildPostsData> _loadUserGuildPosts(String userId) async {
     userIds.where((id) => !profiles.containsKey(id)).map((id) async {
       try {
         final snapshot = await FirebaseFirestore.instance
-            .collection('users')
+            .collection('publicProfiles')
             .doc(id)
             .get();
         profiles[id] = _UserSummary.fromFirestore(id, snapshot.data());

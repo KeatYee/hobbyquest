@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
+import '../../core/utils/user_profile_state.dart';
 
 class AuthController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -26,7 +27,7 @@ class AuthController extends GetxController {
             .doc(currentUser.uid)
             .get();
 
-        if (userDoc.exists) {
+        if (hasCompletedUserProfile(userDoc.data())) {
           if (Get.isRegistered<PushNotificationService>()) {
             await Get.find<PushNotificationService>().registerCurrentDevice();
           }
@@ -37,9 +38,7 @@ class AuthController extends GetxController {
                 .openPendingInitialMessageIfAny();
           }
         } else {
-          print(
-            "User has account but no profile. Redirecting to Onboarding...",
-          );
+          print("User has no completed profile. Redirecting to Onboarding...");
           Get.offAllNamed(AppRoutes.ONBOARDING);
         }
       } on FirebaseException catch (e) {

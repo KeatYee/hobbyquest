@@ -1,8 +1,10 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {HttpsError, onCall} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const {randomUUID} = require("crypto");
 
 admin.initializeApp();
 
@@ -11,6 +13,9 @@ const FieldValue = admin.firestore.FieldValue;
 const ACCOUNT_DELETION_REGION = "asia-southeast1";
 const ACCOUNT_CLEANUP_CONCURRENCY = 20;
 const MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS = 5 * 60;
+const MAX_AI_PROMPT_LENGTH = 20000;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 setGlobalOptions({maxInstances: 10});
 
@@ -51,6 +56,8 @@ exports.deleteAccount = onCall(
 
         const guildCleanup = await cleanupGuildData(uid);
         const deletedNotifications = await deleteActorNotifications(uid);
+        const deletedUploads = await deleteUserUploads(uid);
+        await db.collection("publicProfiles").doc(uid).delete();
 
         // recursiveDelete includes every current and future user subcollection.
         await db.recursiveDelete(userRef);
@@ -61,6 +68,7 @@ exports.deleteAccount = onCall(
         logger.info("Account deleted.", {
           deletedGuildPosts: guildCleanup.deletedPosts,
           deletedNotifications,
+          deletedUploads,
           removedGuildReferences: guildCleanup.updatedPosts,
           uid,
         });
@@ -85,6 +93,199 @@ exports.deleteAccount = onCall(
             "Account deletion could not be completed. Please try again.",
         );
       }
+    },
+);
+
+/**
+ * Generate model text without exposing the Gemini credential to clients.
+ */
+exports.generateWithGemini = onCall(
+    {
+      region: ACCOUNT_DELETION_REGION,
+      timeoutSeconds: 120,
+      memory: "512MiB",
+      secrets: [GEMINI_API_KEY],
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Sign in to use AI features.");
+      }
+
+      const prompt = asTrimmedString(request.data && request.data.prompt);
+      if (!prompt || prompt.length > MAX_AI_PROMPT_LENGTH) {
+        throw new HttpsError("invalid-argument", "The AI prompt is invalid.");
+      }
+
+      const parts = [{text: prompt}];
+      const imageBase64 = asTrimmedString(
+          request.data && request.data.imageBase64,
+      );
+      if (imageBase64) {
+        const mimeType = asTrimmedString(
+            request.data && request.data.mimeType,
+        );
+        if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+          throw new HttpsError("invalid-argument", "Unsupported image type.");
+        }
+        const image = Buffer.from(imageBase64, "base64");
+        if (!image.length || image.length > MAX_IMAGE_BYTES) {
+          throw new HttpsError("invalid-argument", "The image is too large.");
+        }
+        parts.push({inlineData: {mimeType, data: imageBase64}});
+      }
+
+      const endpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/" +
+        "gemini-3.1-flash-lite:generateContent?key=" +
+        encodeURIComponent(GEMINI_API_KEY.value());
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({contents: [{role: "user", parts}]}),
+      });
+      if (!response.ok) {
+        logger.error("Gemini request failed.", {
+          status: response.status,
+          uid: request.auth.uid,
+        });
+        throw new HttpsError("unavailable", "AI generation is unavailable.");
+      }
+
+      const body = await response.json();
+      const responseParts = body && body.candidates &&
+        body.candidates[0] && body.candidates[0].content &&
+        body.candidates[0].content.parts;
+      const text = Array.isArray(responseParts) ? responseParts
+          .map((part) => asTrimmedString(part && part.text))
+          .filter(Boolean)
+          .join("\n") : "";
+      if (!text) {
+        throw new HttpsError("data-loss", "AI returned an empty response.");
+      }
+      return {text};
+    },
+);
+
+/**
+ * Store user images in the project bucket under an owner-scoped prefix.
+ */
+exports.uploadUserImage = onCall(
+    {
+      region: ACCOUNT_DELETION_REGION,
+      timeoutSeconds: 120,
+      memory: "512MiB",
+    },
+    async (request) => {
+      const uid = asTrimmedString(request.auth && request.auth.uid);
+      if (!uid) {
+        throw new HttpsError("unauthenticated", "Sign in to upload images.");
+      }
+
+      const contentType = asTrimmedString(
+          request.data && request.data.contentType,
+      );
+      if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+        throw new HttpsError("invalid-argument", "Unsupported image type.");
+      }
+      const imageBase64 = asTrimmedString(
+          request.data && request.data.imageBase64,
+      );
+      const image = Buffer.from(imageBase64, "base64");
+      if (!image.length || image.length > MAX_IMAGE_BYTES) {
+        throw new HttpsError("invalid-argument", "The image is too large.");
+      }
+
+      const extension = contentType === "image/png" ? "png" :
+        contentType === "image/webp" ? "webp" : "jpg";
+      const objectName = `user_uploads/${uid}/${randomUUID()}.${extension}`;
+      const downloadToken = randomUUID();
+      const bucket = admin.storage().bucket();
+      await bucket.file(objectName).save(image, {
+        resumable: false,
+        contentType,
+        metadata: {
+          metadata: {firebaseStorageDownloadTokens: downloadToken},
+        },
+      });
+
+      const url = "https://firebasestorage.googleapis.com/v0/b/" +
+        encodeURIComponent(bucket.name) + "/o/" +
+        encodeURIComponent(objectName) + "?alt=media&token=" +
+        encodeURIComponent(downloadToken);
+      return {url};
+    },
+);
+
+/** Return trusted UTC time for client transaction calculations. */
+exports.getServerTime = onCall(
+    {region: ACCOUNT_DELETION_REGION},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Sign in to continue.");
+      }
+      return {millisecondsSinceEpoch: Date.now()};
+    },
+);
+
+/** Toggle a reaction without granting clients post update access. */
+exports.toggleGuildReaction = onCall(
+    {region: ACCOUNT_DELETION_REGION},
+    async (request) => {
+      const uid = asTrimmedString(request.auth && request.auth.uid);
+      const postId = asTrimmedString(request.data && request.data.postId);
+      const emoji = asTrimmedString(request.data && request.data.emoji);
+      if (!uid) throw new HttpsError("unauthenticated", "Sign in to react.");
+      if (!postId || !["🔥", "👏", "💡"].includes(emoji)) {
+        throw new HttpsError("invalid-argument", "Invalid reaction.");
+      }
+
+      const postRef = db.collection("guild_posts").doc(postId);
+      return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(postRef);
+        if (!snapshot.exists) {
+          throw new HttpsError("not-found", "Guild post not found.");
+        }
+        const reactions = asObject(snapshot.data().reactions);
+        const users = new Set(asStringArray(reactions[emoji]));
+        if (users.has(uid)) users.delete(uid); else users.add(uid);
+        if (users.size === 0) delete reactions[emoji];
+        else reactions[emoji] = [...users];
+        transaction.update(postRef, {reactions});
+        return {reactions};
+      });
+    },
+);
+
+/** Submit an immutable one-per-user peer review through trusted code. */
+exports.submitGuildPeerReview = onCall(
+    {region: ACCOUNT_DELETION_REGION},
+    async (request) => {
+      const uid = asTrimmedString(request.auth && request.auth.uid);
+      const postId = asTrimmedString(request.data && request.data.postId);
+      const ratings = asObject(request.data && request.data.ratings);
+      if (!uid) throw new HttpsError("unauthenticated", "Sign in to review.");
+      const ratingEntries = Object.entries(ratings);
+      if (!postId || ratingEntries.length === 0 || ratingEntries.length > 6 ||
+          ratingEntries.some(([axis, rating]) =>
+            !axis || axis.length > 80 || typeof rating !== "number" ||
+            !Number.isFinite(rating) || rating < 1 || rating > 5)) {
+        throw new HttpsError("invalid-argument", "Invalid peer review.");
+      }
+
+      const postRef = db.collection("guild_posts").doc(postId);
+      return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(postRef);
+        if (!snapshot.exists) {
+          throw new HttpsError("not-found", "Guild post not found.");
+        }
+        const reviews = asObject(snapshot.data().peerReviews);
+        if (Object.prototype.hasOwnProperty.call(reviews, uid)) {
+          return {created: false, peerReviews: reviews};
+        }
+        reviews[uid] = ratings;
+        transaction.update(postRef, {peerReviews: reviews});
+        return {created: true, peerReviews: reviews};
+      });
     },
 );
 
@@ -560,6 +761,24 @@ async function deleteActorNotifications(uid) {
       });
 
   return deletedCount;
+}
+
+/**
+ * Delete every project-hosted image owned by an account.
+ * @param {string} uid User ID whose upload prefix should be removed.
+ * @return {Promise<number>} Number of deleted objects.
+ */
+async function deleteUserUploads(uid) {
+  const bucket = admin.storage().bucket();
+  const [files] = await bucket.getFiles({prefix: `user_uploads/${uid}/`});
+  if (files.length === 0) {
+    return 0;
+  }
+
+  await forEachInChunks(files, ACCOUNT_CLEANUP_CONCURRENCY, async (file) => {
+    await file.delete({ignoreNotFound: true});
+  });
+  return files.length;
 }
 
 /**

@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/user_model.dart';
 import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
 import '../models/milestone_model.dart';
+import '../../core/utils/streak_calculator.dart';
 
 class QuestCompletionResult {
   final String planId;
@@ -264,7 +266,18 @@ class QuestService {
     }
 
     final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    final completionTime = DateTime.now();
+    final timeResult = await FirebaseFunctions.instanceFor(
+      region: 'asia-southeast1',
+    ).httpsCallable('getServerTime').call();
+    final timeData = Map<String, dynamic>.from(timeResult.data as Map);
+    final serverMilliseconds = timeData['millisecondsSinceEpoch'];
+    if (serverMilliseconds is! num) {
+      throw StateError('The server returned an invalid completion time.');
+    }
+    final completionTime = DateTime.fromMillisecondsSinceEpoch(
+      serverMilliseconds.toInt(),
+      isUtc: true,
+    );
     final normalizedReflection = reflectionNote.trim();
     final normalizedImageUrl = imageUrl?.trim();
 
@@ -367,7 +380,7 @@ class QuestService {
               : 0;
           final awardedXP = baseXP + imageBonus;
           final updatedTotalXP = currentTotalXP + awardedXP;
-          final updatedStreak = _updatedStreak(
+          final updatedStreak = calculateUpdatedStreak(
             currentStreak: currentStreak,
             lastStreakDate: _readDateTime(userData['lastStreakDate']),
             completionTime: completionTime,
@@ -406,6 +419,14 @@ class QuestService {
             'categoryXp': updatedCategoryXp,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+          transaction.set(
+            FirebaseFirestore.instance.collection('publicProfiles').doc(uid),
+            {
+              'totalXP': updatedTotalXP,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
 
           return QuestCompletionResult(
             planId: resolvedPlanId,
@@ -481,26 +502,4 @@ class QuestService {
     return null;
   }
 
-  static int _updatedStreak({
-    required int currentStreak,
-    required DateTime? lastStreakDate,
-    required DateTime completionTime,
-  }) {
-    if (lastStreakDate == null) return 1;
-
-    final completionDay = DateTime(
-      completionTime.year,
-      completionTime.month,
-      completionTime.day,
-    );
-    final lastCompletionDay = DateTime(
-      lastStreakDate.year,
-      lastStreakDate.month,
-      lastStreakDate.day,
-    );
-    final dayDifference = completionDay.difference(lastCompletionDay).inDays;
-    if (dayDifference == 0) return currentStreak;
-    if (dayDifference == 1) return currentStreak + 1;
-    return 1;
-  }
 }
