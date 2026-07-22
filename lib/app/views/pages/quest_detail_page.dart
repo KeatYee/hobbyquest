@@ -11,6 +11,7 @@ import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/widgets/goal_complete_screen.dart';
 import '../../../core/widgets/milestone_complete_screen.dart';
+import '../widgets/quest_completion_result_sheet.dart';
 
 class QuestDetailPage extends StatefulWidget {
   final QuestNodeModel quest;
@@ -101,19 +102,33 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       Get.back();
       return;
     }
-    final completed = await _controller.completeQuest(
+    final outcome = await _controller.completeQuest(
       reflectionController.text.trim(),
       imageFile: selectedImage,
     );
-    if (!completed) return;
+    if (outcome == null) {
+      if (mounted && _controller.currentQuest.value.isCompleted) {
+        Navigator.of(context).pop();
+      }
+      return;
+    }
 
     final homeController = Get.find<HomeController>();
-    final hasCompletedMilestone = homeController.hasCompletedMilestone();
-    final hasCompletedFinalMilestone = homeController
-        .hasCompletedFinalMilestone();
+    final hasCompletedMilestone = outcome.completedMilestone;
+    final hasCompletedFinalMilestone = outcome.completedFinalMilestone;
     if (hasCompletedFinalMilestone) {
       await homeController.completeCurrentGoal();
     }
+
+    if (!mounted) return;
+    await QuestCompletionResultSheet.show(
+      context: context,
+      outcome: outcome,
+      onShare: () => _controller.promptShareToGuild(
+        reflectionNote: reflectionController.text.trim(),
+        imageFile: selectedImage,
+      ),
+    );
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) Navigator.of(context).pop();
@@ -967,7 +982,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     );
   }
 }
-
 
 /// Section card with architectural header (left bar + extending rule)
 class _SectionCard extends StatelessWidget {

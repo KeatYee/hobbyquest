@@ -60,12 +60,15 @@ class ProgressionController extends GetxController {
     }
   }
 
-  void applyQuestCompletion(QuestCompletionResult result) {
+  List<int> applyQuestCompletion(
+    QuestCompletionResult result, {
+    bool showMilestoneUnlockModal = true,
+  }) {
     totalXP.value = result.updatedTotalXP;
     streak.value = result.updatedStreak;
     categoryXp.value = Map<String, int>.from(result.updatedCategoryXp);
 
-    if (!result.didComplete) return;
+    if (!result.didComplete) return const [];
 
     final previousLevel = (result.previousTotalXP ~/ 1000) + 1;
     final newLevel = (result.updatedTotalXP ~/ 1000) + 1;
@@ -74,13 +77,20 @@ class ProgressionController extends GetxController {
       _pendingLevelUpLevel = newLevel;
     }
 
+    final unlockedMilestones = <int>[];
     for (var i = 0; i < _milestoneThresholds.length; i++) {
       final threshold = _milestoneThresholds[i];
       if (result.previousTotalXP < threshold &&
           result.updatedTotalXP >= threshold) {
-        showMilestoneUnlockedModal(i + 1, threshold);
+        final milestoneNumber = i + 1;
+        unlockedMilestones.add(milestoneNumber);
+        if (showMilestoneUnlockModal) {
+          showMilestoneUnlockedModal(milestoneNumber, threshold);
+        }
       }
     }
+
+    return unlockedMilestones;
   }
 
   /// Shows the pending level-up screen if one was triggered.

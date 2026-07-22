@@ -592,22 +592,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         child: Obx(() {
           final progressionController = Get.find<ProgressionController>();
           final xp = progressionController.categoryXp[category.name] ?? 0;
-          final thresholds = [0, 100, 300, 500, 800];
-          final labels = [
-            'Seed',
-            'Sprout',
-            'Seedling',
-            'Young Tree',
-            'Mature Tree',
-          ];
-
-          int actualStage = 0;
-          for (int i = thresholds.length - 1; i >= 0; i--) {
-            if (xp >= thresholds[i]) {
-              actualStage = i;
-              break;
-            }
-          }
+          const thresholds = TreeModel.growthThresholds;
+          const labels = TreeModel.growthStageLabels;
+          final actualStage = TreeModel.stageForXp(xp);
 
           if (category.name != _displayedStageCategory) {
             _displayedStageCategory = category.name;

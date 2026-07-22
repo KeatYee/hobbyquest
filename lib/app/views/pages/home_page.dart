@@ -503,6 +503,55 @@ class HomePage extends StatelessWidget {
               _buildGrowthLetterButton(controller),
             ],
           ),
+          Obx(() {
+            const xpPerLevel = 1000;
+            final totalXp = progressionController.totalXP.value;
+            final xpIntoLevel = totalXp % xpPerLevel;
+            final level = progressionController.currentLevel;
+
+            return Semantics(
+              label:
+                  'Level $level progress: $xpIntoLevel of $xpPerLevel experience points',
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'LEVEL $level PROGRESS',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: AppFonts.label,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$xpIntoLevel / $xpPerLevel XP',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: AppFonts.badge,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: xpIntoLevel / xpPerLevel,
+                      minHeight: 8,
+                      backgroundColor: AppColors.border,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -628,89 +677,200 @@ class HomePage extends StatelessWidget {
       final total = plan.milestones.length;
       final milestone = plan.milestones[index];
       final progress = ((index + 1) / total);
+      final progressPercent = (progress * 100).round();
 
       final quests = plan.quests;
       final completedQuests = quests.where((q) => q.isCompleted).length;
       final totalQuests = quests.length;
 
-      return InkWell(
-        onTap: () => _showGoalInfo(controller, plan),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
+      return Semantics(
+        button: true,
+        label:
+            'Current goal: ${plan.goal}. Phase ${index + 1} of $total: ${milestone.title}. $completedQuests of $totalQuests quests completed.',
+        child: InkWell(
+          onTap: () => _showGoalInfo(controller, plan),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppColors.softShadow,
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
                 ),
-                child: const Icon(
-                  Icons.flag_rounded,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Phase ${index + 1}: ${milestone.title}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: AppFonts.caption,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          '${index + 1}/$total',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: AppFonts.micro,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: AppColors.border,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
-                        minHeight: 5,
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.flag_rounded,
+                        size: 20,
+                        color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$completedQuests/$totalQuests quests completed',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: AppFonts.micro,
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'YOUR CURRENT GOAL',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: AppFonts.label,
+                          letterSpacing: 0.8,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  plan.goal,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: AppFonts.title,
+                    color: AppColors.textPrimary,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CURRENT PHASE · ${index + 1} OF $total',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: AppFonts.label,
+                                letterSpacing: 0.7,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              milestone.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: AppFonts.bodyLg,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: AppColors.surface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.route_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Text(
+                      'JOURNEY PROGRESS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: AppFonts.label,
+                        letterSpacing: 0.7,
                         color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$progressPercent%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: AppFonts.badge,
+                        color: AppColors.primary,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: AppColors.border,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 17,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$completedQuests of $totalQuests quests complete',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: AppFonts.caption,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'View details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: AppFonts.micro,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -3,6 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TreeModel {
   static const int forestSpotCount = 9;
   static const int maturityXp = 800;
+  static const List<int> growthThresholds = [0, 100, 300, 500, maturityXp];
+  static const List<String> growthStageLabels = [
+    'Seed',
+    'Sprout',
+    'Seedling',
+    'Young Tree',
+    'Mature Tree',
+  ];
+
+  static int stageForXp(int xp) {
+    for (var index = growthThresholds.length - 1; index >= 0; index--) {
+      if (xp >= growthThresholds[index]) return index;
+    }
+    return 0;
+  }
 
   final String id;
   final String treeName;

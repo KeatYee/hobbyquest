@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/quest_node_model.dart';
+import '../models/tree_model.dart';
 import '../views/dialogs/add_guild_post_dialog.dart';
 import 'guild_controller.dart';
 import 'home_controller.dart';
@@ -13,6 +16,44 @@ import '../services/gemini_service.dart';
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/dialog_utils.dart';
 
+class QuestCompletionOutcome {
+  final QuestCompletionResult completion;
+  final String categoryName;
+  final int previousCategoryXp;
+  final int updatedCategoryXp;
+  final int previousCategoryStage;
+  final int updatedCategoryStage;
+  final int previousStreak;
+  final List<QuestNodeModel> newlyUnlockedQuests;
+  final bool didLevelUp;
+  final List<int> unlockedProgressionMilestones;
+  final bool completedMilestone;
+  final bool completedFinalMilestone;
+
+  const QuestCompletionOutcome({
+    required this.completion,
+    required this.categoryName,
+    required this.previousCategoryXp,
+    required this.updatedCategoryXp,
+    required this.previousCategoryStage,
+    required this.updatedCategoryStage,
+    required this.previousStreak,
+    required this.newlyUnlockedQuests,
+    required this.didLevelUp,
+    required this.unlockedProgressionMilestones,
+    required this.completedMilestone,
+    required this.completedFinalMilestone,
+  });
+
+  bool get hasCategoryProgress => categoryName.isNotEmpty;
+
+  bool get didAdvanceTreeStage => updatedCategoryStage > previousCategoryStage;
+
+  bool get didReachTreeMaturity =>
+      previousCategoryXp < TreeModel.maturityXp &&
+      updatedCategoryXp >= TreeModel.maturityXp;
+}
+
 class QuestDetailController extends GetxController {
   /// Extra XP awarded when a reflection is completed with an image.
   static const int reflectionImageBonusXp = QuestService.reflectionImageBonusXP;
@@ -23,16 +64,19 @@ class QuestDetailController extends GetxController {
   QuestDetailController({required QuestNodeModel initialQuest})
     : currentQuest = Rx<QuestNodeModel>(initialQuest);
 
-  /// Completes the quest and awards progression in one idempotent transaction.
-  /// Returns true when successful.
-  Future<bool> completeQuest(String reflectionNote, {XFile? imageFile}) async {
+  /// Completes a quest and returns the UI-ready result of the idempotent
+  /// transaction. A duplicate completion returns null and shows no reward UI.
+  Future<QuestCompletionOutcome?> completeQuest(
+    String reflectionNote, {
+    XFile? imageFile,
+  }) async {
     print(
       '--- DEBUG: completeQuest() called for quest ${currentQuest.value.nodeId} ---',
     );
 
     if (currentQuest.value.isCompleted) {
-      print('--- DEBUG: Quest already completed, returning true ---');
-      return true;
+      print('--- DEBUG: Quest already completed, skipping result sheet ---');
+      return null;
     }
 
     isSubmitting.value = true;
@@ -42,6 +86,14 @@ class QuestDetailController extends GetxController {
     final progressionController = Get.find<ProgressionController>();
     final homeController = Get.find<HomeController>();
     final questId = currentQuest.value.nodeId;
+    final activeQuestIdsBefore = homeController.dailyQuests
+        .where((quest) => quest.isActive && !quest.isCompleted)
+        .map((quest) => quest.nodeId)
+        .toSet();
+    final previousStreak = homeController.user.value?.currentStreak ?? 0;
+    final categoryXpBefore = Map<String, int>.from(
+      homeController.user.value?.categoryXp ?? const <String, int>{},
+    );
 
     try {
       String? imageUrl;
@@ -177,8 +229,8 @@ class QuestDetailController extends GetxController {
         print('--- DEBUG: Dialog closed. isApproved: $isApproved ---');
 
         if (!isApproved) {
-          print('--- DEBUG: Quest not approved, returning false ---');
-          return false;
+          print('--- DEBUG: Quest not approved, returning no outcome ---');
+          return null;
         }
 
         print('--- DEBUG: Uploading image to ImgBB ---');
@@ -197,6 +249,9 @@ class QuestDetailController extends GetxController {
       final fallbackCategory = storedCategory.isNotEmpty
           ? storedCategory
           : await progressionController.resolveCurrentCategoryName();
+      final categoryName = storedCategory.isNotEmpty
+          ? storedCategory
+          : fallbackCategory?.trim() ?? '';
       final completion = await questService.completeQuestTransaction(
         uid: homeController.user.value?.id ?? '',
         planId: homeController.user.value?.activePlanId ?? '',
@@ -213,9 +268,10 @@ class QuestDetailController extends GetxController {
         '--- DEBUG: completeQuestTransaction returned. didComplete=${completion.didComplete}, awardedXP=${completion.awardedXP} ---',
       );
 
-      progressionController.applyQuestCompletion(completion);
+      final unlockedProgressionMilestones = progressionController
+          .applyQuestCompletion(completion, showMilestoneUnlockModal: false);
       homeController.applyQuestCompletion(completion);
-      await homeController.refreshGrowthLetterAvailability();
+      unawaited(homeController.refreshGrowthLetterAvailability());
 
       print(
         '--- INFO: Quest $questId synchronized. Total quest nodes: ${homeController.dailyQuests.length} ---',
@@ -230,33 +286,64 @@ class QuestDetailController extends GetxController {
       );
       currentQuest.value = updated;
 
-      if (completion.didComplete) {
-        try {
-          await _promptShareToGuild(
-            questTitle: currentQuest.value.title,
-            reflectionNote: reflectionNote,
-            hobby: homeController.user.value?.currentPlan.hobby ?? '',
-            imageUrl: imageUrl,
-            imageFile: imageFile,
-          );
-        } catch (e) {
-          print(
-            '--- WARNING: Quest completed, but guild sharing failed: $e ---',
-          );
-        }
-      }
+      if (!completion.didComplete) return null;
 
-      return true;
+      final previousCategoryXp = categoryXpBefore[categoryName] ?? 0;
+      final updatedCategoryXp = completion.updatedCategoryXp[categoryName] ?? 0;
+      final newlyUnlockedQuests = homeController.dailyQuests
+          .where(
+            (quest) =>
+                quest.isActive &&
+                !quest.isCompleted &&
+                !activeQuestIdsBefore.contains(quest.nodeId),
+          )
+          .toList();
+
+      return QuestCompletionOutcome(
+        completion: completion,
+        categoryName: categoryName,
+        previousCategoryXp: previousCategoryXp,
+        updatedCategoryXp: updatedCategoryXp,
+        previousCategoryStage: TreeModel.stageForXp(previousCategoryXp),
+        updatedCategoryStage: TreeModel.stageForXp(updatedCategoryXp),
+        previousStreak: previousStreak,
+        newlyUnlockedQuests: newlyUnlockedQuests,
+        didLevelUp:
+            (completion.updatedTotalXP ~/ 1000) >
+            (completion.previousTotalXP ~/ 1000),
+        unlockedProgressionMilestones: unlockedProgressionMilestones,
+        completedMilestone: homeController.hasCompletedMilestone(),
+        completedFinalMilestone: homeController.hasCompletedFinalMilestone(),
+      );
     } catch (e) {
       print('--- ERROR: Exception in completeQuest: $e ---');
       print(e);
       AppDialogs.error('Failed to complete quest', e.toString());
-      return false;
+      return null;
     } finally {
       print(
         '--- DEBUG: completeQuest finally block - setting isSubmitting to false ---',
       );
       isSubmitting.value = false;
+    }
+  }
+
+  Future<void> promptShareToGuild({
+    required String reflectionNote,
+    XFile? imageFile,
+  }) async {
+    if (!currentQuest.value.isCompleted) return;
+
+    try {
+      await _promptShareToGuild(
+        questTitle: currentQuest.value.title,
+        reflectionNote: reflectionNote,
+        hobby: Get.find<HomeController>().user.value?.currentPlan.hobby ?? '',
+        imageUrl: currentQuest.value.imageUrl,
+        imageFile: imageFile,
+      );
+    } catch (e) {
+      print('--- WARNING: Quest sharing failed: $e ---');
     }
   }
 
