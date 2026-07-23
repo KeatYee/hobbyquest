@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
@@ -37,9 +38,36 @@ class QuestCompletionResultSheet extends StatefulWidget {
 
 class _QuestCompletionResultSheetState
     extends State<QuestCompletionResultSheet> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isSharing = false;
+  bool _hasPlayedCompletionSound = false;
 
   QuestCompletionOutcome get _outcome => widget.outcome;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playCompletionSound();
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playCompletionSound() async {
+    if (_hasPlayedCompletionSound || !mounted) return;
+    _hasPlayedCompletionSound = true;
+
+    try {
+      await _audioPlayer.play(AssetSource('audio/power_up.mp3'));
+    } catch (_) {
+      // Ignore sound failures so the completion sheet still opens cleanly.
+    }
+  }
 
   Future<void> _share() async {
     setState(() => _isSharing = true);
