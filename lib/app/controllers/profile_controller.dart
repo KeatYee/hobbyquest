@@ -44,6 +44,17 @@ class ProfileController extends GetxController {
   String get email => _auth.currentUser?.email ?? '';
   String get uid => _auth.currentUser?.uid ?? '';
 
+  /// The set of Firebase Auth provider IDs for the current user.
+  /// e.g. 'password' for email/password, 'google.com' for Google.
+  Set<String> get providerIds {
+    final user = _auth.currentUser;
+    if (user == null) return {};
+    return user.providerData.map((info) => info.providerId).toSet();
+  }
+
+  bool get hasPassword => providerIds.contains('password');
+  bool get hasGoogle => providerIds.contains('google.com');
+
   @override
   void onInit() {
     super.onInit();

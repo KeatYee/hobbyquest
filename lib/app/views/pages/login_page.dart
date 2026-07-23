@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/color_constants.dart';
+import '../../../../core/constants/font_constants.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/dialog_utils.dart';
 import '../../controllers/auth_controller.dart';
@@ -221,6 +222,89 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> handleForgotPassword() async {
+    // Step 1: Ask how the user created their account
+    final method = await AppDialogs.custom<String>(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Forgot Password',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: AppFonts.title,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'How did you create your account?',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: FilledButton.icon(
+                onPressed: () => Get.back(result: 'email'),
+                icon: const Icon(Icons.email_outlined),
+                label: const Text('Email & Password'),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: OutlinedButton.icon(
+                onPressed: () => Get.back(result: 'google'),
+                icon: const Icon(Icons.login),
+                label: const Text('Google'),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: TextButton(
+                onPressed: () => Get.back(result: null),
+                child: const Text('Cancel'),
+                style: TextButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (method == null || !mounted) return;
+
+    if (method == 'google') {
+      AppDialogs.info(
+        'Google Account',
+        'Your account is managed by Google. Please sign in with Google to access your account.',
+      );
+      return;
+    }
+
+    // Step 2: Ask for email and send reset link
     final email = await AppDialogs.input(
       title: 'Reset Password',
       initialValue: emailController.text.trim(),

@@ -146,6 +146,8 @@ class ProfilePage extends StatelessWidget {
     User currentUser,
     UserModel userModel,
   ) {
+    final ctrl = Get.find<ProfileController>();
+
     return _SectionCard(
       label: "ACCOUNT",
       child: Column(
@@ -161,9 +163,15 @@ class ProfilePage extends StatelessWidget {
           _SettingsTile(
             icon: Icons.lock_reset_rounded,
             iconColor: AppColors.warning,
-            title: "Reset Password",
-            subtitle: "Send a reset link to your email",
-            onTap: () => _confirmPasswordReset(context),
+            title: ctrl.hasPassword
+                ? "Reset Password"
+                : "Password managed by Google",
+            subtitle: ctrl.hasPassword
+                ? "Send a reset link to your email"
+                : "You not have a HobbyQuest password",
+            onTap: ctrl.hasPassword
+                ? () => _confirmPasswordReset(context)
+                : null,
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -732,7 +740,7 @@ class _SettingsTile extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _SettingsTile({
     required this.icon,

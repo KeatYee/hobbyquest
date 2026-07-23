@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,6 +43,7 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   final CategoryService _categoryService = CategoryService();
+  final AudioPlayer _revealAudioPlayer = AudioPlayer();
   List<CategoryModel> _allCategories = [];
   List<CategoryModel> _categories = [];
   int? _selectedIndex;
@@ -54,6 +58,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   int _displayedStage = 0;
   String _displayedStageCategory = '';
   bool _isSavingTree = false;
+  bool _isTreeNamingDialogOpen = false;
 
   final List<String> _speechMessages = [
     "Oh, hello! Who's that? Are you my new gardener?",
@@ -109,7 +114,18 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _shakeController?.dispose();
     _hobbyWorker?.dispose();
     _tabWorker?.dispose();
+    _revealAudioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _playRevealSound() async {
+    if (!mounted) return;
+
+    try {
+      await _revealAudioPlayer.play(AssetSource('audio/reveal.mp3'));
+    } catch (_) {
+      // Ignore sound failures so the naming popup still opens cleanly.
+    }
   }
 
   void _bindCurrentHobbySelection() {
@@ -420,8 +436,15 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   Future<void> _showTreeNamingDialog(CategoryModel category) async {
+    if (!mounted || _isTreeNamingDialogOpen) return;
+    _isTreeNamingDialogOpen = true;
+
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_playRevealSound());
+    });
 
     final result = await AppDialogs.custom<bool>(
       barrierDismissible: false,
@@ -510,32 +533,45 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       ),
     );
 
-    if (result == true && nameController.text.trim().isNotEmpty) {
-      final plantingResult = await _saveTreeToForest(
-        category,
-        nameController.text.trim(),
-      );
-      if (plantingResult != null) {
-        if (plantingResult.completedGrove && mounted) {
-          await GroveCompleteScreen.show(
-            context: context,
-            completedGroveIndex: plantingResult.plantedGroveIndex,
-            treeCount: plantingResult.groveTreeCount,
-            totalQuestXp: plantingResult.totalQuestXp,
-            onExploreNextGrove: Get.back,
+    try {
+      if (result == true && nameController.text.trim().isNotEmpty) {
+        AppDialogs.showLoading(message: 'Planting tree...');
+        GrovePlantingResult? plantingResult;
+        try {
+          plantingResult = await _saveTreeToForest(
+            category,
+            nameController.text.trim(),
+          );
+        } finally {
+          AppDialogs.dismissLoading();
+        }
+
+        if (plantingResult != null) {
+          if (!mounted) return;
+          if (plantingResult.completedGrove) {
+            await GroveCompleteScreen.show(
+              context: context,
+              completedGroveIndex: plantingResult.plantedGroveIndex,
+              treeCount: plantingResult.groveTreeCount,
+              totalQuestXp: plantingResult.totalQuestXp,
+              onExploreNextGrove: Get.back,
+            );
+          }
+          if (!mounted) return;
+          Get.toNamed(
+            AppRoutes.FOREST,
+            arguments: {
+              'groveIndex': plantingResult.completedGrove
+                  ? plantingResult.plantedGroveIndex + 1
+                  : plantingResult.plantedGroveIndex,
+            },
           );
         }
-        Get.toNamed(
-          AppRoutes.FOREST,
-          arguments: {
-            'groveIndex': plantingResult.completedGrove
-                ? plantingResult.plantedGroveIndex + 1
-                : plantingResult.plantedGroveIndex,
-          },
-        );
       }
+    } finally {
+      _isTreeNamingDialogOpen = false;
+      nameController.dispose();
     }
-    nameController.dispose();
   }
 
   Future<void> _loadCategories() async {
