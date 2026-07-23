@@ -325,6 +325,13 @@ class QuestService {
           final currentCompletionCount = _readInt(
             userData['dailyQuestCompletionCount'],
           );
+          final updatedCompletionCount = calculateDailyQuestCompletionCount(
+            currentCount: currentCompletionCount,
+            lastCompletionDate: _readDateTime(
+              userData['lastQuestCompletionDate'],
+            ),
+            completionTime: completionTime,
+          );
           final currentCategoryXp = _readCategoryXp(userData['categoryXp']);
 
           if (storedQuest.isCompleted) {
@@ -415,7 +422,7 @@ class QuestService {
             'currentStreak': updatedStreak,
             'lastStreakDate': FieldValue.serverTimestamp(),
             'lastQuestCompletionDate': FieldValue.serverTimestamp(),
-            'dailyQuestCompletionCount': currentCompletionCount + 1,
+            'dailyQuestCompletionCount': updatedCompletionCount,
             'categoryXp': updatedCategoryXp,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
@@ -446,7 +453,7 @@ class QuestService {
             previousTotalXP: currentTotalXP,
             updatedTotalXP: updatedTotalXP,
             updatedStreak: updatedStreak,
-            dailyQuestCompletionCount: currentCompletionCount + 1,
+            dailyQuestCompletionCount: updatedCompletionCount,
             updatedCategoryXp: updatedCategoryXp,
             completionTime: completionTime,
           );
@@ -501,5 +508,4 @@ class QuestService {
     if (value is String) return DateTime.tryParse(value);
     return null;
   }
-
 }

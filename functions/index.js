@@ -1,7 +1,9 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {
+  onDocumentDeleted,
+  onDocumentUpdated,
+} = require("firebase-functions/v2/firestore");
 const {HttpsError, onCall} = require("firebase-functions/v2/https");
-const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const {randomUUID} = require("crypto");
@@ -14,7 +16,18 @@ const ACCOUNT_DELETION_REGION = "asia-southeast1";
 const ACCOUNT_CLEANUP_CONCURRENCY = 20;
 const MAX_AI_PROMPT_LENGTH = 20000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
+const FALLBACK_REVIEW_AXES = new Set([
+  "Quality", "Effort", "Impact", "Creativity", "Technique", "Color Theory",
+  "Composition", "Line Work", "Shading", "Lighting", "Editing",
+  "Letter Form", "Consistency", "Ink Control", "Rhythm", "Musicality",
+  "Expression", "Sight Reading", "Pitch", "Tone", "Breath Control",
+  "Choreography", "Alignment", "Flexibility", "Mindfulness", "Form",
+  "Intensity", "Focus", "Duration", "Taste", "Presentation", "Code Quality",
+  "Efficiency", "Readability", "Strategy", "Tactics", "Endgame",
+  "Vocabulary", "Grammar", "Pronunciation", "Clarity", "Engagement",
+  "Structure",
+]);
 
 setGlobalOptions({maxInstances: 10});
 
@@ -36,16 +49,11 @@ exports.deleteAccount = onCall(
       }
 
       try {
-        await cleanupGuildData(uid);
-        await deleteActorNotifications(uid);
-        await deleteUserUploads(uid);
+        await cleanupUserData(uid, {deleteAuthUserAccount: true});
         await Promise.all([
           db.recursiveDelete(db.collection("users").doc(uid)),
           db.collection("publicProfiles").doc(uid).delete(),
         ]);
-
-        // Delete Auth last so the user can retry if data cleanup fails.
-        await deleteAuthUser(uid);
 
         logger.info("Account deleted.", {uid});
 
@@ -60,6 +68,28 @@ exports.deleteAccount = onCall(
     },
 );
 
+exports.cleanupDeletedUserData = onDocumentDeleted(
+    {
+      document: "users/{uid}",
+      memory: "512MiB",
+      region: ACCOUNT_DELETION_REGION,
+      timeoutSeconds: 540,
+    },
+    async (event) => {
+      const uid = asTrimmedString(event.params && event.params.uid);
+
+      if (!uid) {
+        logger.warn(
+            "Skipping Firestore user cleanup because the UID was missing.",
+        );
+        return;
+      }
+
+      logger.info("Cleaning up data for a deleted Firestore user.", {uid});
+      await cleanupUserData(uid, {deleteAuthUserAccount: true});
+    },
+);
+
 /**
  * Generate model text without exposing the Gemini credential to clients.
  */
@@ -68,7 +98,6 @@ exports.generateWithGemini = onCall(
       region: ACCOUNT_DELETION_REGION,
       timeoutSeconds: 120,
       memory: "512MiB",
-      secrets: [GEMINI_API_KEY],
     },
     async (request) => {
       if (!request.auth) {
@@ -98,17 +127,48 @@ exports.generateWithGemini = onCall(
         parts.push({inlineData: {mimeType, data: imageBase64}});
       }
 
-      const endpoint =
-        "https://generativelanguage.googleapis.com/v1beta/models/" +
-        "gemini-3.1-flash-lite:generateContent?key=" +
-        encodeURIComponent(GEMINI_API_KEY.value());
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {"content-type": "application/json"},
-        body: JSON.stringify({contents: [{role: "user", parts}]}),
-      });
+      let response;
+      try {
+        const projectId = process.env.GCLOUD_PROJECT ||
+          process.env.GCP_PROJECT ||
+          admin.app().options.projectId;
+        const credential = admin.app().options.credential;
+        if (!projectId || !credential) {
+          throw new Error("Firebase project credentials are unavailable.");
+        }
+        const accessToken = await credential.getAccessToken();
+        const endpoint =
+          "https://aiplatform.googleapis.com/v1/projects/" +
+          `${encodeURIComponent(projectId)}/locations/global/` +
+          `publishers/google/models/${GEMINI_MODEL}:generateContent`;
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "authorization": `Bearer ${accessToken.access_token}`,
+            "content-type": "application/json",
+            "x-goog-user-project": projectId,
+          },
+          body: JSON.stringify({
+            contents: [{role: "user", parts}],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.4,
+            },
+          }),
+        });
+      } catch (error) {
+        logger.error("Gemini request could not be sent.", {
+          error,
+          model: GEMINI_MODEL,
+          uid: request.auth.uid,
+        });
+        throw new HttpsError("unavailable", "AI generation is unavailable.");
+      }
       if (!response.ok) {
+        const errorBody = (await response.text()).slice(0, 500);
         logger.error("Gemini request failed.", {
+          errorBody,
+          model: GEMINI_MODEL,
           status: response.status,
           uid: request.auth.uid,
         });
@@ -242,9 +302,48 @@ exports.submitGuildPeerReview = onCall(
         if (!snapshot.exists) {
           throw new HttpsError("not-found", "Guild post not found.");
         }
-        const reviews = asObject(snapshot.data().peerReviews);
+        const post = snapshot.data() || {};
+        if (asTrimmedString(post.userId) === uid) {
+          throw new HttpsError(
+              "failed-precondition",
+              "You cannot review your own guild post.",
+          );
+        }
+
+        let allowedAxes = FALLBACK_REVIEW_AXES;
+        let requiresExactAxes = false;
+        const categoryId = asTrimmedString(post.categoryId);
+        if (categoryId) {
+          const categorySnapshot = await transaction.get(
+              db.collection("categories").doc(categoryId),
+          );
+          const configuredAxes = getReviewAxisLabels(
+              categorySnapshot.data(),
+              post.hobby,
+          );
+          if (configuredAxes.size > 0) {
+            allowedAxes = configuredAxes;
+            requiresExactAxes = true;
+          }
+        }
+        const expectedAxisCount = requiresExactAxes ? allowedAxes.size : 3;
+        if (ratingEntries.length !== expectedAxisCount ||
+            ratingEntries.some(([axis]) => !allowedAxes.has(axis))) {
+          throw new HttpsError(
+              "invalid-argument",
+              "Peer review axes do not match this hobby.",
+          );
+        }
+
+        const reviews = asObject(post.peerReviews);
         if (Object.prototype.hasOwnProperty.call(reviews, uid)) {
           return {created: false, peerReviews: reviews};
+        }
+        if (Object.keys(reviews).length >= 1000) {
+          throw new HttpsError(
+              "resource-exhausted",
+              "This post has reached its peer review limit.",
+          );
         }
         reviews[uid] = ratings;
         transaction.update(postRef, {peerReviews: reviews});
@@ -599,6 +698,31 @@ async function getActorName(actorId) {
 }
 
 /**
+ * Cleanup all user data that should be removed when a user account is deleted.
+ * The function is safe to run multiple times and is used both by the account
+ * deletion callable and by a Firestore trigger for deleted user documents.
+ * @param {string} uid User ID to remove.
+ * @param {Object} [options] Optional cleanup flags.
+ * @param {boolean} [options.deleteAuthUserAccount]
+ *   Whether to delete the Auth user.
+ * @return {Promise<Object>} Guild cleanup result.
+ */
+async function cleanupUserData(uid, options = {}) {
+  const {deleteAuthUserAccount = false} = options;
+
+  const guildCleanupResult = await cleanupGuildData(uid);
+  await deleteActorNotifications(uid);
+  await deleteUserUploads(uid);
+
+  if (deleteAuthUserAccount) {
+    // Delete Auth last so the user can retry if data cleanup fails.
+    await deleteAuthUser(uid);
+  }
+
+  return guildCleanupResult;
+}
+
+/**
  * Remove the user from all guild posts they authored or interacted with.
  * Each post uses a transaction so concurrent reactions are not overwritten.
  * @param {string} uid User ID to remove.
@@ -864,6 +988,30 @@ function asStringArray(value) {
   return value
       .map((item) => asTrimmedString(item))
       .filter((item) => item.length > 0);
+}
+
+/**
+ * Read the configured peer-review axis labels for a hobby.
+ * @param {unknown} categoryValue Category document data.
+ * @param {unknown} hobbyValue Guild post hobby.
+ * @return {Set<string>}
+ */
+function getReviewAxisLabels(categoryValue, hobbyValue) {
+  const category = asObject(categoryValue);
+  const hobbyName = asTrimmedString(hobbyValue).toLowerCase();
+  const hobbies = Array.isArray(category.hobbies) ? category.hobbies : [];
+  const hobby = hobbies.find((candidate) => {
+    return asTrimmedString(asObject(candidate).name).toLowerCase() ===
+      hobbyName;
+  });
+  const axes = Array.isArray(asObject(hobby).axes) ?
+    asObject(hobby).axes : [];
+
+  return new Set(
+      axes
+          .map((axis) => asTrimmedString(asObject(axis).label))
+          .filter((label) => label.length > 0),
+  );
 }
 
 /**

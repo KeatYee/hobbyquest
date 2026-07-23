@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../controllers/guild_controller.dart';
-import '../../controllers/home_controller.dart';
 import '../../models/guild_post_model.dart';
-import '../dialogs/add_guild_post_dialog.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
@@ -41,48 +39,12 @@ class GuildPage extends StatelessWidget {
     );
   }
 
-  void _showAddPostDialog(BuildContext context, GuildController controller) {
-    if (controller.categories.isEmpty) return;
-
-    String hobby = '';
-    String categoryId = '';
-    try {
-      final homeController = Get.find<HomeController>();
-      hobby = homeController.hobby.value;
-    } catch (_) {}
-
-    for (final category in controller.categories) {
-      if (category.hobbyNames.any(
-        (h) => h.toLowerCase() == hobby.toLowerCase(),
-      )) {
-        categoryId = category.id;
-        break;
-      }
-    }
-    if (categoryId.isEmpty && controller.categories.isNotEmpty) {
-      categoryId = controller.categories.first.id;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: AddGuildPostDialog(hobby: hobby, categoryId: categoryId),
-      ),
-    );
-  }
-
   Widget _buildFilteredFeed(BuildContext context, GuildController controller) {
     final visiblePosts = controller.visiblePosts;
 
     if (visiblePosts.isEmpty) {
       return _buildEmptyState(
         context,
-        controller,
         _emptyMessageForFilter(controller.selectedFeedFilter.value),
       );
     }
@@ -268,7 +230,6 @@ class GuildPage extends StatelessWidget {
 
   Widget _buildEmptyState(
     BuildContext context,
-    GuildController controller,
     String message,
   ) {
     return Padding(
@@ -289,20 +250,6 @@ class GuildPage extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _showAddPostDialog(context, controller),
-              icon: const Icon(Icons.edit_rounded, size: 18),
-              label: const Text('Create a post'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textOnPrimary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
               ),
             ),
           ],
@@ -955,15 +902,17 @@ class _GuildPostCard extends StatelessWidget {
               const Spacer(),
               Obx(() {
                 final reviewed = controller.hasUserReviewed(post.id);
+                final isOwnPost = controller.isOwnPost(post);
+                final reviewDisabled = reviewed || isOwnPost;
                 return GestureDetector(
-                  onTap: reviewed ? null : onPeerReviewTap,
+                  onTap: reviewDisabled ? null : onPeerReviewTap,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: reviewed
+                      color: reviewDisabled
                           ? AppColors.textSecondary.withOpacity(0.15)
                           : AppColors.primary,
                       borderRadius: BorderRadius.circular(999),
@@ -980,11 +929,13 @@ class _GuildPostCard extends StatelessWidget {
                           const SizedBox(width: 4),
                         ],
                         Text(
-                          reviewed ? 'Reviewed' : 'Peer Review',
+                          reviewed
+                              ? 'Reviewed'
+                              : (isOwnPost ? 'Your Post' : 'Peer Review'),
                           style: TextStyle(
                             fontSize: AppFonts.badge,
                             fontWeight: FontWeight.w700,
-                            color: reviewed
+                            color: reviewDisabled
                                 ? AppColors.textSecondary
                                 : AppColors.textOnPrimary,
                           ),

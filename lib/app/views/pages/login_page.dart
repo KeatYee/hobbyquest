@@ -8,6 +8,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/dialog_utils.dart';
 import '../../controllers/auth_controller.dart';
 import '../../routes/app_routes.dart';
+import '../../services/password_reset_service.dart';
 import '../widgets/mascot_widget.dart';
 
 class LoginPage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final PasswordResetService _passwordResetService = PasswordResetService();
 
   GoogleSignInAccount? _currentGoogleUser;
 
@@ -184,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
 
       print("--- GOOGLE USER: ${googleUser.email} ---");
 
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
@@ -214,6 +216,45 @@ class _LoginPageState extends State<LoginPage> {
       AppDialogs.error("Error", "Something unexpected happened: $e");
     } finally {
       print("--- GOOGLE SIGN-IN COMPLETE ---");
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> handleForgotPassword() async {
+    final email = await AppDialogs.input(
+      title: 'Reset Password',
+      initialValue: emailController.text.trim(),
+      hintText: 'Enter your account email',
+      keyboardType: TextInputType.emailAddress,
+      confirmLabel: 'Send Link',
+      validator: Validators.validateEmail,
+    );
+    if (email == null || !mounted) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => isLoading = true);
+    try {
+      await _passwordResetService.sendResetEmail(email);
+      if (!mounted) return;
+      emailController.text = email.trim();
+      AppDialogs.success(
+        'Check Your Email',
+        'If an account exists for this email, a password reset link has been sent.',
+        durationSeconds: 4,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      AppDialogs.error(
+        'Reset Failed',
+        PasswordResetService.errorMessage(error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppDialogs.error(
+        'Reset Failed',
+        'Unable to send the password reset email.',
+      );
+    } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -275,6 +316,15 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   validator: Validators.validatePassword,
                 ),
+
+                if (!isRegisterMode)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: isLoading ? null : handleForgotPassword,
+                      child: const Text('Forgot Password?'),
+                    ),
+                  ),
 
                 const SizedBox(height: 30),
 

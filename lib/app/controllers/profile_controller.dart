@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,8 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import 'guild_controller.dart';
+import 'home_controller.dart';
 import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
+import '../services/password_reset_service.dart';
 import '../../core/utils/dialog_utils.dart';
 
 class ProfileController extends GetxController {
@@ -16,6 +20,7 @@ class ProfileController extends GetxController {
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'asia-southeast1',
   );
+  final PasswordResetService _passwordResetService = PasswordResetService();
 
   final isLoading = true.obs;
   final isUpdatingNotifications = false.obs;
@@ -26,6 +31,8 @@ class ProfileController extends GetxController {
   final profileVisible = true.obs;
   final postStatsVisible = true.obs;
   bool _isDeletingAccount = false;
+  StreamSubscription? _guildPostsSubscription;
+  StreamSubscription? _userProfileSubscription;
 
   int get totalXP => userModel.value?.totalXP ?? 0;
   int get level => userModel.value?.level ?? 1;
@@ -43,6 +50,13 @@ class ProfileController extends GetxController {
     loadProfile();
   }
 
+  @override
+  void onClose() {
+    _guildPostsSubscription?.cancel();
+    _userProfileSubscription?.cancel();
+    super.onClose();
+  }
+
   Future<void> loadProfile() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -55,14 +69,10 @@ class ProfileController extends GetxController {
 
       final results = await Future.wait([
         _firestore.collection('users').doc(user.uid).get(),
-        _firestore
-            .collection('guild_posts')
-            .where('userId', isEqualTo: user.uid)
-            .get(),
+        refreshGuildPostCount(),
       ]);
 
       final docSnap = results[0] as DocumentSnapshot;
-      final postSnap = results[1] as QuerySnapshot;
 
       if (docSnap.exists) {
         userModel.value = UserModel.fromJson(
@@ -74,13 +84,68 @@ class ProfileController extends GetxController {
         profileVisible.value = userModel.value?.profileVisible ?? true;
         postStatsVisible.value = userModel.value?.postStatsVisible ?? true;
       }
-      guildPostCount.value = postSnap.docs.length;
+
+      _listenToUserProfile(user.uid);
+      _listenToGuildPosts(user.uid);
     } catch (e) {
       print('--- ERROR loading profile: $e ---');
       AppDialogs.error('Error', 'Failed to load profile');
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> refreshGuildPostCount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      guildPostCount.value = 0;
+      return;
+    }
+
+    try {
+      final postSnap = await _firestore
+          .collection('guild_posts')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      guildPostCount.value = postSnap.docs.length;
+    } catch (e) {
+      print('--- ERROR refreshing guild post count: $e ---');
+    }
+  }
+
+  void _listenToUserProfile(String userId) {
+    _userProfileSubscription?.cancel();
+    _userProfileSubscription = _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+          if (!snapshot.exists) return;
+
+          final data = snapshot.data();
+          if (data == null) return;
+
+          final updatedUser = UserModel.fromJson(data, userId);
+          userModel.value = updatedUser;
+          notificationsEnabled.value = updatedUser.notificationsEnabled;
+          profileVisible.value = updatedUser.profileVisible;
+          postStatsVisible.value = updatedUser.postStatsVisible;
+        }, onError: (e) {
+          print('--- ERROR listening to user profile: $e ---');
+        });
+  }
+
+  void _listenToGuildPosts(String userId) {
+    _guildPostsSubscription?.cancel();
+    _guildPostsSubscription = _firestore
+        .collection('guild_posts')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .listen((snapshot) {
+          guildPostCount.value = snapshot.docs.length;
+        }, onError: (e) {
+          print('--- ERROR listening to guild posts: $e ---');
+        });
   }
 
   /// Update the user's display name in Firestore.
@@ -113,6 +178,17 @@ class ProfileController extends GetxController {
       if (userModel.value != null) {
         userModel.value = userModel.value!.copyWith(nickname: trimmed);
       }
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.nickname.value = trimmed;
+        final homeUser = homeController.user.value;
+        if (homeUser != null) {
+          homeController.user.value = homeUser.copyWith(nickname: trimmed);
+        }
+      }
+      if (Get.isRegistered<GuildController>()) {
+        Get.find<GuildController>().userNicknames[user.uid] = trimmed;
+      }
 
       AppDialogs.success('Updated', 'Avatar name changed to $trimmed');
       return true;
@@ -138,11 +214,10 @@ class ProfileController extends GetxController {
     }
     try {
       await user.verifyBeforeUpdateEmail(trimmed);
-      await user.sendEmailVerification();
 
       AppDialogs.success(
-        'Email Updated',
-        'Verification sent to $trimmed',
+        'Confirm Email Change',
+        'A verification link was sent to $trimmed',
         durationSeconds: 3,
       );
       return true;
@@ -154,11 +229,44 @@ class ProfileController extends GetxController {
           durationSeconds: 3,
         );
       } else {
-        AppDialogs.error('Error', '${e.message ?? "Failed to update email"}');
+        AppDialogs.error('Error', e.message ?? 'Failed to update email');
       }
       return false;
     } catch (e) {
       AppDialogs.error('Error', 'Failed to update email: $e');
+      return false;
+    }
+  }
+
+  Future<bool> sendPasswordResetEmail() async {
+    final currentEmail = _auth.currentUser?.email?.trim() ?? '';
+    if (currentEmail.isEmpty) {
+      AppDialogs.error(
+        'Reset Unavailable',
+        'This account does not have an email address.',
+      );
+      return false;
+    }
+
+    try {
+      await _passwordResetService.sendResetEmail(currentEmail);
+      AppDialogs.success(
+        'Check Your Email',
+        'A password reset link has been sent to $currentEmail.',
+        durationSeconds: 4,
+      );
+      return true;
+    } on FirebaseAuthException catch (error) {
+      AppDialogs.error(
+        'Reset Failed',
+        PasswordResetService.errorMessage(error),
+      );
+      return false;
+    } catch (_) {
+      AppDialogs.error(
+        'Reset Failed',
+        'Unable to send the password reset email.',
+      );
       return false;
     }
   }
@@ -176,12 +284,22 @@ class ProfileController extends GetxController {
     }
     try {
       final date = DateTime.parse(trimmed);
+      final dateParts = trimmed.split('-').map(int.parse).toList();
+      if (date.year != dateParts[0] ||
+          date.month != dateParts[1] ||
+          date.day != dateParts[2]) {
+        throw const FormatException('Invalid calendar date');
+      }
       final now = DateTime.now();
       if (date.isAfter(now)) {
         AppDialogs.error('Invalid Date', 'Birth date cannot be in the future');
         return false;
       }
-      final age = now.year - date.year;
+      var age = now.year - date.year;
+      if (now.month < date.month ||
+          (now.month == date.month && now.day < date.day)) {
+        age--;
+      }
       if (age > 150) {
         AppDialogs.error('Invalid Date', 'Age seems unrealistic');
         return false;
@@ -197,12 +315,12 @@ class ProfileController extends GetxController {
 
     try {
       await _firestore.collection('users').doc(user.uid).update({
-        'birthDate': newBirthDate,
+        'birthDate': trimmed,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (userModel.value != null) {
-        userModel.value = userModel.value!.copyWith(birthDate: newBirthDate);
+        userModel.value = userModel.value!.copyWith(birthDate: trimmed);
       }
 
       AppDialogs.success('Updated', 'Birth date saved');
@@ -336,7 +454,13 @@ class ProfileController extends GetxController {
     try {
       AppDialogs.showLoading(message: 'Logging out...');
 
-      await GoogleSignIn.instance.signOut();
+      if (!kIsWeb) {
+        try {
+          await GoogleSignIn.instance.signOut();
+        } catch (e) {
+          print('--- GOOGLE SIGN-OUT ERROR: $e ---');
+        }
+      }
       await _auth.signOut();
 
       AppDialogs.dismissLoading();

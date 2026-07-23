@@ -141,7 +141,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountSection(BuildContext context, User currentUser, UserModel userModel) {
+  Widget _buildAccountSection(
+    BuildContext context,
+    User currentUser,
+    UserModel userModel,
+  ) {
     return _SectionCard(
       label: "ACCOUNT",
       child: Column(
@@ -152,6 +156,14 @@ class ProfilePage extends StatelessWidget {
             title: "Email",
             subtitle: currentUser.email ?? "No email",
             onTap: () => _showEditEmailDialog(context),
+          ),
+          const _TileDivider(),
+          _SettingsTile(
+            icon: Icons.lock_reset_rounded,
+            iconColor: AppColors.warning,
+            title: "Reset Password",
+            subtitle: "Send a reset link to your email",
+            onTap: () => _confirmPasswordReset(context),
           ),
           const _TileDivider(),
           _SettingsTile(
@@ -237,9 +249,14 @@ class ProfilePage extends StatelessWidget {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.error,
-          side: BorderSide(color: AppColors.error.withOpacity(0.35), width: 1.5),
+          side: BorderSide(
+            color: AppColors.error.withOpacity(0.35),
+            width: 1.5,
+          ),
           backgroundColor: AppColors.error.withOpacity(0.06),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );
@@ -251,7 +268,11 @@ class ProfilePage extends StatelessWidget {
       height: 54,
       child: OutlinedButton.icon(
         onPressed: () => _handleDeleteAccount(context),
-        icon: Icon(Icons.delete_forever_rounded, size: 20, color: AppColors.error),
+        icon: Icon(
+          Icons.delete_forever_rounded,
+          size: 20,
+          color: AppColors.error,
+        ),
         label: Text(
           "Delete Account",
           style: TextStyle(
@@ -265,7 +286,9 @@ class ProfilePage extends StatelessWidget {
           foregroundColor: AppColors.error,
           side: BorderSide(color: AppColors.error.withOpacity(0.18), width: 1),
           backgroundColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );
@@ -274,13 +297,15 @@ class ProfilePage extends StatelessWidget {
   void _handleDeleteAccount(BuildContext context) async {
     final confirmed = await AppDialogs.dangerConfirm(
       title: 'Delete Account',
-      message: 'This will permanently delete your account and all data. '
+      message:
+          'This will permanently delete your account and all data. '
           'This action cannot be undone.',
       confirmText: 'DELETE',
       confirmLabel: 'Delete',
     );
     if (confirmed == true) Get.find<ProfileController>().deleteAccount();
   }
+
   void _handleLogout(BuildContext context) async {
     final confirmed = await AppDialogs.confirm(
       title: 'Logout',
@@ -291,16 +316,32 @@ class ProfilePage extends StatelessWidget {
     if (confirmed == true) Get.find<ProfileController>().logout();
   }
 }
+
 extension _EditDialogs on ProfilePage {
+  void _confirmPasswordReset(BuildContext context) async {
+    final controller = Get.find<ProfileController>();
+    final confirmed = await AppDialogs.confirm(
+      title: 'Reset Password',
+      message: 'Send a password reset link to ${controller.email}?',
+      confirmLabel: 'Send Link',
+    );
+    if (confirmed == true) {
+      await controller.sendPasswordResetEmail();
+    }
+  }
+
   void _showEditNameDialog(BuildContext context) async {
     final result = await AppDialogs.input(
       title: 'Edit Avatar Name',
       initialValue: Get.find<ProfileController>().nickname,
       hintText: 'Enter your display name',
       validator: (value) {
-        if (value == null || value.trim().isEmpty) return 'Name cannot be empty';
-        if (value.trim().length < 2) return 'Name must be at least 2 characters';
-        if (value.trim().length > 50) return 'Name must be 50 characters or less';
+        if (value == null || value.trim().isEmpty)
+          return 'Name cannot be empty';
+        if (value.trim().length < 2)
+          return 'Name must be at least 2 characters';
+        if (value.trim().length > 50)
+          return 'Name must be 50 characters or less';
         return null;
       },
     );
@@ -316,11 +357,15 @@ extension _EditDialogs on ProfilePage {
       hintText: 'Enter new email address',
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
-        if (value == null || value.trim().isEmpty) return 'Email cannot be empty';
+        if (value == null || value.trim().isEmpty)
+          return 'Email cannot be empty';
         final trimmed = value.trim();
-        if (!trimmed.contains('@') || !trimmed.contains('.')) return 'Enter a valid email address';
-        if (trimmed.indexOf('@') == 0) return 'Email must have a username before @';
-        if (trimmed.lastIndexOf('.') < trimmed.indexOf('@')) return 'Email must have a domain after @';
+        if (!trimmed.contains('@') || !trimmed.contains('.'))
+          return 'Enter a valid email address';
+        if (trimmed.indexOf('@') == 0)
+          return 'Email must have a username before @';
+        if (trimmed.lastIndexOf('.') < trimmed.indexOf('@'))
+          return 'Email must have a domain after @';
         return null;
       },
     );
@@ -340,6 +385,7 @@ extension _EditDialogs on ProfilePage {
     }
   }
 }
+
 class _HeroHeader extends StatelessWidget {
   final User currentUser;
   final UserModel userModel;
@@ -506,7 +552,9 @@ class _XPCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [AppColors.primary, AppColors.accent],
@@ -657,8 +705,7 @@ class _StatTile extends StatelessWidget {
         ),
       ),
     );
-}
-
+  }
 }
 
 class _SectionCard extends StatelessWidget {

@@ -58,7 +58,7 @@ class CategoryService {
             name: "Drawing",
             axes: [
               PeerReviewAxisModel.fromIconData(
-                label: 'flutter',
+                label: 'Composition',
                 icon: Icons.grid_view,
               ),
               PeerReviewAxisModel.fromIconData(

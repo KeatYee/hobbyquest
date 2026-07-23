@@ -1,14 +1,15 @@
-import 'package:get/get.dart'; 
+import 'package:get/get.dart';
 
 class Validators {
   static String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) {
       return 'Email is required';
     }
-    if (!GetUtils.isEmail(value)) {
+    if (!GetUtils.isEmail(email)) {
       return 'Please enter a valid email address';
     }
-    return null; 
+    return null;
   }
 
   static String? validatePassword(String? value) {

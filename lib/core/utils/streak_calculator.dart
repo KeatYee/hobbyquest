@@ -22,3 +22,26 @@ int calculateUpdatedStreak({
   if (dayDifference == 1) return currentStreak + 1;
   return 1;
 }
+
+int calculateDailyQuestCompletionCount({
+  required int currentCount,
+  required DateTime? lastCompletionDate,
+  required DateTime completionTime,
+}) {
+  if (lastCompletionDate == null) return 1;
+
+  final utcCompletion = completionTime.toUtc();
+  final utcLastCompletion = lastCompletionDate.toUtc();
+  final completionDay = DateTime.utc(
+    utcCompletion.year,
+    utcCompletion.month,
+    utcCompletion.day,
+  );
+  final lastCompletionDay = DateTime.utc(
+    utcLastCompletion.year,
+    utcLastCompletion.month,
+    utcLastCompletion.day,
+  );
+
+  return completionDay == lastCompletionDay ? currentCount + 1 : 1;
+}

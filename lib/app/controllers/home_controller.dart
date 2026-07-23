@@ -436,12 +436,28 @@ class HomeController extends GetxController {
           .doc(planId)
           .collection('quests')
           .doc(questId);
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
 
-      await questRef.update({
-        'title': alternative['title'] ?? '',
-        'desc': alternative['desc'] ?? '',
-        'steps': altSteps ?? [],
-        'youtube_search_query': altYoutube,
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final questSnapshot = await transaction.get(questRef);
+        final questData = questSnapshot.data();
+        if (questData == null) {
+          throw StateError('Quest not found.');
+        }
+        if (questData['isCompleted'] == true) {
+          throw StateError('A completed quest cannot be rerolled.');
+        }
+
+        transaction.update(questRef, {
+          'title': alternative['title'] ?? '',
+          'desc': alternative['desc'] ?? '',
+          'steps': altSteps ?? [],
+          'youtube_search_query': altYoutube,
+        });
+        transaction.update(userRef, {
+          'lastRerollDate': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
       final quests = await QuestService.loadQuests(uid, planId);
@@ -450,10 +466,7 @@ class HomeController extends GetxController {
 
       final fullPlan = plan.copyWith(milestones: milestones, quests: quests);
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final userDoc = await userRef.get();
       final data = userDoc.data();
       if (data == null) return false;
 
@@ -470,10 +483,6 @@ class HomeController extends GetxController {
       learningPace.value = updatedUser.currentPlan.learningPace;
       level.value = updatedUser.currentPlan.level;
       dailyQuests.value = getAllQuestNodes(updatedUser.currentPlan.quests);
-
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'lastRerollDate': DateTime.now(),
-      });
 
       print('--- INFO: Quest $questId rerolled successfully ---');
       return true;
@@ -640,6 +649,17 @@ class HomeController extends GetxController {
               .whereType<DateTime>()
               .toList()
             ..sort();
+      final firestore = FirebaseFirestore.instance;
+      final userRef = firestore.collection('users').doc(uid);
+      final planRef = userRef.collection('plans').doc(planId);
+      final historyRef = userRef.collection('goalHistory').doc(planId);
+      final historySnapshot = await historyRef.get();
+      final existingCreatedAt = historySnapshot.data() == null
+          ? null
+          : GoalHistoryModel.fromJson(
+              historySnapshot.data()!,
+              historySnapshot.id,
+            ).createdAt;
       final completedHistory = GoalHistoryModel(
         planId: planId,
         status: 'completed',
@@ -650,18 +670,14 @@ class HomeController extends GetxController {
         category: completedPlan.category?.trim().isNotEmpty == true
             ? completedPlan.category!.trim()
             : completedPlan.hobby,
-        createdAt: completionDates.isEmpty
-            ? DateTime.now()
-            : completionDates.first,
+        createdAt:
+            existingCreatedAt ??
+            (completionDates.isEmpty ? DateTime.now() : completionDates.first),
         completedAt: completionDates.isEmpty
             ? DateTime.now()
             : completionDates.last,
       );
 
-      final firestore = FirebaseFirestore.instance;
-      final userRef = firestore.collection('users').doc(uid);
-      final planRef = userRef.collection('plans').doc(planId);
-      final historyRef = userRef.collection('goalHistory').doc(planId);
       final batch = firestore.batch();
 
       batch.set(planRef, completedPlan.toJson(), SetOptions(merge: true));

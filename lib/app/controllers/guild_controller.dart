@@ -8,14 +8,17 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/guild_post_model.dart';
 import '../models/category_model.dart';
+import '../services/category_service.dart';
 import '../services/user_image_upload_service.dart';
 import 'home_controller.dart';
+import 'profile_controller.dart';
 
 enum GuildFeedFilter { forYou, sameHobby, sameCharacter }
 
 class GuildController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CategoryService _categoryService = CategoryService();
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'asia-southeast1',
   );
@@ -37,6 +40,7 @@ class GuildController extends GetxController {
   final currentUserId = Rx<String?>(null);
   final focusedPostId = Rx<String?>(null);
   StreamSubscription? _authSubscription;
+  int _loadGeneration = 0;
 
   @override
   void onInit() {
@@ -44,15 +48,15 @@ class GuildController extends GetxController {
 
     _authSubscription = _auth.authStateChanges().listen((user) {
       currentUserId.value = user?.uid;
-      if (user != null) {
-        _ensureProfileLoaded(user.uid);
+      if (user == null) {
+        _loadGeneration++;
+        _clearLoadedData();
+        return;
       }
-      if (posts.isNotEmpty) {
-        _populateCurrentUserState();
-      }
-    });
 
-    loadAllData();
+      _ensureProfileLoaded(user.uid);
+      unawaited(loadAllData());
+    });
   }
 
   @override
@@ -94,6 +98,7 @@ class GuildController extends GetxController {
         userPostStatsVisible.containsKey(userId)) {
       return;
     }
+    userPostStatsVisible.putIfAbsent(userId, () => false);
     _firestore
         .collection('publicProfiles')
         .doc(userId)
@@ -106,36 +111,53 @@ class GuildController extends GetxController {
           if (avatarSvg.trim().isNotEmpty) userAvatars[userId] = avatarSvg;
           if (nickname.trim().isNotEmpty) userNicknames[userId] = nickname;
           userPostStatsVisible[userId] =
-              data['postStatsVisible'] as bool? ?? true;
+              data['postStatsVisible'] as bool? ?? false;
         })
         .catchError((_) {});
   }
 
   bool canViewPostStats(GuildPostModel post) {
     final uid = currentUserId.value;
-    return uid == post.userId || (userPostStatsVisible[post.userId] ?? true);
+    return uid == post.userId || (userPostStatsVisible[post.userId] ?? false);
+  }
+
+  bool isOwnPost(GuildPostModel post) {
+    return currentUserId.value == post.userId;
+  }
+
+  void _clearLoadedData() {
+    posts.clear();
+    categories.clear();
+    userAvatars.clear();
+    userNicknames.clear();
+    userPostStatsVisible.clear();
+    userReactions.clear();
+    userPeerReviews.clear();
+    focusedPostId.value = null;
+    isLoading.value = false;
   }
 
   /// Load all data (categories, posts, user profiles) from Firestore
   Future<void> loadAllData() async {
+    final requestedUid = _auth.currentUser?.uid;
+    if (requestedUid == null) {
+      _clearLoadedData();
+      return;
+    }
+
+    final loadGeneration = ++_loadGeneration;
     try {
       isLoading.value = true;
 
-      final results = await Future.wait([
-        _firestore.collection('categories').get(),
-        _firestore
-            .collection(_guildPostsCollection)
-            .orderBy('createdAt', descending: true)
-            .get(),
-      ]);
-
-      final categorySnapshot = results[0];
-      final postSnapshot = results[1];
-
-      final loadedCategories = categorySnapshot.docs
-          .map((doc) => CategoryModel.fromJson(doc.data(), doc.id))
+      final categoriesFuture = _categoryService.getCategories();
+      final postsFuture = _firestore
+          .collection(_guildPostsCollection)
+          .orderBy('createdAt', descending: true)
+          .get();
+      final loadedCategories = (await categoriesFuture)
           .where((category) => category.name.trim().isNotEmpty)
           .toList();
+      final postSnapshot = await postsFuture;
 
       final loadedPosts = postSnapshot.docs
           .map((doc) => GuildPostModel.fromJson(doc.data(), doc.id))
@@ -158,18 +180,35 @@ class GuildController extends GetxController {
       final loadedUserAvatars = <String, String>{};
       final loadedUserNicknames = <String, String>{};
       final loadedUserPostStatsVisible = <String, bool>{};
-      for (var userId in userIds) {
-        final userDoc = await _firestore
-            .collection('publicProfiles')
-            .doc(userId)
-            .get();
-        final data = userDoc.data();
-        final avatarSvg = data?['avatarSvg'] as String? ?? '';
-        final nickname = data?['nickname'] as String? ?? '';
-        if (avatarSvg.trim().isNotEmpty) loadedUserAvatars[userId] = avatarSvg;
-        if (nickname.trim().isNotEmpty) loadedUserNicknames[userId] = nickname;
-        loadedUserPostStatsVisible[userId] =
-            data?['postStatsVisible'] as bool? ?? true;
+      await Future.wait(
+        userIds.map((userId) async {
+          loadedUserPostStatsVisible[userId] = false;
+          try {
+            final userDoc = await _firestore
+                .collection('publicProfiles')
+                .doc(userId)
+                .get();
+            final data = userDoc.data();
+            final avatarSvg = data?['avatarSvg'] as String? ?? '';
+            final nickname = data?['nickname'] as String? ?? '';
+            if (avatarSvg.trim().isNotEmpty) {
+              loadedUserAvatars[userId] = avatarSvg;
+            }
+            if (nickname.trim().isNotEmpty) {
+              loadedUserNicknames[userId] = nickname;
+            }
+            loadedUserPostStatsVisible[userId] =
+                data?['postStatsVisible'] as bool? ?? false;
+          } catch (_) {
+            // Hidden public profiles are intentionally unreadable. Keep the
+            // privacy-safe false default without failing the whole guild feed.
+          }
+        }),
+      );
+
+      if (_auth.currentUser?.uid != requestedUid ||
+          loadGeneration != _loadGeneration) {
+        return;
       }
 
       categories.value = loadedCategories;
@@ -188,9 +227,13 @@ class GuildController extends GetxController {
         }
       }
     } catch (e) {
-      print('--- ERROR: Failed to load guild data: $e ---');
+      if (loadGeneration == _loadGeneration) {
+        print('--- ERROR: Failed to load guild data: $e ---');
+      }
     } finally {
-      isLoading.value = false;
+      if (loadGeneration == _loadGeneration) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -403,6 +446,10 @@ class GuildController extends GetxController {
 
       await loadAllData();
 
+      if (Get.isRegistered<ProfileController>()) {
+        await Get.find<ProfileController>().refreshGuildPostCount();
+      }
+
       return docRef.id;
     } catch (e) {
       print('--- ERROR: Failed to add guild post: $e ---');
@@ -471,6 +518,8 @@ class GuildController extends GetxController {
   }) async {
     final uid = currentUserId.value;
     if (uid == null) return false;
+    final post = posts.firstWhereOrNull((candidate) => candidate.id == postId);
+    if (post == null || post.userId == uid) return false;
     if (ratings.isEmpty ||
         ratings.values.any(
           (rating) => !rating.isFinite || rating < 1 || rating > 5,

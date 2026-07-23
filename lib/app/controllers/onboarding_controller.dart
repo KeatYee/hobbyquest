@@ -188,7 +188,6 @@ class OnboardingController extends GetxController {
   }
 
   Future<void> _initCategories() async {
-    await seedCategories();
     await _loadCategories();
   }
 
