@@ -54,6 +54,13 @@ class _ForestPageState extends State<ForestPage> {
     return slots;
   }
 
+  void _showNoOtherGrovesAlert() {
+    AppDialogs.warning(
+      'No other groves',
+      'There are no other groves available to switch to right now.',
+    );
+  }
+
   Future<void> _onSwap(
     TreeModel dragged,
     ({TreeModel tree, DocumentReference ref}) target,
@@ -174,12 +181,13 @@ class _ForestPageState extends State<ForestPage> {
         children: [
           IconButton(
             tooltip: 'Previous grove',
-            onPressed: canGoBack
-                ? () => setState(
-                    () => _selectedGroveIndex =
-                        availableGroves[currentPosition - 1],
-                  )
-                : null,
+            onPressed: () {
+              if (canGoBack) {
+                setState(() => _selectedGroveIndex = availableGroves[currentPosition - 1]);
+              } else {
+                _showNoOtherGrovesAlert();
+              }
+            },
             icon: const Icon(Icons.chevron_left_rounded),
             color: AppColors.primary,
           ),
@@ -452,22 +460,22 @@ class _ForestPageState extends State<ForestPage> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
-          'My Forest',
+          'FOREST',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            fontSize: AppFonts.titleLg,
+            fontSize: AppFonts.caption,
+            letterSpacing: 2.5,
             color: AppColors.textPrimary,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Get.back(),
         ),
       ),
@@ -547,37 +555,84 @@ class _ForestPageState extends State<ForestPage> {
 
                     return Column(
                       children: [
-                        _buildGroveSelector(selectedGrove, availableGroves),
                         Container(
+                          margin: const EdgeInsets.fromLTRB(24, 104, 24, 12),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                            horizontal: 10,
+                            vertical: 8,
                           ),
-                          margin: const EdgeInsets.fromLTRB(32, 0, 32, 20),
                           decoration: BoxDecoration(
-                            color: AppColors.surface.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(14),
+                            color: AppColors.surface.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
                             children: [
+                              IconButton(
+                                tooltip: 'Previous grove',
+                                onPressed: () {
+                                  if (availableGroves.indexOf(selectedGrove) > 0) {
+                                    setState(
+                                      () => _selectedGroveIndex =
+                                          availableGroves[
+                                              availableGroves.indexOf(selectedGrove) - 1
+                                            ],
+                                    );
+                                  } else {
+                                    _showNoOtherGrovesAlert();
+                                  }
+                                },
+                                icon: const Icon(Icons.chevron_left_rounded),
+                                color: AppColors.primary,
+                              ),
                               Expanded(
-                                child: _statItem(
-                                  Icons.forest_rounded,
-                                  '$treesGrown',
-                                  'Trees Grown',
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Grove $selectedGrove',
+                                      style: const TextStyle(
+                                        fontSize: AppFonts.bodyLg,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _statItem(
+                                          Icons.forest_rounded,
+                                          '$treesGrown',
+                                          'Trees',
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _statItem(
+                                          Icons.flash_on_rounded,
+                                          '$totalXp',
+                                          'XP',
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Container(
-                                width: 1,
-                                height: 28,
-                                color: AppColors.surface.withValues(alpha: 0.3),
-                              ),
-                              Expanded(
-                                child: _statItem(
-                                  Icons.flash_on_rounded,
-                                  '$totalXp',
-                                  'Total XP',
-                                ),
+                              IconButton(
+                                tooltip: 'Next grove',
+                                onPressed: () {
+                                  final grovePosition = availableGroves.indexOf(selectedGrove);
+                                  if (grovePosition >= 0 &&
+                                      grovePosition < availableGroves.length - 1) {
+                                    setState(
+                                      () => _selectedGroveIndex =
+                                          availableGroves[grovePosition + 1],
+                                    );
+                                  } else {
+                                    _showNoOtherGrovesAlert();
+                                  }
+                                },
+                                icon: const Icon(Icons.chevron_right_rounded),
+                                color: AppColors.primary,
                               ),
                             ],
                           ),

@@ -74,42 +74,33 @@ class GuildPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Guild Feed',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: AppFonts.caption,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
-            ),
-          ),
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
                 _buildFeedFilterChip(
                   controller: controller,
                   filter: GuildFeedFilter.forYou,
-                  icon: Icons.auto_awesome_rounded,
                   label: 'For You',
                 ),
                 const SizedBox(width: 8),
                 _buildFeedFilterChip(
                   controller: controller,
                   filter: GuildFeedFilter.sameHobby,
-                  icon: Icons.local_florist_rounded,
                   label: 'Same Hobby',
                 ),
                 const SizedBox(width: 8),
                 _buildFeedFilterChip(
                   controller: controller,
                   filter: GuildFeedFilter.sameCharacter,
-                  icon: Icons.person_rounded,
                   label: 'Same Character',
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -120,7 +111,6 @@ class GuildPage extends StatelessWidget {
   Widget _buildFeedFilterChip({
     required GuildController controller,
     required GuildFeedFilter filter,
-    required IconData icon,
     required String label,
   }) {
     final isSelected = controller.selectedFeedFilter.value == filter;
@@ -146,28 +136,15 @@ class GuildPage extends StatelessWidget {
               ),
           ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isSelected
-                  ? AppColors.textOnPrimary
-                  : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? AppColors.textOnPrimary
-                    : AppColors.textSecondary,
-                fontSize: AppFonts.badge,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? AppColors.textOnPrimary
+                : AppColors.textSecondary,
+            fontSize: AppFonts.badge,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );

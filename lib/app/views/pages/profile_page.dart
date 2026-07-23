@@ -423,26 +423,8 @@ class _HeroHeader extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: AppColors.textOnPrimary,
-                          size: 20,
-                        ),
-                        onPressed: () => Get.back(),
-                      ),
-                      const Text(
-                        "PROFILE",
-                        style: TextStyle(
-                          color: AppColors.textOnPrimary,
-                          fontSize: AppFonts.caption,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2.5,
-                        ),
-                      ),
-                      const SizedBox(width: 48),
+                    children: const [
+                      SizedBox(width: 8),
                     ],
                   ),
                 ),
