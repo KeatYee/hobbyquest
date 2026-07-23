@@ -268,7 +268,7 @@ class _EmptyLetterCard extends StatelessWidget {
                   border: Border.all(color: GrowthLetterPage._paperEdge),
                 ),
                 child: const Icon(
-                  Icons.local_florist_rounded,
+                  Icons.edit_note_rounded,
                   color: AppColors.primary,
                   size: 25,
                 ),
