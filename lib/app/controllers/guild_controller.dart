@@ -8,7 +8,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/guild_post_model.dart';
 import '../models/category_model.dart';
-import '../services/imgbb_service.dart';
+import '../services/user_image_upload_service.dart';
 import 'home_controller.dart';
 
 enum GuildFeedFilter { forYou, sameHobby, sameCharacter }
@@ -358,7 +358,7 @@ class GuildController extends GetxController {
     return bTime.compareTo(aTime);
   }
 
-  final ImgBBService _imgbbService = ImgBBService();
+  final UserImageUploadService _imageUploadService = UserImageUploadService();
 
   /// Add a new post to the guild_posts collection
   Future<String?> addPost({
@@ -376,8 +376,8 @@ class GuildController extends GetxController {
 
       String imageUrl = '';
       if (imageFile != null) {
-        print('--- Uploading guild post image to ImgBB ---');
-        imageUrl = await _imgbbService.uploadImage(imageFile.path);
+        print('--- Uploading guild post image to Firebase Storage ---');
+        imageUrl = await _imageUploadService.uploadImage(imageFile.path);
         print('--- Image uploaded. URL: $imageUrl ---');
       }
 

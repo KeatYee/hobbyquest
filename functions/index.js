@@ -12,17 +12,13 @@ const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 const ACCOUNT_DELETION_REGION = "asia-southeast1";
 const ACCOUNT_CLEANUP_CONCURRENCY = 20;
-const MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS = 5 * 60;
 const MAX_AI_PROMPT_LENGTH = 20000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 setGlobalOptions({maxInstances: 10});
 
-/**
- * Permanently delete the authenticated account and its application data.
- * Firestore cleanup happens first so a failed attempt can be safely retried.
- */
+/** Permanently delete the signed-in account and its application data. */
 exports.deleteAccount = onCall(
     {
       memory: "512MiB",
@@ -39,55 +35,23 @@ exports.deleteAccount = onCall(
         );
       }
 
-      if (!hasRecentAuthentication(request.auth.token)) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Please sign out, sign in again, and retry account deletion.",
-        );
-      }
-
-      const userRef = db.collection("users").doc(uid);
-
       try {
-        await userRef.set({
-          accountDeletionInProgress: true,
-          accountDeletionRequestedAt: FieldValue.serverTimestamp(),
-        }, {merge: true});
+        await cleanupGuildData(uid);
+        await deleteActorNotifications(uid);
+        await deleteUserUploads(uid);
+        await Promise.all([
+          db.recursiveDelete(db.collection("users").doc(uid)),
+          db.collection("publicProfiles").doc(uid).delete(),
+        ]);
 
-        const guildCleanup = await cleanupGuildData(uid);
-        const deletedNotifications = await deleteActorNotifications(uid);
-        const deletedUploads = await deleteUserUploads(uid);
-        await db.collection("publicProfiles").doc(uid).delete();
-
-        // recursiveDelete includes every current and future user subcollection.
-        await db.recursiveDelete(userRef);
-
-        // Keep Auth until cleanup succeeds so failures remain retryable.
+        // Delete Auth last so the user can retry if data cleanup fails.
         await deleteAuthUser(uid);
 
-        logger.info("Account deleted.", {
-          deletedGuildPosts: guildCleanup.deletedPosts,
-          deletedNotifications,
-          deletedUploads,
-          removedGuildReferences: guildCleanup.updatedPosts,
-          uid,
-        });
+        logger.info("Account deleted.", {uid});
 
         return {deleted: true};
       } catch (error) {
         logger.error("Account deletion failed.", {error, uid});
-
-        // Do not recreate a profile if recursive deletion already removed it.
-        await userRef.update({
-          accountDeletionInProgress: FieldValue.delete(),
-          accountDeletionRequestedAt: FieldValue.delete(),
-        }).catch((markerError) => {
-          logger.warn("Could not clear account deletion marker.", {
-            markerError,
-            uid,
-          });
-        });
-
         throw new HttpsError(
             "internal",
             "Account deletion could not be completed. Please try again.",
@@ -689,23 +653,6 @@ async function cleanupGuildData(uid) {
 }
 
 /**
- * Require a fresh sign-in before this destructive operation.
- * Refreshing an ID token does not change its original authentication time.
- * @param {object} token Decoded Firebase Auth token.
- * @return {boolean}
- */
-function hasRecentAuthentication(token) {
-  const authTime = token && token.auth_time;
-  if (typeof authTime !== "number" || !Number.isFinite(authTime)) {
-    return false;
-  }
-
-  const ageSeconds = Math.floor(Date.now() / 1000) - authTime;
-  return ageSeconds >= 0 &&
-      ageSeconds <= MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS;
-}
-
-/**
  * Delete an Auth user, treating an already deleted identity as success.
  * This keeps concurrent/retried cleanup calls idempotent.
  * @param {string} uid User ID to delete.
@@ -770,7 +717,18 @@ async function deleteActorNotifications(uid) {
  */
 async function deleteUserUploads(uid) {
   const bucket = admin.storage().bucket();
-  const [files] = await bucket.getFiles({prefix: `user_uploads/${uid}/`});
+  let files;
+  try {
+    [files] = await bucket.getFiles({prefix: `user_uploads/${uid}/`});
+  } catch (error) {
+    if (error && error.code === 404) {
+      logger.info("Storage bucket is not provisioned; skipping uploads.", {
+        uid,
+      });
+      return 0;
+    }
+    throw error;
+  }
   if (files.length === 0) {
     return 0;
   }

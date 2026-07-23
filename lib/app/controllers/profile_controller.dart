@@ -379,8 +379,6 @@ class ProfileController extends GetxController {
       print('--- DELETE ACCOUNT FUNCTION ERROR: ${e.code} ${e.message} ---');
       final message = e.code == 'unauthenticated'
           ? 'Your session expired. Please sign in again and retry.'
-          : e.code == 'failed-precondition'
-          ? 'For security, please log out, sign in again, and retry deletion.'
           : e.message ?? 'Account deletion failed. Please try again.';
       AppDialogs.error('Unable to Delete Account', message);
       return false;

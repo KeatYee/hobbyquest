@@ -10,7 +10,7 @@ import 'guild_controller.dart';
 import 'home_controller.dart';
 import 'progression_controller.dart';
 import '../services/quest_service.dart';
-import '../services/imgbb_service.dart';
+import '../services/user_image_upload_service.dart';
 import '../../core/constants/font_constants.dart';
 import '../services/gemini_service.dart';
 import '../../core/constants/color_constants.dart';
@@ -81,7 +81,7 @@ class QuestDetailController extends GetxController {
 
     isSubmitting.value = true;
     final questService = QuestService();
-    final imageUploadService = ImgBBService();
+    final imageUploadService = UserImageUploadService();
     final geminiService = GeminiService();
     final progressionController = Get.find<ProgressionController>();
     final homeController = Get.find<HomeController>();
@@ -233,7 +233,7 @@ class QuestDetailController extends GetxController {
           return null;
         }
 
-        print('--- DEBUG: Uploading image to ImgBB ---');
+        print('--- DEBUG: Uploading image to Firebase Storage ---');
         imageUrl = await imageUploadService.uploadImage(imageFile.path);
         print('--- DEBUG: Image uploaded. URL: $imageUrl ---');
       } else {

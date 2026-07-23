@@ -144,6 +144,15 @@ User Profile:
 
 Instructions:
 1. Generate exactly 4 major Milestones that break this goal into logical phases.
+2. Each milestone title must describe a clear action the user can take.
+
+Plain-language rules:
+- Use common everyday words.
+- Titles must be action-led, 2 to 7 words, and no longer than 48 characters.
+- Avoid jargon, acronyms, medical or scientific wording, and formal phrases such as "mastering" or "methodology".
+- Use a technical term only when no plain alternative exists, then explain it immediately in simple words.
+- Avoid "Interphalangeal Joint Mapping"; prefer "Learn How Your Fingers Move".
+- Avoid "Mastering Chromatic Modulation"; prefer "Practice Smooth Key Changes".
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Do not include markdown tags. Use this exact schema:
@@ -305,8 +314,8 @@ Use this exact schema:
 
       final prompt =
           '''
-Act as an elite, professional curriculum designer and expert instructor for $hobby. 
-Your goal is to break down complex skills into professional, highly precise, and easy-to-follow micro-lessons.
+Act as a friendly hobby coach for $hobby.
+Break each skill into clear, practical tasks that a new learner can understand.
 
 User Context:
 - Hobby: $hobby
@@ -323,11 +332,21 @@ Instructions:
 If - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
    - "practice": Physical, hands-on drills to build muscle memory. 
    - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
-5. Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+5. Make every title action-led and make every task easy to understand at first reading.
 6. Parallel execution is mandatory: the graph MUST NOT be a single straight line. Create multiple parallel branches.
 7. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. 
 8. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches.
 9. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID. This guarantees no infinite loops.
+
+Plain-language rules:
+- Use common everyday words for titles, descriptions, and steps.
+- Titles must be action-led, 2 to 7 words, and no longer than 48 characters.
+- Avoid jargon, acronyms, medical or scientific wording, and formal phrases such as "mastering" or "methodology".
+- Use a technical term only when no plain alternative exists, then explain it immediately in simple words.
+- Descriptions must use 1 or 2 short sentences.
+- Start every step with a clear verb and keep it to about 14 words or fewer.
+- Avoid "Interphalangeal Joint Mapping"; prefer "Learn How Your Fingers Move".
+- Avoid "Mastering Chromatic Modulation"; prefer "Practice Smooth Key Changes".
 
 Output formatting rules:
 You MUST return ONLY a valid JSON object. Do not include markdown tags like ```json. Use this exact schema:
@@ -510,7 +529,7 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       final prompt =
           '''
 
-Act as an elite, professional curriculum designer and expert instructor for $hobby. 
+Act as a friendly hobby coach for $hobby.
 The user has decided to "Reroll" (skip) their current daily quest.
 Your job is to generate EXACTLY ONE alternative quest that teaches a similar underlying concept for their current milestone, but uses a completely different approach or mechanic.
 
@@ -527,12 +546,22 @@ The REJECTED Quest (DO NOT DUPLICATE THIS):
 Instructions:
 1. Generate EXACTLY ONE new skill node to replace the rejected quest.
 2. It must be a completely different task/exercise from the rejected one, but still relevant to the "$milestoneTitle".
-3. Titles and descriptions must sound like a professional syllabus. Do not use generic filler like "Learn how to do X." Use precise terms like "Mastering the X Technique."
+3. Make the title action-led and immediately understandable.
 4. The new quest MUST strictly be a "$questType" task that takes approximately $durationMinutes minutes to complete. 
 5. STRICT TYPE DEFINITIONS:
    - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
    - "practice": Physical, hands-on drills to build muscle memory. 
    - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
+
+Plain-language rules:
+- Use common everyday words for the title, description, and steps.
+- The title must be action-led, 2 to 7 words, and no longer than 48 characters.
+- Avoid jargon, acronyms, medical or scientific wording, and formal phrases such as "mastering" or "methodology".
+- Use a technical term only when no plain alternative exists, then explain it immediately in simple words.
+- Use 1 or 2 short sentences for the description.
+- Start every step with a clear verb and keep it to about 14 words or fewer.
+- Avoid "Interphalangeal Joint Mapping"; prefer "Learn How Your Fingers Move".
+- Avoid "Mastering Chromatic Modulation"; prefer "Practice Smooth Key Changes".
 
 
 Output formatting rules:

@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 
-class ImgBBService {
+class UserImageUploadService {
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'asia-southeast1',
   );
