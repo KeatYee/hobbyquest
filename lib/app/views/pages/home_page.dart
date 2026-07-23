@@ -180,6 +180,8 @@ class HomePage extends StatelessWidget {
       Get.toNamed(AppRoutes.QUEST_DETAIL, arguments: quest);
     }
 
+    final rerollBtn = _buildRerollButton(quest.nodeId, foregroundColor: AppColors.textOnPrimary);
+
     return Semantics(
       button: true,
       label: 'Start next quest: ${quest.title}',
@@ -244,15 +246,7 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    const Text(
-                      'NEXT QUEST',
-                      style: TextStyle(
-                        color: AppColors.textOnPrimary,
-                        fontSize: AppFonts.label,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
+                    rerollBtn,
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -472,10 +466,8 @@ class HomePage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary,
-                ),
+                const SizedBox(width: 4),
+                _buildRerollButton(quest.nodeId),
               ],
             ),
           ),
@@ -508,6 +500,44 @@ class HomePage extends StatelessWidget {
       default:
         return 'QUEST';
     }
+  }
+
+  Widget _buildRerollButton(String questId, {Color? foregroundColor}) {
+    final controller = Get.find<HomeController>();
+    return TextButton.icon(
+      onPressed: () async {
+        final confirmed = await AppDialogs.confirm(
+          title: 'Reroll this quest?',
+          message: 'This will generate a new task for the same skill.',
+          confirmLabel: 'Reroll',
+        );
+        if (confirmed != true) return;
+
+        final didReroll = await controller.rerollQuestWithGemini(questId);
+        if (didReroll) {
+          AppDialogs.success(
+            'Quest rerolled',
+            'The new quest version has been saved.',
+          );
+        } else {
+          AppDialogs.error(
+            'Reroll unavailable',
+            'Unable to reroll this quest right now',
+          );
+        }
+      },
+      icon: const Icon(Icons.casino_rounded, size: 16),
+      label: Text(
+        'Reroll',
+        style: TextStyle(fontSize: AppFonts.caption),
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: foregroundColor ?? AppColors.textSecondary,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
   }
 
   Widget _buildHeroHud(HomeController controller) {
