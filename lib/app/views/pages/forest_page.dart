@@ -167,9 +167,8 @@ class _ForestPageState extends State<ForestPage> {
       margin: const EdgeInsets.fromLTRB(24, 104, 24, 12),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
+        color: AppColors.surface.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
