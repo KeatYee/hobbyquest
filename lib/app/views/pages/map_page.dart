@@ -401,6 +401,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           totalQuestXp: occupiedSlots.length * TreeModel.maturityXp,
           occupiedSlots: occupiedSlots.toList()..sort(),
         );
+      }).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw TimeoutException('Tree planting timed out. Please try again.');
       });
 
       progressionController.categoryXp[category.name] = 0;

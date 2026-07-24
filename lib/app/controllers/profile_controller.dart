@@ -136,11 +136,15 @@ class ProfileController extends GetxController {
           final data = snapshot.data();
           if (data == null) return;
 
-          final updatedUser = UserModel.fromJson(data, userId);
-          userModel.value = updatedUser;
-          notificationsEnabled.value = updatedUser.notificationsEnabled;
-          profileVisible.value = updatedUser.profileVisible;
-          postStatsVisible.value = updatedUser.postStatsVisible;
+          try {
+            final updatedUser = UserModel.fromJson(data, userId);
+            userModel.value = updatedUser;
+            notificationsEnabled.value = updatedUser.notificationsEnabled;
+            profileVisible.value = updatedUser.profileVisible;
+            postStatsVisible.value = updatedUser.postStatsVisible;
+          } catch (e) {
+            print('--- ERROR parsing user profile from snapshot: $e ---');
+          }
         }, onError: (e) {
           print('--- ERROR listening to user profile: $e ---');
         });

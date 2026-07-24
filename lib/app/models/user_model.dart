@@ -194,7 +194,7 @@ class UserModel {
   static Map<String, int> _readCategoryXp(Map<String, dynamic> json) {
     final raw = json['categoryXp'];
     if (raw is Map) {
-      return raw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+      return raw.map((k, v) => MapEntry(k.toString(), v is num ? v.toInt() : 0));
     }
 
     final legacy = <String, int>{};
