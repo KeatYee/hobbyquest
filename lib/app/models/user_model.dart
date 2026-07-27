@@ -66,6 +66,34 @@ class UserModel {
         ? QuestPlanModel.fromJson(Map<String, dynamic>.from(currentPlanJson))
         : _legacyCurrentPlan(json);
 
+    print('--- DEBUG UserModel.fromJson: parsing doc $docId ---');
+    print('--- DEBUG categories: ${json['categoryXp']} ---');
+    print('--- DEBUG groveIndex: ${json['currentGroveIndex']} (${json['currentGroveIndex'].runtimeType}) ---');
+    print('--- DEBUG completedGroveIndexes: ${json['completedGroveIndexes']} (${json['completedGroveIndexes'].runtimeType}) ---');
+    print('--- DEBUG occupiedTreeSlotsByGrove raw: ${json['occupiedTreeSlotsByGrove']} ---');
+    if (json['occupiedTreeSlotsByGrove'] is Map) {
+      for (final e in (json['occupiedTreeSlotsByGrove'] as Map).entries) {
+        print('--- DEBUG   slot entry "${e.key}": ${e.value} (${e.value.runtimeType}) ---');
+      }
+    }
+
+    Map<int, List<int>> parsedSlots;
+    try {
+      parsedSlots = _readGroveSlots(json);
+      print('--- DEBUG _readGroveSlots OK, result=$parsedSlots ---');
+    } catch (e) {
+      print('--- DEBUG _readGroveSlots FAILED: $e ---');
+      rethrow;
+    }
+
+    List<int> parsedIndexes;
+    try {
+      parsedIndexes = _readGroveIndexes(json['completedGroveIndexes']);
+    } catch (e) {
+      print('--- DEBUG _readGroveIndexes FAILED: $e ---');
+      rethrow;
+    }
+
     return UserModel(
       id: docId,
       nickname: json['nickname'] as String? ?? 'Hero',
@@ -80,8 +108,8 @@ class UserModel {
       dailyQuestCompletionCount: json['dailyQuestCompletionCount'] as int? ?? 0,
       categoryXp: _readCategoryXp(json),
       currentGroveIndex: _readCurrentGroveIndex(json['currentGroveIndex']),
-      completedGroveIndexes: _readGroveIndexes(json['completedGroveIndexes']),
-      occupiedTreeSlotsByGrove: _readGroveSlots(json),
+      completedGroveIndexes: parsedIndexes,
+      occupiedTreeSlotsByGrove: parsedSlots,
       mapTutorialDone: json['mapTutorialDone'] as bool? ?? false,
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
       profileVisible: json['profileVisible'] as bool? ?? true,
@@ -210,20 +238,20 @@ class UserModel {
   }
 
   static int _readCurrentGroveIndex(dynamic value) {
-    final index = (value as num?)?.toInt() ?? 1;
+    final index = value is num ? value.toInt() : 1;
     return index < 1 ? 1 : index;
   }
 
   static List<int> _readGroveIndexes(dynamic value) {
     if (value is! List) return const [];
-    final indexes =
-        value
-            .whereType<num>()
-            .map((item) => item.toInt())
-            .where((index) => index > 0)
-            .toSet()
-            .toList()
-          ..sort();
+    final buffer = <int>[];
+    for (final item in value) {
+      if (item is num) {
+        final idx = item.toInt();
+        if (idx > 0) buffer.add(idx);
+      }
+    }
+    final indexes = buffer.toSet().toList()..sort();
     return indexes;
   }
 
@@ -234,26 +262,26 @@ class UserModel {
       for (final entry in raw.entries) {
         final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
         if (groveIndex < 1 || entry.value is! List) continue;
-        result[groveIndex] =
-            entry.value
-                .whereType<num>()
-                .map((item) => item.toInt())
-                .where((index) => index >= 0 && index < 9)
-                .toSet()
-                .toList()
-              ..sort();
+        final buffer = <int>[];
+        for (final item in (entry.value as List)) {
+          if (item is num) {
+            final idx = item.toInt();
+            if (idx >= 0 && idx < 9) buffer.add(idx);
+          }
+        }
+        result[groveIndex] = buffer.toSet().toList()..sort();
       }
     }
 
     if (result.isEmpty && json['occupiedTreeSlots'] is List) {
-      result[1] =
-          (json['occupiedTreeSlots'] as List)
-              .whereType<num>()
-              .map((item) => item.toInt())
-              .where((index) => index >= 0 && index < 9)
-              .toSet()
-              .toList()
-            ..sort();
+      final buffer = <int>[];
+      for (final item in (json['occupiedTreeSlots'] as List)) {
+        if (item is num) {
+          final idx = item.toInt();
+          if (idx >= 0 && idx < 9) buffer.add(idx);
+        }
+      }
+      result[1] = buffer.toSet().toList()..sort();
     }
     return result;
   }

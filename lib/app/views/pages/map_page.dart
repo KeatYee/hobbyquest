@@ -249,7 +249,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     String treeName,
   ) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || _isSavingTree) return null;
+    print('--- TREE DEBUG: _saveTreeToForest started, uid=$uid, treeName="$treeName", category=${category.name} ---');
+    if (uid == null || _isSavingTree) {
+      print('--- TREE DEBUG: Skipping: uid=${uid != null}, _isSavingTree=$_isSavingTree ---');
+      return null;
+    }
     _isSavingTree = true;
 
     final firestore = FirebaseFirestore.instance;
@@ -259,17 +263,22 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final homeController = Get.find<HomeController>();
 
     try {
+      print('--- TREE DEBUG: Reading user doc ---');
       final userSnapshot = await userRef.get();
       final userData = userSnapshot.data();
+      print('--- TREE DEBUG: User doc exists=${userSnapshot.exists}, data=${userData != null} ---');
       if (userData == null) {
         throw StateError('User profile not found.');
       }
       final planId = userData['activePlanId']?.toString().trim() ?? '';
+      print('--- TREE DEBUG: PlanId="$planId" ---');
       if (planId.isEmpty) {
         throw StateError('No active learning plan was found.');
       }
 
+      print('--- TREE DEBUG: Reading existing tree docs ---');
       final existingDocs = await treeCollection.get();
+      print('--- TREE DEBUG: Found ${existingDocs.docs.length} existing tree docs ---');
       final existingSlotsByGrove = <int, Set<int>>{};
       for (final doc in existingDocs.docs) {
         final data = doc.data();
@@ -286,11 +295,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       var completedCount = 0;
       var totalMinutes = 0;
       if (planId.isNotEmpty) {
+        print('--- TREE DEBUG: Reading quest completions ---');
         final questSnapshot = await userRef
             .collection('plans')
             .doc(planId)
             .collection('quests')
             .get();
+        print('--- TREE DEBUG: Found ${questSnapshot.docs.length} quest docs ---');
         for (final quest in questSnapshot.docs) {
           final data = quest.data();
           if (data['isCompleted'] != true) continue;
@@ -300,11 +311,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               (data['duration_minutes'] as num?)?.toInt() ??
               0;
         }
+        print('--- TREE DEBUG: Completed quests=$completedCount, totalMinutes=$totalMinutes ---');
       }
 
       final treeRef = treeCollection.doc();
       late GrovePlantingResult plantingResult;
+      print('--- TREE DEBUG: Starting Firestore transaction ---');
       await firestore.runTransaction((transaction) async {
+        print('--- TREE DEBUG: Transaction began ---');
         final userSnapshot = await transaction.get(userRef);
         final userData = userSnapshot.data();
         if (userData == null) {
@@ -324,6 +338,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             (categoryXp[category.name] as num?)?.toInt() ??
             (userData['categoryXp.${category.name}'] as num?)?.toInt() ??
             0;
+        print('--- TREE DEBUG: currentXp=$currentXp, maturityXp=${TreeModel.maturityXp} ---');
         if (currentXp < TreeModel.maturityXp) {
           throw StateError('This tree has not reached maturity yet.');
         }
@@ -334,10 +349,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         );
         var currentGroveIndex = _readGroveIndex(userData['currentGroveIndex']);
         var occupiedSlots = slotsByGrove[currentGroveIndex] ?? <int>{};
+        print('--- TREE DEBUG: GroveIndex=$currentGroveIndex, occupied=${occupiedSlots.length} slots: $occupiedSlots ---');
 
         // Existing users may already have a full legacy Grove 1. Move their
         // next planting action into Grove 2 instead of blocking progression.
         while (occupiedSlots.length >= TreeModel.forestSpotCount) {
+          print('--- TREE DEBUG: Grove $currentGroveIndex full, advancing ---');
           completedGroves.add(currentGroveIndex);
           currentGroveIndex += 1;
           occupiedSlots = slotsByGrove[currentGroveIndex] ?? <int>{};
@@ -350,6 +367,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             break;
           }
         }
+        print('--- TREE DEBUG: firstFree=$firstFree, groveIndex=$currentGroveIndex ---');
         if (firstFree == null) throw StateError('No grove space is available.');
 
         final tree = TreeModel(
@@ -372,6 +390,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         slotsByGrove[currentGroveIndex] = occupiedSlots;
         final completedGrove =
             occupiedSlots.length == TreeModel.forestSpotCount;
+        print('--- TREE DEBUG: After add, occupiedSlots=$occupiedSlots, completedGrove=$completedGrove ---');
         if (completedGrove) {
           completedGroves.add(currentGroveIndex);
         }
@@ -393,6 +412,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         if (currentGroveIndex == 1) {
           updatedUser['occupiedTreeSlots'] = occupiedSlots.toList()..sort();
         }
+        print('--- TREE DEBUG: Updating user doc nextGroveIndex=$nextGroveIndex, completedGroves=$completedGroves ---');
         transaction.update(userRef, updatedUser);
         plantingResult = GrovePlantingResult(
           plantedGroveIndex: currentGroveIndex,
@@ -404,10 +424,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       }).timeout(const Duration(seconds: 30), onTimeout: () {
         throw TimeoutException('Tree planting timed out. Please try again.');
       });
+      print('--- TREE DEBUG: Transaction completed successfully ---');
 
       progressionController.categoryXp[category.name] = 0;
       final currentUser = homeController.user.value;
       if (currentUser != null) {
+        print('--- TREE DEBUG: Updating local HomeController user model ---');
         homeController.user.value = currentUser.copyWith(
           categoryXp: {...currentUser.categoryXp, category.name: 0},
           currentGroveIndex: plantingResult.completedGrove
@@ -537,20 +559,35 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     try {
       if (result == true && nameController.text.trim().isNotEmpty) {
+        print('--- TREE DEBUG: Plant button clicked, name="${nameController.text.trim()}" ---');
         AppDialogs.showLoading(message: 'Planting tree...');
+        print('--- TREE DEBUG: Loading dialog shown ---');
         GrovePlantingResult? plantingResult;
         try {
           plantingResult = await _saveTreeToForest(
             category,
             nameController.text.trim(),
+          ).timeout(
+            const Duration(seconds: 35),
+            onTimeout: () {
+              print('--- TREE DEBUG: _saveTreeToForest timed out after 35s ---');
+              return null;
+            },
           );
+          print('--- TREE DEBUG: _saveTreeToForest completed, result=${plantingResult != null ? "non-null" : "null"} ---');
         } finally {
+          print('--- TREE DEBUG: Dismissing loading dialog ---');
           AppDialogs.dismissLoading();
         }
 
         if (plantingResult != null) {
-          if (!mounted) return;
+          print('--- TREE DEBUG: plantingResult non-null, groveIndex=${plantingResult.plantedGroveIndex}, completed=${plantingResult.completedGrove} ---');
+          if (!mounted) {
+            print('--- TREE DEBUG: Not mounted after planting, returning ---');
+            return;
+          }
           if (plantingResult.completedGrove) {
+            print('--- TREE DEBUG: Showing GroveCompleteScreen ---');
             await GroveCompleteScreen.show(
               context: context,
               completedGroveIndex: plantingResult.plantedGroveIndex,
@@ -559,7 +596,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               onExploreNextGrove: Get.back,
             );
           }
-          if (!mounted) return;
+          if (!mounted) {
+            print('--- TREE DEBUG: Not mounted after GroveCompleteScreen, returning ---');
+            return;
+          }
+          print('--- TREE DEBUG: Navigating to forest page ---');
           Get.toNamed(
             AppRoutes.FOREST,
             arguments: {
@@ -568,9 +609,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   : plantingResult.plantedGroveIndex,
             },
           );
+        } else {
+          print('--- TREE DEBUG: plantingResult was null, no navigation ---');
         }
       }
     } finally {
+      print('--- TREE DEBUG: Resetting _isTreeNamingDialogOpen to false ---');
       _isTreeNamingDialogOpen = false;
       nameController.dispose();
     }

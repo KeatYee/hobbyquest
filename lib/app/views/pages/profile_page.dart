@@ -26,10 +26,53 @@ class ProfilePage extends StatelessWidget {
 
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser == null || controller.userModel.value == null) {
+          if (currentUser == null) {
+            return Center(
+              child: Text(
+                "No profile data found",
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            );
+          }
           return Center(
-            child: Text(
-              "No profile data found",
-              style: TextStyle(color: AppColors.textSecondary),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "No profile data found",
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: 200,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleLogout(context),
+                    icon: Icon(
+                      Icons.logout_rounded, size: 20, color: AppColors.error,
+                    ),
+                    label: Text(
+                      "Log Out",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: AppFonts.button,
+                        letterSpacing: 0.3,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(
+                        color: AppColors.error.withOpacity(0.35),
+                        width: 1.5,
+                      ),
+                      backgroundColor: AppColors.error.withOpacity(0.06),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }
