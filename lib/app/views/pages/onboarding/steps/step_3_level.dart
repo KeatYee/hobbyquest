@@ -136,7 +136,7 @@ class _Step3LevelState extends State<Step3Level> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            controller.level.value = level['label'];
+            controller.selectLevel(level['label']);
             print("--- DATA: Level Selected: ${level['label']} ---");
 
             if (showError) setState(() => showError = false);

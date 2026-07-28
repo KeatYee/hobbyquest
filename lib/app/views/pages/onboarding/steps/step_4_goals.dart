@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
+import '../../../../data/onboarding_catalog.dart';
 
 class Step4Goals extends StatefulWidget {
   const Step4Goals({super.key});
@@ -16,43 +17,11 @@ class _Step4GoalsState extends State<Step4Goals> {
 
   bool showLearningPaceError = false;
 
-  String? selectedPredefinedGoal;
-
   final List<String> learningPaceOptions = [
     "Casual Explorer",
     "Steady Learner",
     "Hardcore Grinder",
   ];
-
-  /// Get predefined goals based on selected hobby and skill level
-  List<String> _getPredefinedGoals(String hobby, String level) {
-    if (hobby == "Drawing") {
-      if (level == "Novice") {
-        return [
-          "Learn basic shading",
-          "Sketch a coffee cup",
-          "Draw a simple cartoon",
-        ];
-      } else if (level == "Intermediate") {
-        return [
-          "Draw a realistic portrait",
-          "Master 2-point perspective",
-          "Learn to draw hands",
-        ];
-      } else if (level == "Expert") {
-        return [
-          "Design dynamic action poses",
-          "Complete a full anatomy study",
-          "Master hyper-realistic lighting",
-        ];
-      }
-    }
-    return [
-      "Master the fundamentals",
-      "Complete a challenging project",
-      "Teach someone else",
-    ];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,10 +54,18 @@ class _Step4GoalsState extends State<Step4Goals> {
                   ? controller.hobby.value
                   : "Drawing";
               final level = controller.level.value;
-              final dynamicGoals = _getPredefinedGoals(hobby, level);
+              final dynamicGoals = OnboardingCatalog.goalsFor(hobby, level);
+              final currentGoal = controller.goalController.text.trim();
+              final selectedGoal =
+                  controller.isPredefinedGoal.value &&
+                      dynamicGoals.contains(currentGoal)
+                  ? currentGoal
+                  : null;
 
               return DropdownButtonFormField<String>(
-                initialValue: selectedPredefinedGoal,
+                key: ValueKey('$hobby-$level-$selectedGoal'),
+                isExpanded: true,
+                initialValue: selectedGoal,
                 hint: const Text("Pick a goal template..."),
                 decoration: const InputDecoration(
                   labelText: "Quick Start Goals",
@@ -101,37 +78,38 @@ class _Step4GoalsState extends State<Step4Goals> {
                   );
                 }).toList(),
                 onChanged: (value) {
-                  setState(() {
-                    selectedPredefinedGoal = value;
-                    controller.isPredefinedGoal.value = value != null;
-                    if (value != null) {
-                      controller.goalController.text = value;
-                      controller.goalValidationError.value = '';
-                    }
-                  });
+                  controller.isPredefinedGoal.value = value != null;
+                  if (value != null) {
+                    controller.goalController.text = value;
+                    controller.goalValidationError.value = '';
+                  }
                 },
               );
             }),
             const SizedBox(height: 20),
 
-            TextFormField(
-              controller: controller.goalController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: "Or write your own goal...",
-                hintText: "e.g. Learn to draw Doraemon",
-                prefixIcon: Icon(Icons.flag_rounded),
+            Obx(
+              () => TextFormField(
+                controller: controller.goalController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: "Or write your own goal...",
+                  hintText: OnboardingCatalog.customGoalHintFor(
+                    controller.hobby.value,
+                  ),
+                  prefixIcon: const Icon(Icons.flag_rounded),
+                ),
+                onChanged: (_) {
+                  controller.isPredefinedGoal.value = false;
+                  controller.goalValidationError.value = '';
+                },
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return "Please define your quest!";
+                  }
+                  return null;
+                },
               ),
-              onChanged: (_) {
-                controller.isPredefinedGoal.value = false;
-                controller.goalValidationError.value = '';
-              },
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return "Please define your quest!";
-                }
-                return null;
-              },
             ),
 
             Obx(() {

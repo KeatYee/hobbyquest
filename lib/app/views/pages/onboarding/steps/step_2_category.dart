@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../../../core/constants/color_constants.dart';
 import '../../../../../../core/constants/font_constants.dart';
 import '../../../../controllers/onboarding_controller.dart';
+import '../../../../data/onboarding_catalog.dart';
 
 class Step2Category extends StatefulWidget {
   const Step2Category({super.key});
@@ -21,7 +22,9 @@ class _Step2CategoryState extends State<Step2Category> {
     final textTheme = Theme.of(context).textTheme;
 
     return Obx(() {
-      final categoryList = controller.categories.value;
+      final categoryList = OnboardingCatalog.filterSupportedCategories(
+        controller.categories.value,
+      );
       final isLoading = controller.isLoadingCategories.value;
 
       final activeCategoryName = controller.category.value.isNotEmpty
@@ -152,128 +155,75 @@ class _Step2CategoryState extends State<Step2Category> {
                 itemBuilder: (context, index) {
                   final hobby = currentHobbies[index];
                   final isSelected = controller.hobby.value == hobby;
-                  final isLocked = hobby != "Drawing";
 
                   return Material(
                     color: Colors.transparent,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        InkWell(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        controller.selectHobby(activeCategoryName, hobby);
+                        if (showError) {
+                          setState(() => showError = false);
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(16),
-                          onTap: isLocked
-                              ? null
-                              : () {
-                                  controller.category.value =
-                                      activeCategoryName;
-                                  controller.hobby.value = hobby;
-                                  if (showError) {
-                                    setState(() => showError = false);
-                                  }
-                                },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isLocked
-                                  ? AppColors.textSecondary.withValues(
-                                      alpha: 0.08,
-                                    )
-                                  : (isSelected
-                                        ? AppColors.primary
-                                        : AppColors.surface),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isLocked
-                                    ? AppColors.textSecondary.withValues(
-                                        alpha: 0.15,
-                                      )
-                                    : (isSelected
-                                          ? AppColors.primary
-                                          : AppColors.textSecondary.withValues(
-                                              alpha: 0.2,
-                                            )),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isLocked
-                                      ? AppColors.textPrimary.withValues(
-                                          alpha: 0.02,
-                                        )
-                                      : (isSelected
-                                            ? AppColors.primary.withValues(
-                                                alpha: 0.25,
-                                              )
-                                            : AppColors.textPrimary.withValues(
-                                                alpha: 0.05,
-                                              )),
-                                  blurRadius: isSelected ? 14 : 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  isLocked
-                                      ? Icons.lock_rounded
-                                      : Icons.local_fire_department_rounded,
-                                  size: 30,
-                                  color: isLocked
-                                      ? AppColors.textSecondary.withValues(
-                                          alpha: 0.4,
-                                        )
-                                      : (isSelected
-                                            ? AppColors.textOnPrimary
-                                            : AppColors.textSecondary),
-                                ),
-                                const SizedBox(height: 8),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textSecondary.withValues(
+                                    alpha: 0.2,
                                   ),
-                                  child: Text(
-                                    hobby,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.openSans(
-                                      fontSize: AppFonts.bodyLg,
-                                      fontWeight: FontWeight.w700,
-                                      color: isLocked
-                                          ? AppColors.textSecondary.withValues(
-                                              alpha: 0.5,
-                                            )
-                                          : (isSelected
-                                                ? AppColors.textOnPrimary
-                                                : AppColors.textPrimary),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.25)
+                                  : AppColors.textPrimary.withValues(
+                                      alpha: 0.05,
                                     ),
-                                  ),
-                                ),
-                              ],
+                              blurRadius: isSelected ? 14 : 8,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
+                          ],
                         ),
-                        if (isLocked)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.7,
-                                ),
-                                shape: BoxShape.circle,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.local_fire_department_rounded,
+                              size: 30,
+                              color: isSelected
+                                  ? AppColors.textOnPrimary
+                                  : AppColors.textSecondary,
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
                               ),
-                              child: const Icon(
-                                Icons.lock,
-                                size: 14,
-                                color: AppColors.textOnPrimary,
+                              child: Text(
+                                hobby,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.openSans(
+                                  fontSize: AppFonts.bodyLg,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected
+                                      ? AppColors.textOnPrimary
+                                      : AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },

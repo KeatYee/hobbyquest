@@ -153,6 +153,26 @@ class OnboardingController extends GetxController {
   var goalValidationError = ''.obs;
   var isPredefinedGoal = false.obs;
 
+  void selectHobby(String categoryName, String hobbyName) {
+    category.value = categoryName;
+    if (hobby.value == hobbyName) return;
+    hobby.value = hobbyName;
+    _clearPredefinedGoal();
+  }
+
+  void selectLevel(String selectedLevel) {
+    if (level.value == selectedLevel) return;
+    level.value = selectedLevel;
+    _clearPredefinedGoal();
+  }
+
+  void _clearPredefinedGoal() {
+    if (!isPredefinedGoal.value) return;
+    goalController.clear();
+    isPredefinedGoal.value = false;
+    goalValidationError.value = '';
+  }
+
   var generatedPlan = Rx<QuestPlanModel>(
     QuestPlanModel(
       hobby: "",
