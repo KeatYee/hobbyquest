@@ -196,11 +196,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Set<int> _readGroveIndexes(dynamic value) {
     if (value is! List) return <int>{};
-    return value
-        .whereType<num>()
-        .map((item) => item.toInt())
-        .where((index) => index > 0)
-        .toSet();
+    final result = <int>{};
+    for (final item in value) {
+      if (item is num) {
+        final idx = item.toInt();
+        if (idx > 0) result.add(idx);
+      }
+    }
+    return result;
   }
 
   Map<int, Set<int>> _readGroveSlots(
@@ -216,30 +219,30 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       for (final entry in stored.entries) {
         final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
         if (groveIndex < 1 || entry.value is! List) continue;
+        final buffer = <int>{};
+        for (final item in (entry.value as List)) {
+          if (item is num) {
+            final idx = item.toInt();
+            if (idx >= 0 && idx < TreeModel.forestSpotCount) buffer.add(idx);
+          }
+        }
         slots
             .putIfAbsent(groveIndex, () => <int>{})
-            .addAll(
-              entry.value
-                  .whereType<num>()
-                  .map((item) => item.toInt())
-                  .where(
-                    (index) => index >= 0 && index < TreeModel.forestSpotCount,
-                  ),
-            );
+            .addAll(buffer);
       }
     }
     final legacySlots = userData['occupiedTreeSlots'];
     if (legacySlots is List) {
+      final buffer = <int>{};
+      for (final item in legacySlots) {
+        if (item is num) {
+          final idx = item.toInt();
+          if (idx >= 0 && idx < TreeModel.forestSpotCount) buffer.add(idx);
+        }
+      }
       slots
           .putIfAbsent(1, () => <int>{})
-          .addAll(
-            legacySlots
-                .whereType<num>()
-                .map((item) => item.toInt())
-                .where(
-                  (index) => index >= 0 && index < TreeModel.forestSpotCount,
-                ),
-          );
+          .addAll(buffer);
     }
     return slots;
   }

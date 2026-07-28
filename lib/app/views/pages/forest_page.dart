@@ -44,11 +44,14 @@ class _ForestPageState extends State<ForestPage> {
       for (final entry in value.entries) {
         final groveIndex = int.tryParse(entry.key.toString()) ?? 0;
         if (groveIndex < 1 || entry.value is! List) continue;
-        slots[groveIndex] = entry.value
-            .whereType<num>()
-            .map((item) => item.toInt())
-            .where((index) => index >= 0 && index < _spotCount)
-            .toSet();
+        final buffer = <int>{};
+        for (final item in (entry.value as List)) {
+          if (item is num) {
+            final idx = item.toInt();
+            if (idx >= 0 && idx < _spotCount) buffer.add(idx);
+          }
+        }
+        slots[groveIndex] = buffer;
       }
     }
     return slots;
@@ -157,11 +160,14 @@ class _ForestPageState extends State<ForestPage> {
 
   Set<int> _readOccupiedSlots(dynamic value) {
     if (value is! List) return <int>{};
-    return value
-        .whereType<num>()
-        .map((item) => item.toInt())
-        .where((index) => index >= 0 && index < _spotCount)
-        .toSet();
+    final result = <int>{};
+    for (final item in value) {
+      if (item is num) {
+        final idx = item.toInt();
+        if (idx >= 0 && idx < _spotCount) result.add(idx);
+      }
+    }
+    return result;
   }
 
   Widget _buildGroveSelector(int selectedGrove, List<int> availableGroves) {
