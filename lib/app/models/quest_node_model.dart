@@ -1,3 +1,29 @@
+class RubricAssessmentModel {
+  final String criterion;
+  final bool met;
+  final String feedback;
+
+  const RubricAssessmentModel({
+    required this.criterion,
+    required this.met,
+    required this.feedback,
+  });
+
+  factory RubricAssessmentModel.fromJson(Map<String, dynamic> json) {
+    return RubricAssessmentModel(
+      criterion: json['criterion']?.toString().trim() ?? '',
+      met: json['met'] as bool? ?? false,
+      feedback: json['feedback']?.toString().trim() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'criterion': criterion,
+    'met': met,
+    'feedback': feedback,
+  };
+}
+
 class QuestNodeModel {
   final String nodeId;
   final String title;
@@ -17,6 +43,8 @@ class QuestNodeModel {
   final String? tip;
   final String? youtubeSearchQuery;
   final int? awardedXP;
+  final List<String> imageRubric;
+  final List<RubricAssessmentModel> rubricAssessments;
 
   const QuestNodeModel({
     required this.nodeId,
@@ -37,10 +65,13 @@ class QuestNodeModel {
     this.tip,
     this.youtubeSearchQuery,
     this.awardedXP,
+    this.imageRubric = const [],
+    this.rubricAssessments = const [],
   });
 
   factory QuestNodeModel.fromJson(Map<String, dynamic> json) {
-    final parsedNodeId = (json['node_id'] as String?) ?? (json['id'] as String?) ?? '';
+    final parsedNodeId =
+        (json['node_id'] as String?) ?? (json['id'] as String?) ?? '';
 
     List<String> parseDepends(dynamic raw) {
       if (raw == null) {
@@ -60,6 +91,17 @@ class QuestNodeModel {
         return raw.map((e) => e.toString()).toList();
       }
       return <String>[];
+    }
+
+    List<RubricAssessmentModel> parseRubricAssessments(dynamic raw) {
+      if (raw is! List) return <RubricAssessmentModel>[];
+      return raw
+          .whereType<Map>()
+          .map(
+            (item) =>
+                RubricAssessmentModel.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList();
     }
 
     return QuestNodeModel(
@@ -83,8 +125,11 @@ class QuestNodeModel {
       observation: json['observation'] as String?,
       tip: json['tip'] as String?,
       youtubeSearchQuery:
-          json['youtube_search_query'] as String? ?? json['youtubeSearchQuery'] as String?,
+          json['youtube_search_query'] as String? ??
+          json['youtubeSearchQuery'] as String?,
       awardedXP: (json['awardedXP'] as num?)?.toInt(),
+      imageRubric: parseSteps(json['image_rubric'] ?? json['imageRubric']),
+      rubricAssessments: parseRubricAssessments(json['rubricAssessments']),
     );
   }
 
@@ -108,6 +153,11 @@ class QuestNodeModel {
       'tip': tip,
       'youtube_search_query': youtubeSearchQuery,
       'awardedXP': awardedXP,
+      if (imageRubric.isNotEmpty) 'image_rubric': imageRubric,
+      if (rubricAssessments.isNotEmpty)
+        'rubricAssessments': rubricAssessments
+            .map((assessment) => assessment.toJson())
+            .toList(),
     };
   }
 
@@ -130,6 +180,8 @@ class QuestNodeModel {
     String? tip,
     String? youtubeSearchQuery,
     int? awardedXP,
+    List<String>? imageRubric,
+    List<RubricAssessmentModel>? rubricAssessments,
   }) {
     return QuestNodeModel(
       nodeId: nodeId ?? this.nodeId,
@@ -150,6 +202,8 @@ class QuestNodeModel {
       tip: tip ?? this.tip,
       youtubeSearchQuery: youtubeSearchQuery ?? this.youtubeSearchQuery,
       awardedXP: awardedXP ?? this.awardedXP,
+      imageRubric: imageRubric ?? this.imageRubric,
+      rubricAssessments: rubricAssessments ?? this.rubricAssessments,
     );
   }
 

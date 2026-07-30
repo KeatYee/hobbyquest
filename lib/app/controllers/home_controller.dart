@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import '../models/growth_letter_model.dart';
 import '../models/quest_node_model.dart';
 import '../services/gemini_service.dart';
@@ -10,6 +11,7 @@ import '../services/growth_letter_service.dart';
 import '../services/quest_service.dart';
 import '../models/user_model.dart';
 import '../models/goal_history_model.dart';
+import '../../core/utils/performance_tracker.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
@@ -37,6 +39,7 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    print('PERF_DASHBOARD_LOAD: HomeController started');
     _loadUserProfile();
   }
 
@@ -181,6 +184,13 @@ class HomeController extends GetxController {
   /// Load user profile data from Firestore
   /// Now loads plan, milestones, and quests from subcollections.
   Future<void> _loadUserProfile() async {
+    unawaited(PerformanceTracker.measure('DASHBOARD_LOAD', () async {
+      while (isLoadingProfile.value) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      await WidgetsBinding.instance.endOfFrame;
+    }));
+
     try {
       isLoadingProfile.value = true;
 
@@ -381,30 +391,18 @@ class HomeController extends GetxController {
     }
 
     try {
+      final currentQuest = dailyQuests.firstWhereOrNull(
+        (quest) => quest.nodeId == questId,
+      );
       final alternative = await _geminiService.generateAlternativeQuest(
         hobby: hobby.value,
-        nodeTitle:
-            dailyQuests
-                .firstWhereOrNull((quest) => quest.nodeId == questId)
-                ?.title ??
-            '',
-        nodeDesc:
-            dailyQuests
-                .firstWhereOrNull((quest) => quest.nodeId == questId)
-                ?.desc ??
-            '',
+        nodeTitle: currentQuest?.title ?? '',
+        nodeDesc: currentQuest?.desc ?? '',
         learningPace: learningPace.value,
         milestoneTitle: _currentMilestoneTitle(),
-        questType:
-            dailyQuests
-                .firstWhereOrNull((quest) => quest.nodeId == questId)
-                ?.type ??
-            'practice',
-        durationMinutes:
-            dailyQuests
-                .firstWhereOrNull((quest) => quest.nodeId == questId)
-                ?.durationMinutes ??
-            15,
+        questType: currentQuest?.type ?? 'practice',
+        durationMinutes: currentQuest?.durationMinutes ?? 15,
+        existingImageRubric: currentQuest?.imageRubric ?? const [],
       );
 
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -428,6 +426,11 @@ class HomeController extends GetxController {
               false)
           ? alternative['youtube_search_query'].toString().trim()
           : (alternative['youtubeSearchQuery']?.toString().trim() ?? '');
+      final altImageRubric = (alternative['image_rubric'] is List)
+          ? (alternative['image_rubric'] as List)
+                .map((item) => item.toString())
+                .toList()
+          : const <String>[];
 
       final questRef = FirebaseFirestore.instance
           .collection('users')
@@ -453,6 +456,8 @@ class HomeController extends GetxController {
           'desc': alternative['desc'] ?? '',
           'steps': altSteps ?? [],
           'youtube_search_query': altYoutube,
+          if (currentQuest?.imageRubric.isNotEmpty == true)
+            'image_rubric': altImageRubric,
         });
         transaction.update(userRef, {
           'lastRerollDate': FieldValue.serverTimestamp(),

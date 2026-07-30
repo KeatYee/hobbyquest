@@ -31,13 +31,13 @@ class ProgressionController extends GetxController {
   }
 
   Future<void> loadProgress() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      totalXP.value = 0;
-      return;
-    }
-
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        totalXP.value = 0;
+        return;
+      }
+
       isLoading.value = true;
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final data = doc.data();

@@ -107,10 +107,18 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       imageFile: selectedImage,
     );
     if (outcome == null) {
+      if (_controller.consumeRetakeImageRequest()) {
+        if (mounted) setState(() => selectedImage = null);
+        await _pickImage();
+        return;
+      }
       if (mounted && _controller.currentQuest.value.isCompleted) {
         Navigator.of(context).pop();
       }
       return;
+    }
+    if (outcome.completion.quest.imageUrl?.trim().isNotEmpty != true) {
+      selectedImage = null;
     }
 
     final homeController = Get.find<HomeController>();
@@ -238,6 +246,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
                 if (currentQuest.steps.isNotEmpty) ...[
                   _buildStepsCard(typeColor),
+                  const SizedBox(height: 20),
+                ],
+                if (currentQuest.imageRubric.isNotEmpty) ...[
+                  _buildImageRubricCard(),
                   const SizedBox(height: 20),
                 ],
                 if (!currentQuest.isCompleted ||
@@ -519,7 +531,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     return _SectionCard(
       label: 'DESCRIPTION',
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Text(
           currentQuest.desc,
           style: TextStyle(
@@ -612,6 +624,57 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                           fontSize: AppFonts.bodyLg,
                           fontWeight: FontWeight.w400,
                         ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageRubricCard() {
+    return _SectionCard(
+      label: 'WHAT HOBIE WILL CHECK',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+        child: Column(
+          children: currentQuest.imageRubric.asMap().entries.map((entry) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: entry.key == currentQuest.imageRubric.length - 1
+                    ? 0
+                    : 12,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${entry.key + 1}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        height: 1.35,
                       ),
                     ),
                   ),

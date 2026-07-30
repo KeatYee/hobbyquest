@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/milestone_model.dart';
 import '../models/quest_node_model.dart';
 import '../models/quest_plan_model.dart';
+import '../../core/utils/quest_rubric_utils.dart';
 
 class ValidationResult {
   final bool isValid;
@@ -337,6 +338,7 @@ If - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes 
 7. Exactly 3 foundational root nodes MUST have empty dependencies: "depends_on": []. 
 8. Convergence is required: advanced nodes should depend on multiple prior nodes from different branches.
 9. STRICT MATH RULE: Nodes must be logically numbered from 1 to 20. A node's "depends_on" array can ONLY contain node IDs that are strictly LESS than its own ID. This guarantees no infinite loops.
+10. Generate exactly 3 image_rubric criteria for every node. Each criterion must describe one task-specific quality that can be observed in a photo. Never claim a photo can prove taste, sound, pain, safety, or authenticity.
 
 Plain-language rules:
 - Use common everyday words for titles, descriptions, and steps.
@@ -366,6 +368,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
       "duration_minutes": Integer (estimated time to complete this node, within 5 to 60 minutes range),
       "type": "String", 
       "youtube_search_query": "String (a 3-to-5 word YouTube search query for this specific skill node)",
+      "image_rubric": [
+        "String (observable criterion 1, maximum 120 characters)",
+        "String (observable criterion 2, maximum 120 characters)",
+        "String (observable criterion 3, maximum 120 characters)"
+      ],
       "depends_on": ["array of previous node_ids"]
     }
   ]
@@ -408,6 +415,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
                 nodeId: formattedNodeId,
                 type: sanitizedType,
                 xpReward: _xpRewardForType(sanitizedType),
+                imageRubric: normalizeImageRubric(
+                  item['image_rubric'] ?? item['imageRubric'],
+                  title: node.title,
+                  description: node.desc,
+                ),
               ),
             );
             continue;
@@ -437,6 +449,11 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
                 nodeId: formattedNodeId,
                 type: sanitizedType,
                 xpReward: _xpRewardForType(sanitizedType),
+                imageRubric: normalizeImageRubric(
+                  rawMap['image_rubric'] ?? rawMap['imageRubric'],
+                  title: node.title,
+                  description: node.desc,
+                ),
               ),
             );
             continue;
@@ -456,6 +473,10 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
               type: 'practice',
               durationMinutes: 10,
               dependsOn: const [],
+              imageRubric: fallbackImageRubric(
+                title: item.toString(),
+                description: 'Practice step for $hobby',
+              ),
             ),
           );
         } catch (e) {
@@ -485,6 +506,10 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
               type: 'practice',
               durationMinutes: 15,
               dependsOn: const [],
+              imageRubric: fallbackImageRubric(
+                title: variants[idx]['title']!,
+                description: variants[idx]['desc']!,
+              ),
             ),
           );
         }
@@ -516,12 +541,17 @@ You MUST return ONLY a valid JSON object. Do not include markdown tags like ```j
     required String milestoneTitle,
     required String questType,
     required int durationMinutes,
+    required List<String> existingImageRubric,
   }) async {
     if (!hasApiKey) {
       print(
         '[GeminiService] No API key found for alternative quest generation.',
       );
-      return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
+      return _alternativeQuestFallback(
+        hobby: hobby,
+        currentTask: nodeTitle,
+        includeImageRubric: existingImageRubric.isNotEmpty,
+      );
     }
 
     try {
@@ -552,6 +582,7 @@ Instructions:
    - "knowledge": Purely mental or theory-based. The user ONLY needs their eyes and brain.
    - "practice": Physical, hands-on drills to build muscle memory. 
    - "challenge": A major boss-level practical task combining multiple skills, requiring a photo upload for AI grading.
+${existingImageRubric.isNotEmpty ? '6. Generate exactly 3 task-specific image_rubric criteria that can be judged from a photo. Each must be 120 characters or fewer.' : ''}
 
 Plain-language rules:
 - Use common everyday words for the title, description, and steps.
@@ -576,7 +607,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     "String",
     "String (You MUST provide exactly 5 steps, even if some are very simple. Do not output fewer than 5 steps.)"
   ],
-  "youtube_search_query": "String (3-to-5 word YouTube search query for this specific skill node)"
+  "youtube_search_query": "String (3-to-5 word YouTube search query for this specific skill node)"${existingImageRubric.isNotEmpty ? ',\n  "image_rubric": ["observable criterion 1", "observable criterion 2", "observable criterion 3"]' : ''}
 }
 ''';
 
@@ -609,16 +640,28 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
               false)
           ? jsonMap['youtube_search_query'].toString().trim()
           : '$hobby $nodeTitle';
+      final imageRubric = existingImageRubric.isEmpty
+          ? const <String>[]
+          : normalizeImageRubric(
+              jsonMap['image_rubric'] ?? jsonMap['imageRubric'],
+              title: title,
+              description: desc,
+            );
 
       return {
         'title': title,
         'desc': desc,
         'steps': steps,
         'youtube_search_query': youtubeSearchQuery,
+        if (imageRubric.isNotEmpty) 'image_rubric': imageRubric,
       };
     } catch (e) {
       print('[GeminiService] Alternative task title API call failed: $e');
-      return _getAlternativeTaskFallback(hobby: hobby, currentTask: nodeTitle);
+      return _alternativeQuestFallback(
+        hobby: hobby,
+        currentTask: nodeTitle,
+        includeImageRubric: existingImageRubric.isNotEmpty,
+      );
     }
   }
 
@@ -631,6 +674,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
     required String questType,
     required String learningPace,
     required int durationMinutes,
+    List<String> existingImageRubric = const [],
   }) async {
     final alternative = await generateAlternativeQuest(
       hobby: hobby,
@@ -640,6 +684,7 @@ You MUST return ONLY a valid JSON object. Use this exact schema:
       milestoneTitle: milestoneTitle,
       questType: questType,
       durationMinutes: durationMinutes,
+      existingImageRubric: existingImageRubric,
     );
     return alternative['title'] ??
         _getAlternativeTaskFallback(
@@ -741,6 +786,7 @@ Instructions:
     required String questSteps,
     required String questType,
     required String reflectionNote,
+    required List<String> imageRubric,
   }) async {
     if (!hasApiKey) {
       return null;
@@ -750,9 +796,55 @@ Instructions:
       print('[GeminiService] Calling generateQuestImageFeedback API...');
       final bytes = await imageFile.readAsBytes();
       final mimeType = _guessMimeType(imageFile.name);
+      final hasRubric = imageRubric.length == questRubricSize;
+      final rubricText = imageRubric
+          .asMap()
+          .entries
+          .map((entry) => '${entry.key + 1}. ${entry.value}')
+          .join('\n');
 
-      final prompt =
-          '''
+      final prompt = hasRubric
+          ? '''
+Act as Hobie the Fox, a careful and encouraging visual reviewer for $hobby.
+The learner submitted a photo and reflection for this quest.
+
+Quest Context:
+- Title: $questTitle
+- Type: $questType
+- Description: $questDescription
+- Steps: $questSteps
+- Reflection: ${reflectionNote.trim().isEmpty ? 'None provided' : reflectionNote.trim()}
+
+Assess only what is visibly supported by the photo. Do not claim to judge taste,
+sound, pain, safety, authenticity, or anything else a photo cannot establish.
+
+Use these criteria in this exact order:
+$rubricText
+
+Rules:
+1. is_evidence_relevant is true only when the photo clearly shows work related to this quest.
+2. If evidence is relevant, return exactly three results in criterion order.
+   If evidence is irrelevant, results may be an empty array.
+3. Mark met true only when the visible evidence demonstrates the criterion.
+4. Give one concrete visual observation per criterion, maximum 12 words.
+5. Address the reflection when relevant without inventing facts.
+6. Keep the greeting to 4 words and next_step to 10 words.
+7. next_step must be one concrete action for the learner's next photo attempt.
+8. Return JSON only.
+
+Use this exact schema:
+{
+  "is_evidence_relevant": true,
+  "greeting": "String",
+  "results": [
+    {"met": true, "feedback": "String"},
+    {"met": false, "feedback": "String"},
+    {"met": true, "feedback": "String"}
+  ],
+  "next_step": "String"
+}
+'''
+          : '''
   Act as Hobie the Fox, an expert, highly observant, and energetic AI tutor for $hobby.
   The user has just completed a quest and submitted a photo of their work along with a reflection note.
 
@@ -803,6 +895,17 @@ Instructions:
       }
 
       final jsonMap = _extractJsonObject(rawText);
+      if (hasRubric) {
+        final parsedFeedback = parseRubricImageFeedbackResponse(
+          jsonMap,
+          imageRubric,
+        );
+        if (parsedFeedback == null) {
+          throw const FormatException('Invalid rubric feedback response');
+        }
+        return parsedFeedback;
+      }
+
       final isApprovedRaw = jsonMap['is_approved'];
       final greetingRaw = jsonMap['greeting'];
       final observationRaw = jsonMap['observation'];
@@ -849,6 +952,32 @@ Instructions:
 
     final random = Random(DateTime.now().millisecondsSinceEpoch);
     return fallbacks[random.nextInt(fallbacks.length)];
+  }
+
+  Map<String, dynamic> _alternativeQuestFallback({
+    required String hobby,
+    required String currentTask,
+    required bool includeImageRubric,
+  }) {
+    final fallback = Map<String, dynamic>.from(
+      _getAlternativeTaskFallback(hobby: hobby, currentTask: currentTask),
+    );
+    final fallbackTitle = fallback['title']?.toString() ?? currentTask;
+    fallback['steps'] = [
+      'Review what this alternative asks you to do.',
+      'Prepare the materials you need.',
+      'Complete one focused attempt.',
+      'Check the result against the task.',
+      'Note one improvement for next time.',
+    ];
+    fallback['youtube_search_query'] = '$hobby $fallbackTitle';
+    if (includeImageRubric) {
+      fallback['image_rubric'] = fallbackImageRubric(
+        title: fallbackTitle,
+        description: fallback['desc']?.toString() ?? '',
+      );
+    }
+    return fallback;
   }
 
   GrowthLetterDraft _buildFallbackGrowthLetterDraft({
@@ -1135,6 +1264,10 @@ Instructions:
               : (i % 2 == 0 ? 'practice' : 'knowledge'),
           durationMinutes: baseDurationMinutes,
           dependsOn: dependsOn,
+          imageRubric: fallbackImageRubric(
+            title: variant['title']!,
+            description: variant['desc']!,
+          ),
         ),
       );
     }

@@ -10,6 +10,11 @@ class DashboardController extends GetxController {
   );
   String? _lastAppliedArgumentsKey;
 
+  @override
+  void onInit() {
+    super.onInit();
+  }
+
   void changeTabIndex(int index) {
     if (tabIndex.value == index) {
       tabIndex.refresh();

@@ -1,7 +1,7 @@
 # Firestore rules audit (working document)
 
-This file records the access model used to generate the prototype rules. It is
-intentionally untracked while the rules are being reviewed.
+This file records the access model used to generate and review the prototype
+rules.
 
 - `users/{uid}`: private profile and progression state. Owner-only client read
   and validated writes. Contains birth date and preferences, so it must never be
@@ -11,7 +11,13 @@ intentionally untracked while the rules are being reviewed.
   the private profile using `getAfter()`.
 - `users/{uid}/plans/{planId}` plus `milestones` and `quests`: owner-only plan
   data. Queries order milestones by `order`; growth-letter queries completed
-  quests by `completedAt`.
+  quests by `completedAt`. Quest documents may omit `image_rubric` and
+  `rubricAssessments` for legacy compatibility. When present, `image_rubric`
+  must contain exactly three non-empty strings of at most 120 characters, and
+  `rubricAssessments` must contain exactly three strict maps with only
+  `criterion`, `met`, and `feedback`. Assessments are accepted only on a
+  completed rubric-aware quest, and their criteria must match the stored rubric
+  by index.
 - `users/{uid}/tree/{treeId}`, `goalHistory`, and `growthLetters`: owner-only.
 - `users/{uid}/notifications/{id}`: owner read/update/delete; Admin Functions
   create notification documents.
@@ -42,20 +48,34 @@ Attack review:
   client-updatable.
 - Schema pollution and oversized strings/maps: validators and allowed-key lists
   are applied on create and update paths.
+- Rubric bypass and parser abuse: wrong list lengths, empty or oversized
+  criteria, non-boolean `met` values, oversized feedback, and extra assessment
+  keys are denied on both quest creation and update. Assessments attached to an
+  incomplete or rubric-less quest, or renamed criteria, are also denied.
 - Orphaned user subcollections: access requires the parent user document.
 - Category configuration tampering: client writes denied.
+
+Rubric-specific verification:
+
+- Valid legacy quest documents and valid rubric-aware quest documents pass.
+- Two-entry rubrics and criteria longer than 120 characters fail.
+- Assessment maps with additional keys or non-boolean `met` values fail.
+- Cross-user quest writes fail even when the quest schema is otherwise valid.
+- No new query shape or Firestore index is introduced.
+- Firebase CLI dry-run compiled `firestore.rules` successfully.
+- Firestore emulator tests passed all four authorization/schema scenarios.
 
 Auditor result:
 
 ```json
 {
   "score": 4,
-  "summary": "Private data ownership, schema limits, public/private profile separation, and server-owned guild engagement are enforced. Remaining risk is limited to a user falsifying their own progression through a modified client because quest and tree progression still use owner-authorized Firestore transactions.",
+  "summary": "Private data ownership, strict rubric shape and size limits, public/private profile separation, and server-owned guild engagement are enforced. Legacy quests remain compatible. Remaining risk is limited to a user falsifying their own progression or rubric result through a modified client because quest completion and XP remain owner-authorized client transactions.",
   "findings": [
     {
       "check": "Business Logic vs. Rules",
       "severity": "minor",
-      "issue": "An owner can construct valid-looking XP or grove updates outside the official client within the validator bounds.",
+      "issue": "An owner can construct valid-looking XP, grove, or rubric-assessment updates outside the official client within the validator bounds.",
       "recommendation": "Move quest completion and tree planting transactions fully into callable Functions, then lock their progression fields against direct client updates."
     }
   ]

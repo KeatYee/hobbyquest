@@ -4,6 +4,8 @@ import 'package:hobbyquest/app/controllers/quest_detail_controller.dart';
 import 'package:hobbyquest/app/models/quest_node_model.dart';
 import 'package:hobbyquest/app/services/quest_service.dart';
 import 'package:hobbyquest/app/views/widgets/quest_completion_result_sheet.dart';
+import 'package:hobbyquest/app/views/pages/quest_detail_page.dart';
+import 'package:get/get.dart';
 
 QuestCompletionOutcome _outcome({
   String categoryName = 'Creative Arts',
@@ -74,6 +76,34 @@ Widget _sheet(
 }
 
 void main() {
+  tearDown(Get.reset);
+
+  testWidgets('quest detail shows the image assessment rubric', (tester) async {
+    const quest = QuestNodeModel(
+      nodeId: 'rubric-quest',
+      title: 'Shade a Simple Sphere',
+      desc: 'Use one light source.',
+      steps: ['Draw a sphere', 'Add three value groups'],
+      type: 'challenge',
+      durationMinutes: 20,
+      dependsOn: [],
+      imageRubric: [
+        'Clear separation between light, middle, and dark values',
+        'Consistent light direction across the subject',
+        'Controlled hard and soft edges where forms change',
+      ],
+    );
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: QuestDetailPage(quest: quest)),
+    );
+
+    expect(find.text('WHAT HOBIE WILL CHECK'), findsOneWidget);
+    expect(find.text(quest.imageRubric[0]), findsOneWidget);
+    expect(find.text(quest.imageRubric[1]), findsOneWidget);
+    expect(find.text(quest.imageRubric[2]), findsOneWidget);
+  });
+
   testWidgets('shows earned progress and every unlocked outcome', (
     tester,
   ) async {
@@ -115,7 +145,9 @@ void main() {
     expect(find.text('Progress milestone 1 unlocked.'), findsOneWidget);
     expect(find.text('Your next milestone is ready.'), findsOneWidget);
 
-    await tester.tap(find.text('SHARE TO GUILD'));
+    final shareButton = find.text('SHARE TO GUILD');
+    await tester.ensureVisible(shareButton);
+    await tester.tap(shareButton);
     await tester.pump();
     expect(shared, isTrue);
   });

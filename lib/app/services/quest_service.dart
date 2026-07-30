@@ -256,6 +256,7 @@ class QuestService {
     String? greeting,
     String? observation,
     String? tip,
+    List<RubricAssessmentModel> rubricAssessments = const [],
     String? fallbackCategoryName,
   }) async {
     if (uid.trim().isEmpty) {
@@ -414,6 +415,10 @@ class QuestService {
             if (observation?.trim().isNotEmpty == true)
               'observation': observation!.trim(),
             if (tip?.trim().isNotEmpty == true) 'tip': tip!.trim(),
+            if (rubricAssessments.isNotEmpty)
+              'rubricAssessments': rubricAssessments
+                  .map((assessment) => assessment.toJson())
+                  .toList(),
             'awardedXP': awardedXP,
           }, SetOptions(merge: true));
 
@@ -446,6 +451,7 @@ class QuestService {
               greeting: greeting?.trim(),
               observation: observation?.trim(),
               tip: tip?.trim(),
+              rubricAssessments: rubricAssessments,
               awardedXP: awardedXP,
             ),
             didComplete: true,

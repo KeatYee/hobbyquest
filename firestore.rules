@@ -146,12 +146,49 @@ service cloud.firestore {
         data.order is int && data.order >= 0 && data.order <= 1000;
     }
 
+    function isValidRubricCriterion(value) {
+      return value is string && value.size() > 0 && value.size() <= 120;
+    }
+
+    function isValidImageRubric(data) {
+      return !('image_rubric' in data) ||
+        (data.image_rubric is list && data.image_rubric.size() == 3 &&
+          isValidRubricCriterion(data.image_rubric[0]) &&
+          isValidRubricCriterion(data.image_rubric[1]) &&
+          isValidRubricCriterion(data.image_rubric[2]));
+    }
+
+    function isValidRubricAssessment(value) {
+      return value is map &&
+        value.keys().hasOnly(['criterion', 'met', 'feedback']) &&
+        value.keys().hasAll(['criterion', 'met', 'feedback']) &&
+        isValidRubricCriterion(value.criterion) &&
+        value.met is bool &&
+        value.feedback is string && value.feedback.size() > 0 &&
+        value.feedback.size() <= 300;
+    }
+
+    function isValidRubricAssessments(data) {
+      return !('rubricAssessments' in data) ||
+        (data.isCompleted == true &&
+          'image_rubric' in data &&
+          data.rubricAssessments is list &&
+          data.rubricAssessments.size() == 3 &&
+          isValidRubricAssessment(data.rubricAssessments[0]) &&
+          isValidRubricAssessment(data.rubricAssessments[1]) &&
+          isValidRubricAssessment(data.rubricAssessments[2]) &&
+          data.rubricAssessments[0].criterion == data.image_rubric[0] &&
+          data.rubricAssessments[1].criterion == data.image_rubric[1] &&
+          data.rubricAssessments[2].criterion == data.image_rubric[2]);
+    }
+
     function isValidQuest(data) {
       return data.keys().hasOnly([
         'node_id', 'title', 'desc', 'steps', 'xp_reward', 'type',
         'duration_minutes', 'depends_on', 'isCompleted', 'isActive',
         'reflectionNote', 'completedAt', 'imageUrl', 'greeting',
-        'observation', 'tip', 'youtube_search_query', 'awardedXP'
+        'observation', 'tip', 'youtube_search_query', 'awardedXP',
+        'image_rubric', 'rubricAssessments'
       ]) &&
       data.keys().hasAll([
         'node_id', 'title', 'desc', 'steps', 'xp_reward', 'type',
@@ -174,6 +211,8 @@ service cloud.firestore {
       validNullableString(data.observation, 500) &&
       validNullableString(data.tip, 500) &&
       validNullableString(data.youtube_search_query, 300) &&
+      isValidImageRubric(data) &&
+      isValidRubricAssessments(data) &&
       (data.awardedXP == null ||
         (data.awardedXP is int && data.awardedXP >= 0 &&
           data.awardedXP <= 1100));
