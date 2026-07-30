@@ -8,13 +8,11 @@ import '../models/quest_plan_model.dart';
 import '../models/milestone_model.dart';
 import '../models/category_model.dart';
 import '../models/user_model.dart';
-import '../models/quest_node_model.dart';
 import '../services/category_service.dart';
 import '../services/gemini_service.dart';
 import '../services/push_notification_service.dart';
 import '../models/goal_history_model.dart';
 import '../views/pages/onboarding/plan_summary_view.dart';
-import '../../core/utils/performance_tracker.dart';
 
 class OnboardingController extends GetxController {
   final CategoryService _categoryService = CategoryService();
@@ -276,81 +274,72 @@ class OnboardingController extends GetxController {
   }
 
   Future<void> _generateAndShowPlan() async {
-    await PerformanceTracker.measure<void>(
-      'AI_MILESTONE_PLAN_GENERATION',
-      () async {
-        if (!isPredefinedGoal.value) {
-          isGoalValidating.value = true;
-          goalValidationError.value = '';
-
-          try {
-            final validation = await _geminiService.validateGoal(
-              hobby: hobby.value,
-              level: level.value,
-              goal: goalController.text,
-            );
-
-            if (!validation.isValid) {
-              goalValidationError.value = validation.reason;
-              isGoalValidating.value = false;
-              return;
-            }
-          } catch (e) {
-            print("--- ERROR: Goal validation failed: $e ---");
-            goalValidationError.value =
-                'Unable to validate goal. Please try again.';
-            isGoalValidating.value = false;
-            return;
-          }
-
-          isGoalValidating.value = false;
-        }
-
-        isGenerating.value = true;
+      if (!isPredefinedGoal.value) {
+        isGoalValidating.value = true;
+        goalValidationError.value = '';
 
         try {
-          generatedPlan.value = await _geminiService.generateQuestPlan(
+          final validation = await _geminiService.validateGoal(
             hobby: hobby.value,
             level: level.value,
             goal: goalController.text,
-            learningPace: learningPace.value,
           );
+
+          if (!validation.isValid) {
+            goalValidationError.value = validation.reason;
+            isGoalValidating.value = false;
+            return;
+          }
         } catch (e) {
-          print("--- ERROR: Failed to generate plan: $e ---");
-          generatedPlan.value = QuestPlanModel(
-            hobby: hobby.value,
-            level: level.value,
-            goal: goalController.text.isNotEmpty
-                ? goalController.text
-                : "Master ${hobby.value}",
-            learningPace: learningPace.value,
-            progress: 0,
-            currentMilestoneIndex: 0,
-            milestones: [
-              const MilestoneModel(title: "Phase 1: Foundations", completed: false),
-              const MilestoneModel(title: "Phase 2: Consistency", completed: false),
-              const MilestoneModel(
-                title: "Phase 3: Advanced Skills",
-                completed: false,
-              ),
-              const MilestoneModel(
-                title: "Phase 4: The Final Boss",
-                completed: false,
-              ),
-            ],
-            quests: [],
-          );
-        } finally {
-          isGenerating.value = false;
+          print("--- ERROR: Goal validation failed: $e ---");
+          goalValidationError.value =
+              'Unable to validate goal. Please try again.';
+          isGoalValidating.value = false;
+          return;
         }
 
-        Get.to(() => const PlanSummaryView());
+        isGoalValidating.value = false;
+      }
 
-        // Wait until the Plan Summary screen has rendered.
-        await Future<void>.delayed(Duration.zero);
-        await WidgetsBinding.instance.endOfFrame;
-      },
-    );
+      isGenerating.value = true;
+
+      try {
+        generatedPlan.value = await _geminiService.generateQuestPlan(
+          hobby: hobby.value,
+          level: level.value,
+          goal: goalController.text,
+          learningPace: learningPace.value,
+        );
+      } catch (e) {
+        print("--- ERROR: Failed to generate plan: $e ---");
+        generatedPlan.value = QuestPlanModel(
+          hobby: hobby.value,
+          level: level.value,
+          goal: goalController.text.isNotEmpty
+              ? goalController.text
+              : "Master ${hobby.value}",
+          learningPace: learningPace.value,
+          progress: 0,
+          currentMilestoneIndex: 0,
+          milestones: [
+            const MilestoneModel(title: "Phase 1: Foundations", completed: false),
+            const MilestoneModel(title: "Phase 2: Consistency", completed: false),
+            const MilestoneModel(
+              title: "Phase 3: Advanced Skills",
+              completed: false,
+            ),
+            const MilestoneModel(
+              title: "Phase 4: The Final Boss",
+              completed: false,
+            ),
+          ],
+          quests: [],
+        );
+      } finally {
+        isGenerating.value = false;
+      }
+
+      Get.to(() => const PlanSummaryView());
   }
 
   /// Validate the current step before allowing navigation
@@ -378,26 +367,17 @@ class OnboardingController extends GetxController {
   Future<void> confirmAndStart() async {
     print("--- USER ACCEPTED PLAN. SAVING TO DB... ---");
 
-    await PerformanceTracker.measure<void>(
-      'AI_QUEST_GRAPH_GENERATION_TO_DASHBOARD',
-      () async {
-        try {
-          isGenerating.value = true;
+    try {
+      isGenerating.value = true;
 
-          await _saveUserDataToFirestore();
+      await _saveUserDataToFirestore();
 
-          Get.offAllNamed(AppRoutes.DASHBOARD);
-
-          // Measures until the first Dashboard frame is displayed.
-          await Future<void>.delayed(Duration.zero);
-          await WidgetsBinding.instance.endOfFrame;
-        } catch (e) {
-          print("--- ERROR: Failed to confirm and start: $e ---");
-        } finally {
-          isGenerating.value = false;
-        }
-      },
-    );
+      Get.offAllNamed(AppRoutes.DASHBOARD);
+    } catch (e) {
+      print("--- ERROR: Failed to confirm and start: $e ---");
+    } finally {
+      isGenerating.value = false;
+    }
   }
 
   Future<void> _saveUserDataToFirestore() async {

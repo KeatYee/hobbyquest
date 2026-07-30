@@ -17,7 +17,6 @@ import '../services/gemini_service.dart';
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/dialog_utils.dart';
 import '../../core/utils/quest_rubric_utils.dart';
-import '../../core/utils/performance_tracker.dart';
 
 class QuestCompletionOutcome {
   final QuestCompletionResult completion;
@@ -284,19 +283,15 @@ class QuestDetailController extends GetxController {
         print('--- DEBUG: Processing image evidence ---');
         final rubric = currentQuest.value.imageRubric;
         final isChallenge = currentQuest.value.type == 'challenge';
-        final feedbackResult =
-          await PerformanceTracker.measure<Map<String, dynamic>?>(
-          'AI_IMAGE_REVIEW',
-          () => _generateImageFeedback(
-            imageFile: imageFile,
-            questTitle: currentQuest.value.title,
-            questDescription: currentQuest.value.desc,
-            questSteps: currentQuest.value.steps.join('\n  - '),
-            questType: currentQuest.value.type,
-            reflectionNote: reflectionNote,
-            hobby: homeContext.hobby,
-            imageRubric: rubric,
-          ),
+        final feedbackResult = await _generateImageFeedback(
+          imageFile: imageFile,
+          questTitle: currentQuest.value.title,
+          questDescription: currentQuest.value.desc,
+          questSteps: currentQuest.value.steps.join('\n  - '),
+          questType: currentQuest.value.type,
+          reflectionNote: reflectionNote,
+          hobby: homeContext.hobby,
+          imageRubric: rubric,
         );
         
 

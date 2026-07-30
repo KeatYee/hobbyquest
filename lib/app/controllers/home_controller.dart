@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import '../models/growth_letter_model.dart';
 import '../models/quest_node_model.dart';
 import '../services/gemini_service.dart';
@@ -11,7 +10,6 @@ import '../services/growth_letter_service.dart';
 import '../services/quest_service.dart';
 import '../models/user_model.dart';
 import '../models/goal_history_model.dart';
-import '../../core/utils/performance_tracker.dart';
 
 class HomeController extends GetxController {
   final GeminiService _geminiService = GeminiService();
@@ -39,7 +37,6 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('PERF_DASHBOARD_LOAD: HomeController started');
     _loadUserProfile();
   }
 
@@ -184,13 +181,6 @@ class HomeController extends GetxController {
   /// Load user profile data from Firestore
   /// Now loads plan, milestones, and quests from subcollections.
   Future<void> _loadUserProfile() async {
-    unawaited(PerformanceTracker.measure('DASHBOARD_LOAD', () async {
-      while (isLoadingProfile.value) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-      await WidgetsBinding.instance.endOfFrame;
-    }));
-
     try {
       isLoadingProfile.value = true;
 
