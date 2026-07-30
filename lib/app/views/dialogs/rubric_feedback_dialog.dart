@@ -11,7 +11,6 @@ class RubricFeedbackDialog extends StatelessWidget {
   final bool isEvidenceRelevant;
   final bool isApproved;
   final bool isChallenge;
-  final String greeting;
   final List<RubricAssessmentModel> assessments;
   final String nextStep;
 
@@ -20,7 +19,6 @@ class RubricFeedbackDialog extends StatelessWidget {
     required this.isEvidenceRelevant,
     required this.isApproved,
     required this.isChallenge,
-    required this.greeting,
     required this.assessments,
     required this.nextStep,
   });
@@ -43,10 +41,12 @@ class RubricFeedbackDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildOutcomeHeader(outcomeColor),
+            if (!isEvidenceRelevant)
+              const SizedBox(height: 20),
             if (!isEvidenceRelevant)
               _buildPhotoMismatchSection()
             else ...[
-              _buildOutcomeHeader(outcomeColor),
               const SizedBox(height: 20),
               _buildScoreSummary(
                 metCount: metAssessments.length,
@@ -56,7 +56,7 @@ class RubricFeedbackDialog extends StatelessWidget {
                 const SizedBox(height: 20),
                 _buildAssessmentSection(
                   title: 'WHAT YOU DID WELL',
-                  icon: Icons.check_circle_rounded,
+                  icon: Icons.emoji_events_rounded,
                   color: AppColors.success,
                   assessments: metAssessments,
                 ),
@@ -86,7 +86,7 @@ class RubricFeedbackDialog extends StatelessWidget {
   }
 
   String get _title {
-    if (!isEvidenceRelevant) return 'Photo Check';
+    if (!isEvidenceRelevant) return 'Photo Inrelevant';
     if (isApproved) return 'Quest Passed';
     return isChallenge ? 'Needs Work' : 'Photo Feedback';
   }
@@ -95,11 +95,6 @@ class RubricFeedbackDialog extends StatelessWidget {
     if (!isEvidenceRelevant) return Icons.image_not_supported_rounded;
     if (isApproved) return Icons.workspace_premium_rounded;
     return Icons.auto_fix_high_rounded;
-  }
-
-  String get _displayGreeting {
-    if (greeting.trim().isNotEmpty) return greeting.trim();
-    return isEvidenceRelevant ? 'Here is your feedback.' : 'Let us check this.';
   }
 
   String get _displayNextStep {
@@ -119,7 +114,6 @@ class RubricFeedbackDialog extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 46,
@@ -132,29 +126,13 @@ class RubricFeedbackDialog extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: AppFonts.body,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _displayGreeting,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    height: 1.35,
-                    fontSize: AppFonts.caption,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _buildInlineNextStep(color),
-              ],
+            child: Text(
+              _title,
+              style: TextStyle(
+                color: color,
+                fontSize: AppFonts.body,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -171,7 +149,7 @@ class RubricFeedbackDialog extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.textSecondary,
               height: 1.4,
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.badge,
             ),
           ),
         ),
@@ -187,7 +165,7 @@ class RubricFeedbackDialog extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w800,
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.badge,
             ),
           ),
         ),
@@ -196,32 +174,29 @@ class RubricFeedbackDialog extends StatelessWidget {
   }
 
   Widget _buildPhotoMismatchSection() {
-    return _FeedbackSection(
-      title: 'Photo Check',
-      icon: Icons.center_focus_weak_rounded,
-      color: AppColors.error,
-      children: [
-        Text(
-          _displayGreeting,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            height: 1.4,
-            fontSize: AppFonts.caption,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'This photo does not clearly show the work requested by this quest.',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              height: 1.4,
+              fontSize: AppFonts.badge,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'This photo does not clearly show the work requested by this quest.',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            height: 1.4,
-            fontSize: AppFonts.caption,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _buildInlineNextStep(AppColors.error),
-      ],
+          const SizedBox(height: 10),
+          _buildInlineNextStep(AppColors.warning),
+        ],
+      ),
     );
   }
 
@@ -229,16 +204,16 @@ class RubricFeedbackDialog extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.arrow_forward_rounded, color: color, size: 17),
+        Icon(Icons.lightbulb_rounded, color: color, size: 17),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             'Next step: $_displayNextStep',
             style: const TextStyle(
-              color: AppColors.textPrimary,
+              color: AppColors.warning,
               fontWeight: FontWeight.w600,
               height: 1.35,
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.badge,
             ),
           ),
         ),
@@ -320,8 +295,13 @@ class RubricFeedbackDialog extends StatelessWidget {
 
 class OptionalPhotoRecoveryDialog extends StatelessWidget {
   final bool uploadFailed;
+  final bool canContinueWithoutPhoto;
 
-  const OptionalPhotoRecoveryDialog({super.key, required this.uploadFailed});
+  const OptionalPhotoRecoveryDialog({
+    super.key,
+    required this.uploadFailed,
+    this.canContinueWithoutPhoto = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +337,7 @@ class OptionalPhotoRecoveryDialog extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.textSecondary,
               height: 1.4,
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.badge,
             ),
           ),
           const SizedBox(height: 20),
@@ -370,15 +350,16 @@ class OptionalPhotoRecoveryDialog extends StatelessWidget {
               label: const Text('Retake Photo'),
             ),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () =>
-                  Get.back(result: RubricFeedbackAction.continueQuest),
-              child: const Text('Continue without photo'),
+          if (canContinueWithoutPhoto) const SizedBox(height: 10),
+          if (canContinueWithoutPhoto)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () =>
+                    Get.back(result: RubricFeedbackAction.continueQuest),
+                child: const Text('Continue without photo'),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -413,13 +394,13 @@ class _FeedbackSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 16),
+              Icon(icon, color: color, size: 18),
               const SizedBox(width: 6),
               Text(
                 title,
                 style: TextStyle(
                   color: color,
-                  fontSize: AppFonts.micro,
+                  fontSize: AppFonts.caption,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.7,
                 ),
@@ -452,7 +433,7 @@ class _AssessmentRow extends StatelessWidget {
                 ? Icons.check_circle_rounded
                 : Icons.error_outline_rounded,
             color: color,
-            size: 20,
+            size: 14,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -465,7 +446,7 @@ class _AssessmentRow extends StatelessWidget {
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w800,
                     height: 1.3,
-                    fontSize: AppFonts.caption,
+                    fontSize: AppFonts.badge,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -474,7 +455,7 @@ class _AssessmentRow extends StatelessWidget {
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     height: 1.35,
-                    fontSize: AppFonts.caption,
+                    fontSize: AppFonts.badge,
                   ),
                 ),
               ],

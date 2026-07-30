@@ -314,54 +314,70 @@ class QuestDetailController extends GetxController {
           greeting = feedbackResult['greeting'] as String? ?? '';
 
           if (rubric.length == questRubricSize) {
-            final isRelevant =
-                feedbackResult['is_evidence_relevant'] as bool? ?? false;
-            final rawAssessments = feedbackResult['rubric_assessments'];
-            if (rawAssessments is! List<RubricAssessmentModel>) {
-              throw const FormatException('Invalid rubric feedback');
-            }
-            rubricAssessments = rawAssessments;
-            tip = feedbackResult['next_step'] as String? ?? '';
-            final isApproved = rubricChallengeApproved(
-              isEvidenceRelevant: isRelevant,
-              assessments: rubricAssessments,
-            );
-
-            final feedbackAction = await _showRubricFeedback(
-              isEvidenceRelevant: isRelevant,
-              isApproved: isApproved,
-              isChallenge: isChallenge,
-              greeting: greeting,
-              assessments: rubricAssessments,
-              nextStep: tip,
-            );
-
-            if (feedbackAction == RubricFeedbackAction.retakePhoto) {
-              _retakeImageRequested = true;
-              return null;
-            }
-            if (feedbackAction != RubricFeedbackAction.continueQuest) {
-              return null;
-            }
-            if (isRelevant) {
-              try {
-                imageUrl = await _uploadImage(imageFile.path);
-              } catch (_) {
-                if (isChallenge) rethrow;
-                final recoveryAction = await _showOptionalPhotoRecovery(
-                  uploadFailed: true,
-                );
-                if (recoveryAction == RubricFeedbackAction.retakePhoto) {
-                  _retakeImageRequested = true;
-                  return null;
-                }
-                if (recoveryAction != RubricFeedbackAction.continueQuest) {
-                  return null;
-                }
-                imageUrl = null;
+            try {
+              final isRelevant =
+                  feedbackResult['is_evidence_relevant'] as bool? ?? false;
+              final rawAssessments = feedbackResult['rubric_assessments'];
+              if (rawAssessments is! List<RubricAssessmentModel>) {
+                throw const FormatException('Invalid rubric feedback');
               }
-            } else {
-              rubricAssessments = <RubricAssessmentModel>[];
+              rubricAssessments = rawAssessments;
+              tip = feedbackResult['next_step'] as String? ?? '';
+              final isApproved = rubricChallengeApproved(
+                isEvidenceRelevant: isRelevant,
+                assessments: rubricAssessments,
+              );
+
+              final feedbackAction = await _showRubricFeedback(
+                isEvidenceRelevant: isRelevant,
+                isApproved: isApproved,
+                isChallenge: isChallenge,
+                greeting: greeting,
+                assessments: rubricAssessments,
+                nextStep: tip,
+              );
+
+              if (feedbackAction == RubricFeedbackAction.retakePhoto) {
+                _retakeImageRequested = true;
+                return null;
+              }
+
+              if (isRelevant) {
+                try {
+                  imageUrl = await _uploadImage(imageFile.path);
+                } catch (_) {
+                  if (isChallenge) {
+                    await _showOptionalPhotoRecovery(
+                      uploadFailed: true,
+                      canContinueWithoutPhoto: false,
+                    );
+                    return null;
+                  }
+                  final recoveryAction = await _showOptionalPhotoRecovery(
+                    uploadFailed: true,
+                  );
+                  if (recoveryAction == RubricFeedbackAction.retakePhoto) {
+                    _retakeImageRequested = true;
+                    return null;
+                  }
+                  if (recoveryAction != RubricFeedbackAction.continueQuest) {
+                    return null;
+                  }
+                  imageUrl = null;
+                }
+              }
+            } catch (e) {
+              if (isChallenge) rethrow;
+              final recoveryAction = await _showOptionalPhotoRecovery(
+                uploadFailed: false,
+              );
+              if (recoveryAction == RubricFeedbackAction.retakePhoto) {
+                _retakeImageRequested = true;
+                return null;
+              }
+              if (recoveryAction != RubricFeedbackAction.continueQuest) {
+                return null;
+              }
             }
           } else {
             final isApproved = feedbackResult['is_approved'] as bool? ?? false;
@@ -382,7 +398,13 @@ class QuestDetailController extends GetxController {
             try {
               imageUrl = await _uploadImage(imageFile.path);
             } catch (_) {
-              if (isChallenge) rethrow;
+              if (isChallenge) {
+                await _showOptionalPhotoRecovery(
+                  uploadFailed: true,
+                  canContinueWithoutPhoto: false,
+                );
+                return null;
+              }
               final recoveryAction = await _showOptionalPhotoRecovery(
                 uploadFailed: true,
               );
@@ -559,7 +581,6 @@ class QuestDetailController extends GetxController {
         isEvidenceRelevant: isEvidenceRelevant,
         isApproved: isApproved,
         isChallenge: isChallenge,
-        greeting: greeting,
         assessments: assessments,
         nextStep: nextStep,
       ),
@@ -569,14 +590,17 @@ class QuestDetailController extends GetxController {
 
   Future<RubricFeedbackAction?> _showOptionalPhotoRecovery({
     required bool uploadFailed,
+    bool canContinueWithoutPhoto = true,
   }) {
     final presenter = _optionalRecoveryPresenter;
     if (presenter != null) {
       return presenter(uploadFailed: uploadFailed);
     }
     return AppDialogs.custom<RubricFeedbackAction>(
-      builder: (context) =>
-          OptionalPhotoRecoveryDialog(uploadFailed: uploadFailed),
+      builder: (context) => OptionalPhotoRecoveryDialog(
+        uploadFailed: uploadFailed,
+        canContinueWithoutPhoto: canContinueWithoutPhoto,
+      ),
       barrierDismissible: false,
     );
   }

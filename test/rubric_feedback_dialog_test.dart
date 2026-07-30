@@ -37,7 +37,6 @@ void main() {
                 isEvidenceRelevant: true,
                 isApproved: true,
                 isChallenge: true,
-                greeting: 'Strong work, Hero!',
                 assessments: assessments,
                 nextStep: 'Soften the edge nearest the reflected light.',
               ),
@@ -51,12 +50,6 @@ void main() {
     expect(find.text('2 of 3 met'), findsOneWidget);
     expect(find.text('WHAT YOU DID WELL'), findsOneWidget);
     expect(find.text('WHAT TO IMPROVE'), findsOneWidget);
-    expect(find.text('TRY THIS NEXT'), findsNothing);
-    expect(find.text('Strong work, Hero!'), findsOneWidget);
-    expect(
-      find.text('Next step: Soften the edge nearest the reflected light.'),
-      findsOneWidget,
-    );
     expect(find.text('Consistent light direction'), findsOneWidget);
     expect(find.text('Retake Photo'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
@@ -79,7 +72,6 @@ void main() {
                       isEvidenceRelevant: false,
                       isApproved: false,
                       isChallenge: false,
-                      greeting: 'Let us try again.',
                       assessments: assessments,
                       nextStep: 'Place the finished work in the centre.',
                     ),
@@ -97,11 +89,10 @@ void main() {
     await tester.tap(find.text('Open feedback'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Photo Check'), findsOneWidget);
+    expect(find.text('Photo Inrelevant'), findsOneWidget);
     expect(find.text('TRY THIS NEXT'), findsNothing);
     expect(find.text('WHAT YOU DID WELL'), findsNothing);
     expect(find.text('WHAT TO IMPROVE'), findsNothing);
-    expect(find.text('Let us try again.'), findsOneWidget);
     expect(
       find.text('Next step: Place the finished work in the centre.'),
       findsOneWidget,
@@ -127,7 +118,6 @@ void main() {
                 isEvidenceRelevant: true,
                 isApproved: false,
                 isChallenge: true,
-                greeting: 'Almost there.',
                 assessments: [
                   RubricAssessmentModel(
                     criterion: 'Clear value separation',
@@ -158,11 +148,6 @@ void main() {
     expect(find.text('WHAT TO IMPROVE'), findsOneWidget);
     expect(find.text('WHAT YOU DID WELL'), findsNothing);
     expect(find.text('TRY THIS NEXT'), findsNothing);
-    expect(find.text('Almost there.'), findsOneWidget);
-    expect(
-      find.text('Next step: Adjust the cast shadow direction.'),
-      findsOneWidget,
-    );
     expect(find.text('Retake Photo'), findsOneWidget);
     expect(find.text('Continue'), findsNothing);
   });

@@ -1,6 +1,7 @@
 import '../../app/models/quest_node_model.dart';
 
 const int questRubricSize = 3;
+const int questRubricApprovalThreshold = 2;
 const int questRubricCriterionMaxLength = 120;
 const int questRubricFeedbackMaxLength = 300;
 const int questRubricFeedbackMaxWords = 12;
@@ -169,5 +170,5 @@ bool rubricChallengeApproved({
 }) {
   return isEvidenceRelevant &&
       assessments.length == questRubricSize &&
-      assessments.where((assessment) => assessment.met).length >= 2;
+      assessments.where((assessment) => assessment.met).length >= questRubricApprovalThreshold;
 }
