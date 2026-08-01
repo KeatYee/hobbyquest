@@ -11,7 +11,9 @@ import 'video_loader.dart';
 /// all quests in the current milestone. On "Continue", it generates
 /// the next milestone's quests (replacing the old ones) and returns.
 class MilestoneCompleteScreen extends StatefulWidget {
-  const MilestoneCompleteScreen({super.key});
+  final bool demoMode;
+
+  const MilestoneCompleteScreen({super.key, this.demoMode = false});
 
   @override
   State<MilestoneCompleteScreen> createState() =>
@@ -19,7 +21,6 @@ class MilestoneCompleteScreen extends StatefulWidget {
 }
 
 class _MilestoneCompleteScreenState extends State<MilestoneCompleteScreen> {
-  final HomeController _homeCtrl = Get.find<HomeController>();
   bool _isAdvancing = false;
 
   @override
@@ -90,9 +91,15 @@ class _MilestoneCompleteScreenState extends State<MilestoneCompleteScreen> {
   }
 
   Future<void> _onContinue() async {
+    if (widget.demoMode) {
+      Navigator.of(context).pop();
+      return;
+    }
+
     setState(() => _isAdvancing = true);
     try {
-      final advanced = await _homeCtrl.advanceToNextMilestone();
+      final advanced = await Get.find<HomeController>()
+          .advanceToNextMilestone();
       if (!advanced) {
         throw StateError('The next milestone is not ready yet.');
       }

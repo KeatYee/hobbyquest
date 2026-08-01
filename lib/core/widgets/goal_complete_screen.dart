@@ -12,7 +12,9 @@ import '../constants/asset_constants.dart';
 import 'video_loader.dart';
 
 class GoalCompleteScreen extends StatefulWidget {
-  const GoalCompleteScreen({super.key});
+  final bool demoMode;
+
+  const GoalCompleteScreen({super.key, this.demoMode = false});
 
   @override
   State<GoalCompleteScreen> createState() => _GoalCompleteScreenState();
@@ -41,15 +43,35 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final homeController = Get.find<HomeController>();
-    final plan = homeController.user.value?.currentPlan;
-    final uid = _safeString(() => homeController.user.value?.id);
-    final hobby = _safeString(() => plan?.hobby);
+    final homeController = Get.isRegistered<HomeController>()
+        ? Get.find<HomeController>()
+        : null;
+    final plan = homeController?.user.value?.currentPlan;
+    final uid = _safeString(() => homeController?.user.value?.id);
+    final storedHobby = _safeString(() => plan?.hobby);
+    final hobby = widget.demoMode && storedHobby.isEmpty
+        ? 'Drawing'
+        : storedHobby;
     final storedCategory = _safeString(() => plan?.category);
-    final category = storedCategory.isNotEmpty ? storedCategory : hobby;
-    final learningPace = _safeString(() => plan?.learningPace);
-    final goalLevel = _safeString(() => plan?.level);
-    final goal = _safeString(() => plan?.goal);
+    final category = storedCategory.isNotEmpty
+        ? storedCategory
+        : hobby.isNotEmpty
+        ? hobby
+        : widget.demoMode
+        ? 'Creative Arts'
+        : '';
+    final storedLearningPace = _safeString(() => plan?.learningPace);
+    final learningPace = widget.demoMode && storedLearningPace.isEmpty
+        ? 'Steady Learner'
+        : storedLearningPace;
+    final storedGoalLevel = _safeString(() => plan?.level);
+    final goalLevel = widget.demoMode && storedGoalLevel.isEmpty
+        ? 'Intermediate'
+        : storedGoalLevel;
+    final storedGoal = _safeString(() => plan?.goal);
+    final goal = widget.demoMode && storedGoal.isEmpty
+        ? 'Complete a realistic portrait drawing'
+        : storedGoal;
     final planId = _safeString(() => plan?.id);
     final quests = plan?.quests ?? const [];
     final completedQuests = quests.where((quest) => quest.isCompleted).toList();
@@ -59,33 +81,55 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
             .whereType<DateTime>()
             .toList()
           ..sort();
-    final startedAt = completionDates.isEmpty ? null : completionDates.first;
-    final completedAt = completionDates.isEmpty ? null : completionDates.last;
+    final demoCompletedAt = DateTime.now();
+    final startedAt = widget.demoMode
+        ? demoCompletedAt.subtract(const Duration(days: 28))
+        : completionDates.isEmpty
+        ? null
+        : completionDates.first;
+    final completedAt = widget.demoMode
+        ? demoCompletedAt
+        : completionDates.isEmpty
+        ? null
+        : completionDates.last;
     final totalTime = startedAt == null || completedAt == null
         ? 'Unavailable'
         : _formatElapsed(completedAt.difference(startedAt));
-    final earnedXP = completedQuests.fold<int>(
-      0,
-      (total, quest) =>
-          total +
-          (quest.awardedXP ??
-              quest.xpReward +
-                  ((quest.imageUrl?.trim().isNotEmpty ?? false) ? 50 : 0)),
-    );
-    final activeLearningDays = completionDates
-        .map((date) => DateTime(date.year, date.month, date.day))
-        .toSet()
-        .length;
-    final completedMilestones =
-        plan?.milestones.where((milestone) => milestone.completed).length ?? 0;
-    final totalMilestones = plan?.milestones.length ?? 0;
-    final longestStreak = _calculateLongestStreak(completionDates);
-    final startingXP = plan?.startingXP ?? 0;
+    final earnedXP = widget.demoMode
+        ? 8200
+        : completedQuests.fold<int>(
+            0,
+            (total, quest) =>
+                total +
+                (quest.awardedXP ??
+                    quest.xpReward +
+                        ((quest.imageUrl?.trim().isNotEmpty ?? false)
+                            ? 50
+                            : 0)),
+          );
+    final completedQuestCount = widget.demoMode ? 80 : completedQuests.length;
+    final activeLearningDays = widget.demoMode
+        ? 18
+        : completionDates
+              .map((date) => DateTime(date.year, date.month, date.day))
+              .toSet()
+              .length;
+    final completedMilestones = widget.demoMode
+        ? 4
+        : plan?.milestones.where((milestone) => milestone.completed).length ??
+              0;
+    final totalMilestones = widget.demoMode ? 4 : plan?.milestones.length ?? 0;
+    final longestStreak = widget.demoMode
+        ? 9
+        : _calculateLongestStreak(completionDates);
+    final startingXP = widget.demoMode ? 0 : plan?.startingXP ?? 0;
     final startingLevel = (startingXP ~/ 1000) + 1;
     final finalLevel = ((startingXP + earnedXP) ~/ 1000) + 1;
-    final photoSubmissions = completedQuests.where((quest) {
-      return quest.imageUrl?.trim().isNotEmpty ?? false;
-    }).length;
+    final photoSubmissions = widget.demoMode
+        ? 14
+        : completedQuests.where((quest) {
+            return quest.imageUrl?.trim().isNotEmpty ?? false;
+          }).length;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -202,7 +246,7 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
                       ),
                       _CompletionStat(
                         icon: Icons.task_alt_rounded,
-                        value: '${completedQuests.length}',
+                        value: '$completedQuestCount',
                         label: 'Quests completed',
                       ),
                       _CompletionStat(
@@ -257,6 +301,7 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
                           planId: planId,
                           startedAt: startedAt,
                           completedAt: completedAt,
+                          demoTreeCount: widget.demoMode ? 4 : null,
                         ),
                       ],
                     ),
@@ -312,6 +357,11 @@ class _GoalCompleteScreenState extends State<GoalCompleteScreen> {
     }
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
+
+    if (widget.demoMode) {
+      Navigator.of(context).pop();
+      return;
+    }
 
     if (Get.isRegistered<OnboardingController>()) {
       Get.delete<OnboardingController>(force: true);
@@ -563,12 +613,14 @@ class _TreeOutcomeRow extends StatelessWidget {
   final String planId;
   final DateTime? startedAt;
   final DateTime? completedAt;
+  final int? demoTreeCount;
 
   const _TreeOutcomeRow({
     required this.uid,
     required this.planId,
     required this.startedAt,
     required this.completedAt,
+    this.demoTreeCount,
   });
 
   @override
@@ -589,6 +641,7 @@ class _TreeOutcomeRow extends StatelessWidget {
   }
 
   Future<int> _loadTreeCount() async {
+    if (demoTreeCount != null) return demoTreeCount!;
     if (uid.isEmpty) return 0;
     final snapshot = await FirebaseFirestore.instance
         .collection('users')

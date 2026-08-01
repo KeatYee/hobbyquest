@@ -9,10 +9,7 @@ class GrowthLetterAvailability {
   final bool isAvailable;
   final DateTime? nextCheckAt;
 
-  const GrowthLetterAvailability({
-    required this.isAvailable,
-    this.nextCheckAt,
-  });
+  const GrowthLetterAvailability({required this.isAvailable, this.nextCheckAt});
 }
 
 class GrowthLetterService {
@@ -36,14 +33,25 @@ class GrowthLetterService {
   }
 
   Future<GrowthLetterModel?> loadLatestGrowthLetter(String uid) async {
-    final snapshot = await _lettersCol(uid)
-        .orderBy('periodEnd', descending: true)
-        .limit(1)
-        .get();
+    final snapshot = await _lettersCol(
+      uid,
+    ).orderBy('periodEnd', descending: true).limit(1).get();
 
     if (snapshot.docs.isEmpty) return null;
     final doc = snapshot.docs.first;
     return GrowthLetterModel.fromJson(doc.data(), docId: doc.id);
+  }
+
+  Future<GrowthLetterModel?> _loadLatestUnreadGrowthLetter(String uid) async {
+    final snapshot = await _lettersCol(
+      uid,
+    ).orderBy('periodEnd', descending: true).get();
+
+    for (final doc in snapshot.docs) {
+      final letter = GrowthLetterModel.fromJson(doc.data(), docId: doc.id);
+      if (letter.readAt == null) return letter;
+    }
+    return null;
   }
 
   Future<GrowthLetterModel?> _loadGrowthLetterForWeek({
@@ -72,10 +80,10 @@ class GrowthLetterService {
         .limit(1)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) return null;
-      final doc = snapshot.docs.first;
-      return GrowthLetterModel.fromJson(doc.data(), docId: doc.id);
-    });
+          if (snapshot.docs.isEmpty) return null;
+          final doc = snapshot.docs.first;
+          return GrowthLetterModel.fromJson(doc.data(), docId: doc.id);
+        });
   }
 
   Future<GrowthLetterAvailability> checkGrowthLetterAvailability({
@@ -92,22 +100,30 @@ class GrowthLetterService {
       uid: uid,
       periodStart: week.start,
     );
-    if (existing != null) {
-      return GrowthLetterAvailability(isAvailable: existing.readAt == null);
+    if (existing != null && existing.readAt == null) {
+      return const GrowthLetterAvailability(isAvailable: true);
     }
 
-    final hasCompletedQuests = await _hasCompletedQuestsForPeriod(
-      uid: uid,
-      planId: planId,
-      periodStart: week.start,
-      periodEndExclusive: week.endExclusive,
-    );
+    final hasCompletedQuests = existing == null
+        ? await _hasCompletedQuestsForPeriod(
+            uid: uid,
+            activePlanId: planId,
+            periodStart: week.start,
+            periodEndExclusive: week.endExclusive,
+          )
+        : false;
+    if (hasCompletedQuests) {
+      return const GrowthLetterAvailability(isAvailable: true);
+    }
+
+    final latestUnread = await _loadLatestUnreadGrowthLetter(uid);
+    if (latestUnread != null) {
+      return const GrowthLetterAvailability(isAvailable: true);
+    }
 
     return GrowthLetterAvailability(
-      isAvailable: hasCompletedQuests,
-      nextCheckAt: hasCompletedQuests
-          ? null
-          : _startOfCurrentWeek(now).add(const Duration(days: 7)),
+      isAvailable: false,
+      nextCheckAt: _startOfCurrentWeek(now).add(const Duration(days: 7)),
     );
   }
 
@@ -117,9 +133,9 @@ class GrowthLetterService {
   }) async {
     if (uid.isEmpty || letterId.isEmpty || letterId == 'demo') return;
 
-    await _lettersCol(uid).doc(letterId).update({
-      'readAt': FieldValue.serverTimestamp(),
-    });
+    await _lettersCol(
+      uid,
+    ).doc(letterId).update({'readAt': FieldValue.serverTimestamp()});
   }
 
   Future<GrowthLetterModel?> generateWeeklyGrowthLetter({
@@ -134,15 +150,23 @@ class GrowthLetterService {
       uid: uid,
       periodStart: week.start,
     );
-    if (existing != null) return existing;
+    if (existing != null) {
+      if (existing.readAt == null) return existing;
+      return await _loadLatestUnreadGrowthLetter(uid) ?? existing;
+    }
 
-    final quests = await _loadCompletedQuestsForPeriod(
+    final selection = await _loadCompletedQuestsForPeriod(
       uid: uid,
-      planId: planId,
+      activePlanId: planId,
+      activeHobby: user.currentPlan.hobby,
       periodStart: week.start,
       periodEndExclusive: week.endExclusive,
     );
-    if (quests.isEmpty) return loadLatestGrowthLetter(uid);
+    final quests = selection.quests;
+    if (quests.isEmpty) {
+      final latestUnread = await _loadLatestUnreadGrowthLetter(uid);
+      return latestUnread ?? await loadLatestGrowthLetter(uid);
+    }
 
     final weeklyStreakDays = _calculateWeeklyStreakDays(quests);
 
@@ -154,7 +178,9 @@ class GrowthLetterService {
 
     final draft = await _geminiService.generateGrowthLetter(
       nickname: user.nickname,
-      hobby: user.currentPlan.hobby,
+      hobby: selection.hobbies.isEmpty
+          ? user.currentPlan.hobby
+          : selection.hobbies.join(', '),
       questCount: quests.length,
       questTitles: quests.map((quest) => quest.title).take(10).toList(),
       reflections: reflections,
@@ -162,21 +188,21 @@ class GrowthLetterService {
 
     final docRef = _lettersCol(uid).doc(_weekDocumentId(week.start));
     final letterData = GrowthLetterModel(
-        uid: uid,
-        planId: planId,
-        hobby: user.currentPlan.hobby,
-        nickname: user.nickname,
-        letter: draft.letter,
-        questCount: quests.length,
-        reflectionCount: reflections.length,
-        weeklyStreakDays: weeklyStreakDays,
-        questIds: quests.map((quest) => quest.nodeId).toList(),
-        strongestGrowth: draft.strongestGrowth,
-        focusArea: draft.focusArea,
-        nextWeekFocus: draft.nextWeekFocus,
-        periodStart: week.start,
-        periodEnd: week.endExclusive.subtract(const Duration(microseconds: 1)),
-      ).toJson();
+      uid: uid,
+      planId: planId,
+      hobby: user.currentPlan.hobby,
+      nickname: user.nickname,
+      letter: draft.letter,
+      questCount: quests.length,
+      reflectionCount: reflections.length,
+      weeklyStreakDays: weeklyStreakDays,
+      questIds: quests.map((quest) => quest.nodeId).toList(),
+      strongestGrowth: draft.strongestGrowth,
+      focusArea: draft.focusArea,
+      nextWeekFocus: draft.nextWeekFocus,
+      periodStart: week.start,
+      periodEnd: week.endExclusive.subtract(const Duration(microseconds: 1)),
+    ).toJson();
 
     await _firestore.runTransaction((transaction) async {
       final current = await transaction.get(docRef);
@@ -187,50 +213,76 @@ class GrowthLetterService {
     return GrowthLetterModel.fromJson(saved.data()!, docId: saved.id);
   }
 
-  Future<List<QuestNodeModel>> _loadCompletedQuestsForPeriod({
+  Future<_WeeklyQuestSelection> _loadCompletedQuestsForPeriod({
     required String uid,
-    required String planId,
+    required String activePlanId,
+    String activeHobby = '',
     required DateTime periodStart,
     required DateTime periodEndExclusive,
   }) async {
-    final query = _questsCol(uid, planId)
-        .where(
-          'completedAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(periodStart),
-        )
-        .where(
-          'completedAt',
-          isLessThan: Timestamp.fromDate(periodEndExclusive),
-        )
-        .orderBy('completedAt', descending: true);
+    final plansSnapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('plans')
+        .get();
+    final plans = <_GrowthLetterPlan>[];
+    for (final doc in plansSnapshot.docs) {
+      final hobby = doc.data()['hobby']?.toString().trim() ?? '';
+      plans.add(_GrowthLetterPlan(id: doc.id, hobby: hobby));
+    }
+    if (!plans.any((plan) => plan.id == activePlanId)) {
+      plans.add(_GrowthLetterPlan(id: activePlanId, hobby: activeHobby));
+    }
 
-    final snapshot = await query.get();
+    final questGroups = await Future.wait(
+      plans.map((plan) async {
+        final snapshot = await _questsCol(uid, plan.id)
+            .where(
+              'completedAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(periodStart),
+            )
+            .where(
+              'completedAt',
+              isLessThan: Timestamp.fromDate(periodEndExclusive),
+            )
+            .orderBy('completedAt', descending: true)
+            .get();
+        final quests = snapshot.docs
+            .map((doc) => QuestNodeModel.fromJson(doc.data()))
+            .where((quest) => quest.isCompleted)
+            .toList();
+        return (plan: plan, quests: quests);
+      }),
+    );
 
-    final quests = snapshot.docs
-        .map((doc) => QuestNodeModel.fromJson(doc.data()))
-        .where((quest) => quest.isCompleted)
-        .toList();
+    final quests = questGroups.expand((group) => group.quests).toList();
     quests.sort((a, b) {
       final aDate = a.completedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bDate = b.completedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return bDate.compareTo(aDate);
     });
-    return quests;
+    final hobbies = <String>{};
+    for (final group in questGroups) {
+      if (group.quests.isNotEmpty && group.plan.hobby.isNotEmpty) {
+        hobbies.add(group.plan.hobby);
+      }
+    }
+    return _WeeklyQuestSelection(quests: quests, hobbies: hobbies.toList());
   }
 
   Future<bool> _hasCompletedQuestsForPeriod({
     required String uid,
-    required String planId,
+    required String activePlanId,
     required DateTime periodStart,
     required DateTime periodEndExclusive,
   }) async {
-    final quests = await _loadCompletedQuestsForPeriod(
+    final selection = await _loadCompletedQuestsForPeriod(
       uid: uid,
-      planId: planId,
+      activePlanId: activePlanId,
       periodStart: periodStart,
       periodEndExclusive: periodEndExclusive,
     );
-    return quests.isNotEmpty;
+    return selection.quests.isNotEmpty;
   }
 
   int _calculateWeeklyStreakDays(List<QuestNodeModel> quests) {
@@ -306,4 +358,18 @@ class _CalendarWeek {
   final DateTime endExclusive;
 
   const _CalendarWeek({required this.start, required this.endExclusive});
+}
+
+class _GrowthLetterPlan {
+  final String id;
+  final String hobby;
+
+  const _GrowthLetterPlan({required this.id, required this.hobby});
+}
+
+class _WeeklyQuestSelection {
+  final List<QuestNodeModel> quests;
+  final List<String> hobbies;
+
+  const _WeeklyQuestSelection({required this.quests, required this.hobbies});
 }

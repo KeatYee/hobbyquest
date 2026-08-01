@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/color_constants.dart';
@@ -7,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../controllers/profile_controller.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../routes/app_routes.dart';
+import '../../../core/widgets/goal_complete_screen.dart';
+import '../../../core/widgets/milestone_complete_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -48,7 +51,9 @@ class ProfilePage extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _handleLogout(context),
                     icon: Icon(
-                      Icons.logout_rounded, size: 20, color: AppColors.error,
+                      Icons.logout_rounded,
+                      size: 20,
+                      color: AppColors.error,
                     ),
                     label: Text(
                       "Log Out",
@@ -100,6 +105,10 @@ class ProfilePage extends StatelessWidget {
                   _buildAccountSection(context, currentUser, userModel),
                   const SizedBox(height: 24),
                   _buildGeneralSection(context),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 24),
+                    _buildScreenshotDemoSection(),
+                  ],
                   const SizedBox(height: 28),
                   _buildLogoutButton(context),
                   const SizedBox(height: 12),
@@ -276,6 +285,41 @@ class ProfilePage extends StatelessWidget {
             title: "Help & Support",
             subtitle: "Feedback and app version",
             onTap: () => Get.toNamed(AppRoutes.HELP_SUPPORT),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScreenshotDemoSection() {
+    return _SectionCard(
+      label: "SCREENSHOT DEMOS",
+      child: Column(
+        children: [
+          _SettingsTile(
+            icon: Icons.flag_circle_outlined,
+            iconColor: AppColors.primary,
+            title: "Show Milestone Complete",
+            subtitle: "Preview the real celebration screen safely",
+            onTap: () => Get.generalDialog<void>(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const MilestoneCompleteScreen(demoMode: true),
+              barrierDismissible: false,
+              barrierLabel: 'Milestone Complete Demo',
+            ),
+          ),
+          const _TileDivider(),
+          _SettingsTile(
+            icon: Icons.emoji_events_outlined,
+            iconColor: AppColors.warning,
+            title: "Show Goal Complete",
+            subtitle: "Preview realistic completed-plan results",
+            onTap: () => Get.generalDialog<void>(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const GoalCompleteScreen(demoMode: true),
+              barrierDismissible: false,
+              barrierLabel: 'Goal Complete Demo',
+            ),
           ),
         ],
       ),
@@ -473,11 +517,7 @@ class _HeroHeader extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: const [
-                      SizedBox(width: 8),
-                    ],
-                  ),
+                  child: Row(children: const [SizedBox(width: 8)]),
                 ),
 
                 SizedBox(

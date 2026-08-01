@@ -9,6 +9,7 @@ import '../../controllers/home_controller.dart';
 import '../../models/tree_model.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../services/category_service.dart';
+import '../widgets/grove_complete_screen.dart';
 
 class ForestPage extends StatefulWidget {
   const ForestPage({super.key});
@@ -20,6 +21,7 @@ class ForestPage extends StatefulWidget {
 class _ForestPageState extends State<ForestPage> {
   static const int _spotCount = TreeModel.forestSpotCount;
   int? _selectedGroveIndex;
+  bool _demoNextGroveAvailable = false;
 
   @override
   void initState() {
@@ -332,8 +334,34 @@ class _ForestPageState extends State<ForestPage> {
     );
   }
 
-  void _showTreeInfo(TreeModel tree) {
+  Future<void> _showGroveCompletionDemo() async {
+    await GroveCompleteScreen.show(
+      context: context,
+      completedGroveIndex: 1,
+      treeCount: TreeModel.forestSpotCount,
+      totalQuestXp: TreeModel.forestSpotCount * TreeModel.maturityXp,
+      onExploreNextGrove: () {
+        Get.back();
+        if (!mounted) return;
+        setState(() {
+          _demoNextGroveAvailable = true;
+          _selectedGroveIndex = 2;
+        });
+      },
+    );
+  }
+
+  Future<void> _showTreeInfo(TreeModel tree) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final categories = await CategoryService().getCategories();
+    var categoryName = tree.categoryId.trim();
+    for (final category in categories) {
+      if (category.id == tree.categoryId) {
+        categoryName = category.name;
+        break;
+      }
+    }
+    if (categoryName.isEmpty) categoryName = 'Unknown category';
 
     void renameTree() async {
       final newName = await AppDialogs.input(
@@ -419,6 +447,12 @@ class _ForestPageState extends State<ForestPage> {
                       label: 'Forest home',
                       value:
                           'Grove ${tree.groveIndex} | Spot ${tree.treeIndex + 1}',
+                    ),
+                    const SizedBox(height: 8),
+                    _treeDetailRow(
+                      icon: Icons.category_rounded,
+                      label: 'Hobby category',
+                      value: categoryName,
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -742,6 +776,18 @@ class _ForestPageState extends State<ForestPage> {
       ),
       extendBodyBehindAppBar: true,
       backgroundColor: AppColors.success,
+      floatingActionButton: _demoNextGroveAvailable
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showGroveCompletionDemo,
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+              icon: const Icon(Icons.slideshow_rounded),
+              label: const Text(
+                'DEMO GROVE COMPLETE',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
       body: uid == null
           ? const Center(child: Text('Please sign in'))
           : Stack(
@@ -783,6 +829,7 @@ class _ForestPageState extends State<ForestPage> {
                     final activeGrove = _activeGroveIndex();
                     final availableGroves = <int>{
                       activeGrove,
+                      if (_demoNextGroveAvailable) 2,
                       ...allItems.map((entry) => entry.tree.groveIndex),
                       if (Get.isRegistered<HomeController>())
                         ...?Get.find<HomeController>()

@@ -132,14 +132,6 @@ class UserProfilePage extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      userId,
-                      style: TextStyle(
-                        fontSize: AppFonts.badge,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
 
                     const SizedBox(height: 36),
 

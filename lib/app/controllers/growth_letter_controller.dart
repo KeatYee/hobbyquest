@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 
-import '../../core/utils/dialog_utils.dart';
 import 'home_controller.dart';
 import '../models/growth_letter_model.dart';
 import '../models/user_model.dart';
@@ -16,6 +15,7 @@ class GrowthLetterController extends GetxController {
 
   final isLoading = true.obs;
   final letter = Rxn<GrowthLetterModel>();
+  final loadError = RxnString();
 
   @override
   void onInit() {
@@ -26,11 +26,17 @@ class GrowthLetterController extends GetxController {
   Future<void> loadOrWriteLetter() async {
     try {
       isLoading.value = true;
-      final loadedLetter = await _service.generateWeeklyGrowthLetter(user: user);
+      loadError.value = null;
+      final loadedLetter = await _service.generateWeeklyGrowthLetter(
+        user: user,
+      );
       letter.value = loadedLetter;
       await _markCurrentLetterRead(loadedLetter);
     } catch (e) {
-      AppDialogs.error('Growth Letter', 'Failed to load growth letter: $e');
+      letter.value = null;
+      loadError.value =
+          'We could not load your Growth Letter. Check your connection and try again.';
+      Get.log('Failed to load Growth Letter: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
