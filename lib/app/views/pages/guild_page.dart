@@ -8,29 +8,47 @@ import '../../../core/constants/font_constants.dart';
 import '../../../core/utils/dialog_utils.dart';
 import '../../routes/app_routes.dart';
 
-class GuildPage extends StatelessWidget {
+class GuildPage extends StatefulWidget {
   const GuildPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final GuildController controller = Get.find<GuildController>();
-    final arguments = Get.arguments;
-    if (arguments is Map) {
-      controller.focusPost(arguments['postId']?.toString());
-    }
+  State<GuildPage> createState() => _GuildPageState();
+}
 
+class _GuildPageState extends State<GuildPage> {
+  late final GuildController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.find<GuildController>();
+
+    final arguments = Get.arguments;
+    final postId = arguments is Map
+        ? arguments['postId']?.toString().trim() ?? ''
+        : '';
+    if (postId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.focusPost(postId);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Stack(
         children: [
           Obx(() {
-            if (controller.isLoading.value) {
+            if (_controller.isLoading.value) {
               return _buildLoadingView(context);
             }
 
             return Column(
               children: [
-                _buildFeedFilterHeader(controller),
-                Expanded(child: _buildFilteredFeed(context, controller)),
+                _buildFeedFilterHeader(_controller),
+                Expanded(child: _buildFilteredFeed(context, _controller)),
               ],
             );
           }),
@@ -82,23 +100,23 @@ class GuildPage extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               child: Row(
                 children: [
-                _buildFeedFilterChip(
-                  controller: controller,
-                  filter: GuildFeedFilter.forYou,
-                  label: 'For You',
-                ),
-                const SizedBox(width: 8),
-                _buildFeedFilterChip(
-                  controller: controller,
-                  filter: GuildFeedFilter.sameHobby,
-                  label: 'Same Hobby',
-                ),
-                const SizedBox(width: 8),
-                _buildFeedFilterChip(
-                  controller: controller,
-                  filter: GuildFeedFilter.sameCharacter,
-                  label: 'Same Character',
-                ),
+                  _buildFeedFilterChip(
+                    controller: controller,
+                    filter: GuildFeedFilter.forYou,
+                    label: 'For You',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFeedFilterChip(
+                    controller: controller,
+                    filter: GuildFeedFilter.sameHobby,
+                    label: 'Same Hobby',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFeedFilterChip(
+                    controller: controller,
+                    filter: GuildFeedFilter.sameCharacter,
+                    label: 'Same Character',
+                  ),
                 ],
               ),
             ),
@@ -205,10 +223,7 @@ class GuildPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(
-    BuildContext context,
-    String message,
-  ) {
+  Widget _buildEmptyState(BuildContext context, String message) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Center(

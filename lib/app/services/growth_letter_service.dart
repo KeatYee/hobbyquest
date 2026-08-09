@@ -131,7 +131,7 @@ class GrowthLetterService {
     required String uid,
     required String letterId,
   }) async {
-    if (uid.isEmpty || letterId.isEmpty || letterId == 'demo') return;
+    if (uid.isEmpty || letterId.isEmpty) return;
 
     await _lettersCol(
       uid,

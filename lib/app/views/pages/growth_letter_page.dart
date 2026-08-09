@@ -17,8 +17,6 @@ import '../../controllers/profile_controller.dart';
 import '../../models/growth_letter_model.dart';
 import '../dialogs/add_guild_post_dialog.dart';
 
-enum _GrowthLetterEvidenceDemo { empty, error, personalised }
-
 class GrowthLetterPage extends StatefulWidget {
   const GrowthLetterPage({super.key});
 
@@ -33,7 +31,6 @@ class GrowthLetterPage extends StatefulWidget {
 
 class _GrowthLetterPageState extends State<GrowthLetterPage> {
   final GlobalKey _letterImageKey = GlobalKey();
-  _GrowthLetterEvidenceDemo? _evidenceDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +53,6 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
       final controller = Get.isRegistered<GrowthLetterController>()
           ? Get.find<GrowthLetterController>()
           : Get.put(GrowthLetterController(user: user));
-      final evidenceDemo = _evidenceDemo;
 
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -80,33 +76,17 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
             onPressed: () => Get.back(),
           ),
         ),
-        bottomNavigationBar: evidenceDemo == null
-            ? _buildEvidenceDemoBar()
-            : null,
         body: SafeArea(
           top: false,
           child: Obx(() {
-            if (evidenceDemo == null && controller.isLoading.value) {
+            if (controller.isLoading.value) {
               return const Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               );
             }
 
-            final currentLetter = switch (evidenceDemo) {
-              _GrowthLetterEvidenceDemo.personalised =>
-                _buildPersonalisedDemoLetter(
-                  nickname: user.nickname,
-                  hobby: user.currentPlan.hobby,
-                ),
-              _GrowthLetterEvidenceDemo.empty ||
-              _GrowthLetterEvidenceDemo.error => null,
-              null => controller.letter.value,
-            };
-            final loadError = switch (evidenceDemo) {
-              _GrowthLetterEvidenceDemo.error =>
-                'We could not load your Growth Letter. Check your connection and try again.',
-              _ => evidenceDemo == null ? controller.loadError.value : null,
-            };
+            final currentLetter = controller.letter.value;
+            final loadError = controller.loadError.value;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -116,12 +96,7 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
                   if (loadError != null)
                     _GrowthLetterErrorCard(
                       message: loadError,
-                      onRetry: () {
-                        if (_evidenceDemo != null) {
-                          setState(() => _evidenceDemo = null);
-                        }
-                        controller.loadOrWriteLetter();
-                      },
+                      onRetry: controller.loadOrWriteLetter,
                     )
                   else if (currentLetter == null)
                     const _EmptyLetterCard()
@@ -167,119 +142,6 @@ class _GrowthLetterPageState extends State<GrowthLetterPage> {
         ),
       );
     });
-  }
-
-  Widget _buildEvidenceDemoBar() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'SCREENSHOT EVIDENCE DEMOS',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: AppFonts.label,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _evidenceDemoButton(
-                    label: 'EMPTY',
-                    icon: Icons.mail_outline_rounded,
-                    state: _GrowthLetterEvidenceDemo.empty,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _evidenceDemoButton(
-                    label: 'ERROR',
-                    icon: Icons.cloud_off_rounded,
-                    state: _GrowthLetterEvidenceDemo.error,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _evidenceDemoButton(
-                    label: 'LETTER',
-                    icon: Icons.auto_awesome_rounded,
-                    state: _GrowthLetterEvidenceDemo.personalised,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _evidenceDemoButton({
-    required String label,
-    required IconData icon,
-    required _GrowthLetterEvidenceDemo state,
-  }) {
-    return OutlinedButton.icon(
-      onPressed: () => setState(() => _evidenceDemo = state),
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        side: const BorderSide(color: AppColors.primary),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
-        textStyle: const TextStyle(
-          fontSize: AppFonts.label,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  GrowthLetterModel _buildPersonalisedDemoLetter({
-    required String nickname,
-    required String hobby,
-  }) {
-    final displayName = nickname.trim().isEmpty ? 'Hero' : nickname.trim();
-    final displayHobby = hobby.trim().isEmpty ? 'your hobby' : hobby.trim();
-    return GrowthLetterModel(
-      id: 'demo',
-      uid: 'demo',
-      planId: 'demo',
-      hobby: displayHobby,
-      nickname: displayName,
-      letter:
-          'Dear $displayName,\n\n'
-          'This week, you completed six $displayHobby quests and showed consistent effort across four active days.\n\n'
-          'Your reflections show growing confidence in the fundamentals, especially when you slowed down to review each attempt.\n\n'
-          'The next step is to improve accuracy by repeating one focused exercise and comparing the result with your earlier work.\n\n'
-          'Keep building on this steady rhythm next week, because your small and thoughtful practice sessions are creating meaningful progress.',
-      questCount: 6,
-      reflectionCount: 5,
-      weeklyStreakDays: 4,
-      questIds: const [
-        'demo_quest_1',
-        'demo_quest_2',
-        'demo_quest_3',
-        'demo_quest_4',
-        'demo_quest_5',
-        'demo_quest_6',
-      ],
-      strongestGrowth: 'Consistent practice',
-      focusArea: 'Practice accuracy',
-      nextWeekFocus: 'Focused repetition',
-      periodStart: DateTime(2026, 7, 20),
-      periodEnd: DateTime(2026, 7, 26, 23, 59, 59),
-    );
   }
 
   Future<void> _showShareToGuildSheet(

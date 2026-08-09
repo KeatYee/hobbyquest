@@ -45,7 +45,6 @@ class GrowthLetterController extends GetxController {
   Future<void> _markCurrentLetterRead(GrowthLetterModel? currentLetter) async {
     if (currentLetter == null ||
         currentLetter.id.isEmpty ||
-        currentLetter.id == 'demo' ||
         currentLetter.readAt != null) {
       _syncDashboardUnread(null);
       return;
@@ -67,9 +66,7 @@ class GrowthLetterController extends GetxController {
     if (!Get.isRegistered<HomeController>()) return;
     final homeController = Get.find<HomeController>();
     homeController.hasAvailableGrowthLetter.value =
-        unreadLetter != null &&
-        unreadLetter.id != 'demo' &&
-        unreadLetter.readAt == null;
+        unreadLetter != null && unreadLetter.readAt == null;
     unawaited(homeController.refreshGrowthLetterAvailability());
   }
 }

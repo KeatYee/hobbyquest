@@ -377,6 +377,7 @@ class GuildController extends GetxController {
   void focusPost(String? postId) {
     final normalizedPostId = postId?.trim() ?? '';
     if (normalizedPostId.isEmpty) return;
+    if (focusedPostId.value == normalizedPostId) return;
 
     focusedPostId.value = normalizedPostId;
   }
