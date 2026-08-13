@@ -16,6 +16,8 @@ const ACCOUNT_DELETION_REGION = "asia-southeast1";
 const ACCOUNT_CLEANUP_CONCURRENCY = 20;
 const MAX_AI_PROMPT_LENGTH = 20000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const GEMINI_SEND_ATTEMPTS = 3;
+const GEMINI_RETRY_DELAY_MS = 500;
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 const FALLBACK_REVIEW_AXES = new Set([
   "Quality", "Effort", "Impact", "Creativity", "Technique", "Color Theory",
@@ -96,7 +98,7 @@ exports.cleanupDeletedUserData = onDocumentDeleted(
 exports.generateWithGemini = onCall(
     {
       region: ACCOUNT_DELETION_REGION,
-      timeoutSeconds: 120,
+      timeoutSeconds: 300,
       memory: "512MiB",
     },
     async (request) => {
@@ -128,37 +130,55 @@ exports.generateWithGemini = onCall(
       }
 
       let response;
-      try {
-        const projectId = process.env.GCLOUD_PROJECT ||
-          process.env.GCP_PROJECT ||
-          admin.app().options.projectId;
-        const credential = admin.app().options.credential;
-        if (!projectId || !credential) {
-          throw new Error("Firebase project credentials are unavailable.");
-        }
-        const accessToken = await credential.getAccessToken();
-        const endpoint =
-          "https://aiplatform.googleapis.com/v1/projects/" +
-          `${encodeURIComponent(projectId)}/locations/global/` +
-          `publishers/google/models/${GEMINI_MODEL}:generateContent`;
-        response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "authorization": `Bearer ${accessToken.access_token}`,
-            "content-type": "application/json",
-            "x-goog-user-project": projectId,
-          },
-          body: JSON.stringify({
-            contents: [{role: "user", parts}],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.4,
+      let lastSendError;
+      for (let attempt = 1; attempt <= GEMINI_SEND_ATTEMPTS; attempt++) {
+        try {
+          const projectId = process.env.GCLOUD_PROJECT ||
+            process.env.GCP_PROJECT ||
+            admin.app().options.projectId;
+          const credential = admin.app().options.credential;
+          if (!projectId || !credential) {
+            throw new Error("Firebase project credentials are unavailable.");
+          }
+          const accessToken = await credential.getAccessToken();
+          const endpoint =
+            "https://aiplatform.googleapis.com/v1/projects/" +
+            `${encodeURIComponent(projectId)}/locations/global/` +
+            `publishers/google/models/${GEMINI_MODEL}:generateContent`;
+          response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "authorization": `Bearer ${accessToken.access_token}`,
+              "content-type": "application/json",
+              "x-goog-user-project": projectId,
             },
-          }),
-        });
-      } catch (error) {
-        logger.error("Gemini request could not be sent.", {
-          error,
+            body: JSON.stringify({
+              contents: [{role: "user", parts}],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.4,
+              },
+            }),
+          });
+          lastSendError = null;
+          break;
+        } catch (error) {
+          lastSendError = error;
+          logger.warn("Gemini request could not be sent.", {
+            attempt,
+            errorMessage: asErrorMessage(error),
+            errorStack: error && error.stack ? error.stack : undefined,
+            model: GEMINI_MODEL,
+            uid: request.auth.uid,
+          });
+          if (attempt < GEMINI_SEND_ATTEMPTS) {
+            await sleep(GEMINI_RETRY_DELAY_MS * attempt);
+          }
+        }
+      }
+      if (!response) {
+        logger.error("Gemini request failed after retries.", {
+          errorMessage: asErrorMessage(lastSendError),
           model: GEMINI_MODEL,
           uid: request.auth.uid,
         });
@@ -1028,6 +1048,24 @@ function chunk(items, size) {
   }
 
   return chunks;
+}
+
+/**
+ * Wait for a number of milliseconds.
+ * @param {number} milliseconds Duration to wait.
+ * @return {Promise<void>} Resolves after the delay.
+ */
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/**
+ * Extract a readable message from an unknown caught error.
+ * @param {unknown} error Caught error value.
+ * @return {string} Readable error message.
+ */
+function asErrorMessage(error) {
+  return error && error.message ? String(error.message) : String(error);
 }
 
 /**

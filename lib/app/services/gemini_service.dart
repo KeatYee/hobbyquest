@@ -52,7 +52,14 @@ class GeminiService {
     String? mimeType,
     Uint8List? imageBytes,
   }) async {
-    final result = await _functions.httpsCallable('generateWithGemini').call({
+    final result = await _functions
+        .httpsCallable(
+          'generateWithGemini',
+          options: HttpsCallableOptions(
+            timeout: const Duration(seconds: 300),
+          ),
+        )
+        .call({
       'prompt': prompt,
       if (mimeType != null && imageBytes != null) ...{
         'mimeType': mimeType,
